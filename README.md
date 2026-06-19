@@ -27,9 +27,13 @@ To check our catalog or place an order, scan the QR code below or reach out dire
    - Converts standard `.srt` subtitle files to WebVTT (`.vtt`) on-the-fly.
    - Built-in adjustable playback rate options (`1x`, `1.25x`, `1.5x`, `1.75x`, `2x`).
    - Browser hotkeys: `Space` (play/pause), `ArrowLeft`/`ArrowRight` (skip back/forward 5 seconds), `ArrowUp`/`ArrowDown` (volume), and `F` (fullscreen toggle).
-4. **Interactive Notes Timeline**: Pauses the video automatically when you start typing a note. Note entries are logged with click-to-seek timestamp badges; clicking a note badge seeks the video player to that exact second.
+ 4. **Interactive Notes Timeline**: Pauses the video automatically when you start typing a note. Note entries are logged with click-to-seek timestamp badges; clicking a note badge seeks the video player to that exact second.
 5. **Auto-Completion & Auto-Save**: Auto-completes a video lesson when watch progress reaches `90%`. Periodically saves current playback timestamps every 5 seconds to local storage so you can resume precisely where you paused.
-6. **Premium Dark Theme Layout**: Responsive design crafted with custom Vanilla CSS variables, visual hierarchy grid panels, and glassmorphism styling.
+6. **AI Subtitle Translation**: Automatically translates English subtitle tracks into Vietnamese (or other selected languages) using the Gemini API, saving `.vi.vtt` (or target lang code) files next to the videos.
+7. **Offline AI Summarization**: Generates structured, bulleted summaries of video lessons based on the active subtitle track. Caches them next to subtitles as `.summary.[lang].txt` files to enable instant, offline reloading without invoking the API again.
+8. **Transcript-Grounded AI Chat**: Features a conversational chat sidebar where you can ask quick questions about the lesson, using the subtitle transcript text as the grounding context.
+9. **API Resilience Failover**: Implements automatic fallback from `gemini-2.5-flash` to `gemini-1.5-flash` via the `v1beta` API to ensure high availability and self-healing against transient Google API outages or rate limits.
+10. **Premium Dark Theme Layout**: Responsive design crafted with custom Vanilla CSS variables, visual hierarchy grid panels, and glassmorphism styling.
 
 ---
 
@@ -96,3 +100,10 @@ Visit **[http://localhost:3002](http://localhost:3002)** to browse and play your
 * **`POST /api/userdata/progress`**: Updates completion states and watch logs.
 * **`POST /api/userdata/notes`**: Inserts or updates annotation notes.
 * **`DELETE /api/userdata/notes`**: Removes note entries from a lesson timeline.
+* **`POST /api/userdata/settings`**: Saves application settings (such as the Gemini API Key).
+* **`POST /api/translate-subtitle`**: Translates English subtitles into a target language using Gemini, saving the `.vtt` file next to the media.
+* **`POST /api/summarize-lesson`**: Generates (and caches to disk next to subtitles) or retrieves a cached lesson summary.
+* **`POST /api/clear-summary`**: Clears the cached summary file from disk to force regeneration.
+* **`POST /api/chat-lesson`**: Chat assistant grounded in the subtitles transcript.
+* **`POST /api/browse-folder`**: Launches native OS folder dialog window.
+

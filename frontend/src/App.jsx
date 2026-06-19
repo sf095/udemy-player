@@ -16,6 +16,7 @@ export default function App() {
   const [settings, setSettings] = useState({ geminiApiKey: '' });
   
   const [activeLesson, setActiveLesson] = useState(null);
+  const [activeLang, setActiveLang] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'doc'
   
@@ -464,6 +465,8 @@ export default function App() {
                     onTimeUpdate={handleTimeUpdate}
                     playerRef={playerRef}
                     onSubtitlesUpdated={handleSubtitlesUpdated}
+                    activeLang={activeLang}
+                    setActiveLang={setActiveLang}
                   />
                 ) : (
                   <DocViewer
@@ -494,6 +497,9 @@ export default function App() {
             onDeleteNote={handleDeleteNote}
             onSeek={handleSeek}
             onPauseVideo={handlePauseVideo}
+            activeLesson={activeLesson}
+            activeLang={activeLang}
+            hasApiKey={!!settings.geminiApiKey}
           />
         )}
       </main>

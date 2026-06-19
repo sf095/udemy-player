@@ -53,6 +53,45 @@ function writeDb(data) {
   }
 }
 
+// Resilient API Caller that falls back from Gemini 2.5 Flash to Gemini 1.5 Flash on transient errors
+async function callGeminiWithFallback(apiKey, payloadBody, isV1Beta = false) {
+  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  let lastError = null;
+
+  for (const model of models) {
+    const apiVersion = isV1Beta ? 'v1beta' : 'v1';
+    const currentUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+
+    console.log(`Attempting Gemini API call with model ${model} via ${apiVersion}...`);
+    try {
+      const response = await fetch(currentUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payloadBody)
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          return text;
+        }
+      }
+      
+      const errorText = await response.text();
+      console.warn(`Gemini call with model ${model} failed (HTTP ${response.status}):`, errorText);
+      lastError = new Error(`Gemini API error: ${response.statusText} (${errorText})`);
+    } catch (e) {
+      console.warn(`Network error with model ${model}:`, e);
+      lastError = e;
+    }
+  }
+
+  throw lastError || new Error('All Gemini model attempts failed.');
+}
+
 // Convert SubRip (.srt) to WebVTT (.vtt) in-memory
 function srtToVtt(srtContent) {
   // Strip BOM (Byte Order Mark) if present at the start of the file
@@ -352,39 +391,25 @@ Do not add any explanations, markdown code blocks, or introductory text. Return 
 [Subtitle File Content]:
 ${subtitleContent}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-lite:generateContent?key=${effectiveApiKey}`;
-    
-    console.log(`Calling Gemini API for translation to ${targetLanguageName}...`);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ]
-      })
-    });
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt
+            }
+          ]
+        }
+      ]
+    };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API call failed:', errorText);
-      return res.status(response.status).json({ error: `Gemini API error: ${response.statusText}`, details: errorText });
-    }
-
-    const responseData = await response.json();
-    let translatedText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!translatedText) {
-      console.error('Empty response from Gemini API:', responseData);
-      return res.status(500).json({ error: 'No translation text returned from Gemini API' });
+    console.log(`Calling Gemini API for translation to ${targetLanguageName} with fallback...`);
+    let translatedText;
+    try {
+      translatedText = await callGeminiWithFallback(effectiveApiKey, payload, false);
+    } catch (apiError) {
+      console.error('Gemini API call failed for translation:', apiError);
+      return res.status(500).json({ error: apiError.message });
     }
 
     // Clean up markdown block if the model returned it
@@ -413,7 +438,194 @@ ${subtitleContent}`;
   }
 });
 
-// 12. Native Folder Dialog Browser
+// 12. Summarize Lesson based on subtitle file
+app.post('/api/summarize-lesson', async (req, res) => {
+  const { subtitlePath, langCode } = req.body;
+  if (!subtitlePath || !langCode) {
+    return res.status(400).json({ error: 'subtitlePath and langCode are required' });
+  }
+
+  const db = readDb();
+  const effectiveApiKey = db.settings && db.settings.geminiApiKey;
+
+  if (!effectiveApiKey) {
+    return res.status(400).json({ error: 'Gemini API Key is missing. Please set it in Settings.' });
+  }
+
+  if (!fs.existsSync(subtitlePath)) {
+    return res.status(404).json({ error: `Subtitle file not found: ${subtitlePath}` });
+  }
+
+  // Determine summary file path next to subtitle path
+  const dir = path.dirname(subtitlePath);
+  const ext = path.extname(subtitlePath);
+  let base = path.basename(subtitlePath, ext);
+  
+  // Strip language suffix if any (e.g. .en, .vi, .ja)
+  base = base.replace(/\.[a-z]{2}(?:_[a-z]{2,4})?$/i, '');
+  const outPath = path.join(dir, `${base}.summary.${langCode.toLowerCase()}.txt`);
+
+  // Check cache first
+  if (fs.existsSync(outPath)) {
+    try {
+      const summaryContent = fs.readFileSync(outPath, 'utf8');
+      return res.json({ success: true, summary: summaryContent, cached: true });
+    } catch (e) {
+      console.error('Error reading cached summary', e);
+    }
+  }
+
+  if (req.body.checkCacheOnly) {
+    return res.json({ success: true, summary: null, cached: false });
+  }
+
+  const SUPPORTED_LANGUAGES = {
+    vi: 'Vietnamese',
+    ja: 'Japanese',
+    zh: 'Chinese',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    ko: 'Korean',
+    ru: 'Russian',
+    ar: 'Arabic',
+    pt: 'Portuguese',
+    en: 'English'
+  };
+  const targetLanguageName = SUPPORTED_LANGUAGES[langCode.toLowerCase()] || langCode.toUpperCase();
+
+  try {
+    const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
+
+    const prompt = `You are an expert offline learning assistant.
+Below is the subtitle transcript of a video lesson.
+Please write a concise, structured summary of this lesson.
+The summary must:
+- Highlight the key concepts, main topics covered, and actionable takeaways.
+- Be formatted in clean, beautiful Markdown (using headers, lists, bold text where appropriate).
+- Be written in the target language: ${targetLanguageName}.
+- Do NOT include any meta-commentary, explanations, introductory text, or markdown code blocks (like \`\`\`markdown). Return ONLY the direct summary content.
+
+[Subtitle Transcript]:
+${subtitleContent}`;
+
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt
+            }
+          ]
+        }
+      ]
+    };
+
+    console.log(`Calling Gemini API for summary in ${targetLanguageName} with fallback...`);
+    let summaryText;
+    try {
+      summaryText = await callGeminiWithFallback(effectiveApiKey, payload, false);
+    } catch (apiError) {
+      console.error('Gemini API call failed for summary:', apiError);
+      return res.status(500).json({ error: apiError.message });
+    }
+
+    // Clean up markdown block if the model returned it
+    summaryText = summaryText.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '');
+
+    // Save summary file next to subtitle
+    fs.writeFileSync(outPath, summaryText, 'utf8');
+
+    res.json({ success: true, summary: summaryText, cached: false });
+  } catch (error) {
+    console.error('Lesson summarization error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 13. Clear Summarize Cache
+app.post('/api/clear-summary', (req, res) => {
+  const { subtitlePath, langCode } = req.body;
+  if (!subtitlePath || !langCode) {
+    return res.status(400).json({ error: 'subtitlePath and langCode are required' });
+  }
+
+  try {
+    const dir = path.dirname(subtitlePath);
+    const ext = path.extname(subtitlePath);
+    let base = path.basename(subtitlePath, ext);
+    base = base.replace(/\.[a-z]{2}(?:_[a-z]{2,4})?$/i, '');
+    const outPath = path.join(dir, `${base}.summary.${langCode.toLowerCase()}.txt`);
+
+    if (fs.existsSync(outPath)) {
+      fs.unlinkSync(outPath);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing summary file:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 14. Chat about lesson based on subtitle file
+app.post('/api/chat-lesson', async (req, res) => {
+  const { subtitlePath, messages } = req.body;
+  if (!subtitlePath || !messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'subtitlePath and messages array are required' });
+  }
+
+  const db = readDb();
+  const effectiveApiKey = db.settings && db.settings.geminiApiKey;
+
+  if (!effectiveApiKey) {
+    return res.status(400).json({ error: 'Gemini API Key is missing. Please set it in Settings.' });
+  }
+
+  if (!fs.existsSync(subtitlePath)) {
+    return res.status(404).json({ error: `Subtitle file not found: ${subtitlePath}` });
+  }
+
+  try {
+    const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
+
+    const systemInstruction = `You are a helpful AI assistant for an offline course player.
+The student is watching a video lesson. Below is the transcript (subtitles) of the current lesson:
+---
+${subtitleContent}
+---
+Use the transcript above to answer the student's question accurately.
+If the question is about something not discussed in the transcript but relevant to the lesson topic, feel free to answer using your general knowledge, but prioritize the transcript details.
+Keep your response concise, clear, and direct. Use the same language as the student's question.`;
+
+    const formattedContents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: systemInstruction }]
+      },
+      contents: formattedContents
+    };
+
+    console.log(`Calling Gemini API for chat question with fallback...`);
+    let replyText;
+    try {
+      replyText = await callGeminiWithFallback(effectiveApiKey, payload, true);
+    } catch (apiError) {
+      console.error('Gemini API call failed for chat:', apiError);
+      return res.status(500).json({ error: apiError.message });
+    }
+
+    res.json({ success: true, reply: replyText });
+  } catch (error) {
+    console.error('Chat lesson error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 15. Native Folder Dialog Browser
 app.post('/api/browse-folder', (req, res) => {
   if (process.platform === 'darwin') {
     const cmd = `osascript -e 'POSIX path of (choose folder with prompt "Select Udemy course folder:")'`;

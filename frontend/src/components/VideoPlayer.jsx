@@ -13,9 +13,17 @@ const CURATED_LANGUAGES = [
   { code: 'pt', name: 'Portuguese' }
 ];
 
-export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, onTimeUpdate, playerRef, onSubtitlesUpdated }) {
+export default function VideoPlayer({
+  videoPath,
+  subtitles = {},
+  initialTime,
+  onTimeUpdate,
+  playerRef,
+  onSubtitlesUpdated,
+  activeLang,
+  setActiveLang
+}) {
   const [speed, setSpeed] = useState(1);
-  const [activeLang, setActiveLang] = useState('');
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
   const [subtitleSize, setSubtitleSize] = useState(() => {
@@ -29,19 +37,24 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
   // Sync active language when subtitles list or video path changes
   useEffect(() => {
     const keys = Object.keys(subtitles || {});
+    let nextLang = '';
     if (keys.length > 0) {
       if (activeLang && keys.includes(activeLang)) {
-        // Keep active language if still available
+        nextLang = activeLang;
       } else if (keys.includes('en')) {
-        setActiveLang('en');
+        nextLang = 'en';
       } else {
-        setActiveLang(keys[0]);
+        nextLang = keys[0];
       }
-    } else {
-      setActiveLang('');
     }
-    setTranslationError(null);
-  }, [videoPath, subtitles]);
+    const timer = setTimeout(() => {
+      if (nextLang !== activeLang) {
+        setActiveLang(nextLang);
+      }
+      setTranslationError(null);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [videoPath, subtitles, activeLang, setActiveLang]);
 
   const handleStartTranslation = async (targetLangCode) => {
     const englishPath = subtitles?.en;
