@@ -303,9 +303,9 @@ app.post('/api/userdata/settings', (req, res) => {
   res.json(db);
 });
 
-// 11. Translate Subtitle from English to Vietnamese
+// 11. Translate Subtitle from English to Vietnamese (or custom targetLang)
 app.post('/api/translate-subtitle', async (req, res) => {
-  const { subtitlePath, apiKey } = req.body;
+  const { subtitlePath, apiKey, targetLang } = req.body;
   if (!subtitlePath) {
     return res.status(400).json({ error: 'subtitlePath is required' });
   }
@@ -321,13 +321,30 @@ app.post('/api/translate-subtitle', async (req, res) => {
     return res.status(404).json({ error: `Subtitle file not found: ${subtitlePath}` });
   }
 
+  const SUPPORTED_LANGUAGES = {
+    vi: 'Vietnamese',
+    ja: 'Japanese',
+    zh: 'Chinese',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    ko: 'Korean',
+    ru: 'Russian',
+    ar: 'Arabic',
+    pt: 'Portuguese',
+    en: 'English'
+  };
+
+  const targetLangCode = (targetLang || 'vi').toLowerCase();
+  const targetLanguageName = SUPPORTED_LANGUAGES[targetLangCode] || targetLangCode.toUpperCase();
+
   try {
     const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
 
-    const prompt = `Translate the following English subtitle file to Vietnamese. 
+    const prompt = `Translate the following English subtitle file to ${targetLanguageName}. 
 You must preserve all timecodes, formatting, line numbers, and subtitle syntax exactly. 
 Do not translate or modify timecodes or line numbers (e.g. 00:01:23,450 --> 00:01:25,120).
-Ensure the Vietnamese translation is natural, fits the context, and uses appropriate terminology.
+Ensure the ${targetLanguageName} translation is natural, fits the context, and uses appropriate terminology.
 Do not add any explanations, markdown code blocks, or introductory text. Return ONLY the translated subtitle file contents.
 
 [Subtitle File Content]:
@@ -335,7 +352,7 @@ ${subtitleContent}`;
 
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-lite:generateContent?key=${effectiveApiKey}`;
     
-    console.log(`Calling Gemini API for translation...`);
+    console.log(`Calling Gemini API for translation to ${targetLanguageName}...`);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -376,15 +393,15 @@ ${subtitleContent}`;
       translatedText = srtToVtt(translatedText);
     }
 
-    // Save translated file as .vi.vtt
+    // Save translated file as .[targetLang].vtt
     const dir = path.dirname(subtitlePath);
     const ext = path.extname(subtitlePath);
     let base = path.basename(subtitlePath, ext);
     
-    // Strip language suffixes if present in source
-    base = base.replace(/\.en_US$/i, '').replace(/\.en$/i, '');
+    // Strip language suffixes if present in source (e.g. .en, .en_US, .vi)
+    base = base.replace(/\.[a-z]{2}(?:_[a-z]{2,4})?$/i, '');
 
-    const outPath = path.join(dir, `${base}.vi.vtt`);
+    const outPath = path.join(dir, `${base}.${targetLangCode}.vtt`);
     fs.writeFileSync(outPath, translatedText, 'utf8');
 
     res.json({ success: true, path: outPath });

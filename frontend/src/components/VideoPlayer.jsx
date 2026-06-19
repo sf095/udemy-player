@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
+const CURATED_LANGUAGES = [
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'pt', name: 'Portuguese' }
+];
+
 export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, onTimeUpdate, playerRef, onSubtitlesUpdated }) {
   const [speed, setSpeed] = useState(1);
   const [activeLang, setActiveLang] = useState('');
@@ -15,17 +28,22 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
 
   // Sync active language when subtitles list or video path changes
   useEffect(() => {
-    if (subtitles?.vi) {
-      setActiveLang('vi');
-    } else if (subtitles?.en) {
-      setActiveLang('en');
+    const keys = Object.keys(subtitles || {});
+    if (keys.length > 0) {
+      if (activeLang && keys.includes(activeLang)) {
+        // Keep active language if still available
+      } else if (keys.includes('en')) {
+        setActiveLang('en');
+      } else {
+        setActiveLang(keys[0]);
+      }
     } else {
       setActiveLang('');
     }
     setTranslationError(null);
   }, [videoPath, subtitles]);
 
-  const handleStartTranslation = async () => {
+  const handleStartTranslation = async (targetLangCode) => {
     const englishPath = subtitles?.en;
     if (!englishPath) return;
 
@@ -36,13 +54,15 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
       const response = await fetch('/api/translate-subtitle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtitlePath: englishPath })
+        body: JSON.stringify({ subtitlePath: englishPath, targetLang: targetLangCode })
       });
       const data = await response.json();
       if (data.success) {
         if (onSubtitlesUpdated) {
           await onSubtitlesUpdated();
         }
+        // Select the newly translated language
+        setActiveLang(targetLangCode);
       } else {
         setTranslationError(data.error || 'Failed to translate subtitles.');
       }
@@ -52,6 +72,11 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
     } finally {
       setTranslating(false);
     }
+  };
+
+  const getLangName = (code) => {
+    const found = CURATED_LANGUAGES.find(l => l.code === code);
+    return found ? found.name : code.toUpperCase();
   };
 
   const videoSrc = `http://localhost:3003/api/stream?path=${encodeURIComponent(videoPath)}`;
@@ -159,6 +184,9 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
     }
   };
 
+  const availableLangs = Object.keys(subtitles || {});
+  const translatableLangs = CURATED_LANGUAGES.filter(lang => !availableLangs.includes(lang.code));
+
   return (
     <div 
       className="video-container" 
@@ -188,7 +216,7 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
             kind="subtitles"
             src={subtitleSrc}
             srcLang={activeLang}
-            label={activeLang === 'vi' ? 'Vietnamese' : 'English'}
+            label={getLangName(activeLang)}
             default
           />
         )}
@@ -212,12 +240,13 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
         }}
       >
         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Subtitles:</span>
-        {subtitles?.en && (
+        {availableLangs.map((lang) => (
           <button
-            onClick={() => setActiveLang('en')}
+            key={lang}
+            onClick={() => setActiveLang(lang)}
             style={{
-              background: activeLang === 'en' ? 'var(--primary)' : 'transparent',
-              color: activeLang === 'en' ? 'white' : 'var(--text-secondary)',
+              background: activeLang === lang ? 'var(--primary)' : 'transparent',
+              color: activeLang === lang ? 'white' : 'var(--text-secondary)',
               border: 'none',
               borderRadius: '16px',
               padding: '4px 8px',
@@ -227,53 +256,43 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
               transition: 'var(--transition-fast)'
             }}
           >
-            EN
+            {lang.toUpperCase()}
           </button>
-        )}
-        {subtitles?.vi ? (
-          <button
-            onClick={() => setActiveLang('vi')}
+        ))}
+        {subtitles?.en && translatableLangs.length > 0 && (
+          <select
+            value=""
+            disabled={translating}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val) {
+                handleStartTranslation(val);
+              }
+            }}
             style={{
-              background: activeLang === 'vi' ? 'var(--primary)' : 'transparent',
-              color: activeLang === 'vi' ? 'white' : 'var(--text-secondary)',
-              border: 'none',
+              background: 'rgba(99, 102, 241, 0.15)',
+              color: 'var(--primary)',
+              border: '1px dashed var(--primary)',
               borderRadius: '16px',
-              padding: '4px 8px',
+              padding: '3px 8px',
               fontSize: '0.7rem',
               fontWeight: 600,
               cursor: 'pointer',
-              transition: 'var(--transition-fast)'
+              transition: 'var(--transition-fast)',
+              outline: 'none'
             }}
           >
-            VI
-          </button>
-        ) : (
-          subtitles?.en && (
-            <button
-              onClick={handleStartTranslation}
-              disabled={translating}
-              style={{
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: 'var(--primary)',
-                border: '1px dashed var(--primary)',
-                borderRadius: '16px',
-                padding: '3px 8px',
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'var(--transition-fast)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              onMouseEnter={(e) => { if (!translating) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.3)'; }}
-              onMouseLeave={(e) => { if (!translating) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
-            >
-              {translating ? 'Translating...' : 'Translate to VI'}
-            </button>
-          )
+            <option value="" disabled style={{ background: '#0f172a', color: 'var(--text-secondary)' }}>
+              {translating ? 'Translating...' : 'Translate to...'}
+            </option>
+            {translatableLangs.map((lang) => (
+              <option key={lang.code} value={lang.code} style={{ background: '#0f172a', color: 'var(--text-primary)' }}>
+                {lang.name}
+              </option>
+            ))}
+          </select>
         )}
-        {(subtitles?.en || subtitles?.vi) && (
+        {availableLangs.length > 0 && (
           <>
             <div style={{ width: '1px', height: '16px', background: 'rgba(255, 255, 255, 0.15)', margin: '0 4px' }} />
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Size:</span>
@@ -303,7 +322,7 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
             </select>
           </>
         )}
-        {!subtitles?.en && !subtitles?.vi && (
+        {availableLangs.length === 0 && (
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '0 4px' }}>None</span>
         )}
       </div>

@@ -13,9 +13,8 @@ function cleanTitle(filename, prefix) {
     title = title.replace(/^\d+\s*/, ''); // fallback
   }
   
-  // Remove subtitle locales
-  title = title.replace(/\.en_US$/, '');
-  title = title.replace(/\.en$/, '');
+  // Remove subtitle locales (e.g. .en, .en_US, .vi, .ja)
+  title = title.replace(/\.[a-z]{2}(?:_[a-z]{2,4})?$/i, '');
   
   // Clean up punctuation/separators
   title = title.replace(/[-_]+/g, ' ').trim();
@@ -36,8 +35,12 @@ function cleanSectionTitle(secDir) {
  */
 function getSubtitleLanguage(filename) {
   const name = filename.toLowerCase();
-  if (name.includes('.vi.') || name.includes('_vi.') || name.endsWith('.vi.srt') || name.endsWith('.vi.vtt') || name.includes('-vi.')) {
-    return 'vi';
+  // Match patterns like .en.srt, _vi.vtt, -es.srt, .zh_CN.srt
+  const match = name.match(/[._-]([a-z]{2}(?:_[a-z]{2,4})?)\.(?:srt|vtt)$/i);
+  if (match) {
+    const lang = match[1].toLowerCase();
+    if (lang.startsWith('en')) return 'en';
+    return lang;
   }
   return 'en';
 }
