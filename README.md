@@ -4,6 +4,19 @@ A premium, local web-based learning portal to play and manage offline-downloaded
 <p align="center">
   <img src="screenshot.jpg" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
 </p>
+
+---
+
+## Buy Udemy Courses & Contact
+
+Looking to purchase high-quality Udemy courses? We offer a vast library of premium courses at friendly rates. You can play all purchased courses offline using this Udemy Offline Player!
+
+To check our catalog or place an order, scan the QR code below or reach out directly on Telegram:
+
+<p align="center">
+  <img src="telegram.jpg" alt="Telegram Contact" width="250px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+</p>
+
 ---
 
 ## Key Features
