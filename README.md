@@ -42,6 +42,7 @@ udemy-player/
 │   ├── scanner.js         # File grouping and section sorting scanner
 │   ├── progress_db.json   # Local user notes and completion database (JSON)
 │   └── package.json       # Backend server dependencies
+├── docs/                  # Technical specifications, implementation plans, and task lists
 ├── frontend/              # Vite React client
 │   ├── src/
 │   │   ├── components/
@@ -56,8 +57,7 @@ udemy-player/
 │   ├── vite.config.js     # Dev server proxy configuration
 │   └── package.json       # Client dependencies
 ├── package.json           # Root runner scripts (starts concurrently)
-├── spec.md                # Technical specification
-├── plan.md                # Architecture implementation plan
+├── telegram.jpg           # Telegram contact image/QR code
 └── README.md              # This setup guide
 ```
 
