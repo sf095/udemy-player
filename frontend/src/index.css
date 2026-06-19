@@ -143,8 +143,34 @@ body {
   transition: var(--transition-fast);
 }
 
-.btn-load:hover {
+.btn-load:hover:not(:disabled) {
   background: var(--primary-hover);
+}
+
+.btn-browse {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-browse:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--primary);
+}
+
+.btn-browse:disabled, .btn-load:disabled, .input-path:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Main Dashboard content grid */
@@ -677,4 +703,17 @@ body {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
 }

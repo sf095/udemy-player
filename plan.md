@@ -105,4 +105,28 @@ This plan breaks down the development of the Udemy Offline Player into logical, 
 104: - Verify scan results return a list of subtitles for a lesson.
 105: - Verify calling `/api/translate-subtitle` saves a valid `.vi.vtt` file containing converted Vietnamese translations.
 106: - Verify the frontend player offers the track switcher and toggles languages properly.
+
+## Phase 6: Native Folder Browser Integration
+1. **Express Backend Endpoint (`POST /api/browse-folder`)**:
+   - Create the endpoint in `backend/server.js`.
+   - Check the OS platform:
+     - On macOS (`darwin`), run: `osascript -e 'POSIX path of (choose folder with prompt "Select Udemy course folder:")'` via `exec`.
+     - On Windows (`win32`), run: `powershell -Command "& { Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { $f.SelectedPath } }"` via `exec`.
+     - Otherwise, return an error indicating native folder selection is unsupported.
+   - Parse stdout, trim output, and return `{ path: selectedPath }`.
+   - Catch cancellations (e.g. exit code 128 / error on macOS, empty string on Windows) and return `{ cancelled: true }`.
+2. **Frontend UI Components (`CourseSelector.jsx` & `App.jsx`)**:
+   - Add a "Browse..." button next to the course path input in `CourseSelector.jsx`.
+   - Disable input and show loading/waiting indicators while the native dialog is active.
+   - On directory selection, automatically populate the field and trigger `handleSelectPath`.
+3. **Styling & Alignment**:
+   - Style the "Browse" button using the existing theme variables, matching the premium visual style of the application.
+
+## Verification Checkpoints (Updated)
+
+### Checkpoint E: Native Folder Browser Verification (End of Phase 6)
+- Test `/api/browse-folder` manually (or via a browser test) to confirm it opens the OS folder picker.
+- Select a folder and verify the backend correctly logs the path and returns it.
+- Verify cancellation doesn't crash the server.
+- Verify the frontend input updates and triggers course scan on selection.
 107: 

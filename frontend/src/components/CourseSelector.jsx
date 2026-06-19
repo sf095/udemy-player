@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, Loader2 } from 'lucide-react';
 
 export default function CourseSelector({ currentPath, history, onSelectPath }) {
   const [inputPath, setInputPath] = useState(currentPath || '');
+  const [isBrowsing, setIsBrowsing] = useState(false);
 
   useEffect(() => {
     if (currentPath) {
@@ -12,21 +13,62 @@ export default function CourseSelector({ currentPath, history, onSelectPath }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputPath.trim()) {
+    if (inputPath.trim() && !isBrowsing) {
       onSelectPath(inputPath.trim());
+    }
+  };
+
+  const handleBrowse = async () => {
+    if (isBrowsing) return;
+    setIsBrowsing(true);
+    try {
+      const res = await fetch('/api/browse-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.selectedPath) {
+        setInputPath(data.selectedPath);
+        onSelectPath(data.selectedPath);
+      } else if (data.error) {
+        alert(`Error opening folder selector: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('Failed to browse folder', err);
+      alert('Failed to connect to backend server.');
+    } finally {
+      setIsBrowsing(false);
     }
   };
 
   return (
     <form className="course-loader-form" onSubmit={handleSubmit}>
-      <FolderOpen size={18} style={{ color: 'var(--text-secondary)', minWidth: '18px' }} />
+      {isBrowsing ? (
+        <Loader2 size={18} className="spinner" style={{ color: 'var(--primary)', minWidth: '18px' }} />
+      ) : (
+        <FolderOpen size={18} style={{ color: 'var(--text-secondary)', minWidth: '18px' }} />
+      )}
       <input
         type="text"
         className="input-path"
-        placeholder="Paste absolute path to downloaded Udemy course..."
+        placeholder={isBrowsing ? "Opening native folder picker..." : "Paste absolute path to downloaded Udemy course..."}
         value={inputPath}
         onChange={(e) => setInputPath(e.target.value)}
+        disabled={isBrowsing}
       />
+      <button
+        type="button"
+        className="btn-browse"
+        onClick={handleBrowse}
+        disabled={isBrowsing}
+      >
+        {isBrowsing ? (
+          <Loader2 size={16} className="spinner" />
+        ) : (
+          <FolderOpen size={16} style={{ color: 'var(--text-secondary)' }} />
+        )}
+        {isBrowsing ? 'Browsing...' : 'Browse...'}
+      </button>
       {history && history.length > 1 && (
         <select
           value={currentPath}
@@ -34,6 +76,7 @@ export default function CourseSelector({ currentPath, history, onSelectPath }) {
             setInputPath(e.target.value);
             onSelectPath(e.target.value);
           }}
+          disabled={isBrowsing}
           style={{
             background: 'var(--bg-input)',
             color: 'var(--text-secondary)',
@@ -53,7 +96,7 @@ export default function CourseSelector({ currentPath, history, onSelectPath }) {
           ))}
         </select>
       )}
-      <button type="submit" className="btn-load">
+      <button type="submit" className="btn-load" disabled={isBrowsing || !inputPath.trim()}>
         Scan Course
       </button>
     </form>

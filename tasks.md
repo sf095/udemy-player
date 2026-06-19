@@ -10,7 +10,7 @@
   - `backend/server.js`
 - **Acceptance Criteria**:
   - Root package lists start scripts (runs frontend and backend).
-  - Backend runs successfully on port 3001.
+  - Backend runs successfully on port 3003.
   - Server returns a standard `/api/health` check response.
 - **Verify**: Run `node backend/server.js` and verify it starts and responds to HTTP requests.
 
@@ -53,10 +53,10 @@
   - `frontend/src/index.css`
   - `frontend/src/App.jsx`
 - **Acceptance Criteria**:
-  - Frontend launches successfully on port 3000.
+  - Frontend launches successfully on port 3002.
   - Custom dark theme is applied with CSS variables.
   - Main responsive dashboard grid is visible (header, sidebar, stage, notes).
-- **Verify**: Run `npm run dev` from root, open browser on `http://localhost:3000`.
+- **Verify**: Run `npm run dev` from root, open browser on `http://localhost:3002`.
 
 ### [x] Task 6: Implement Course Selector & Sidebar Accordion
 - **Description**: Build UI components to choose course folders and browse course folders, listing chapters and lessons in an interactive tree menu.
@@ -140,4 +140,17 @@
 140:   - Switching to Vietnamese loads the translated track.
 141:   - Clicking "Translate" triggers the translation API, updates the course content, and switches to the newly generated subtitle track once done.
 142: - **Verify**: Play a video with English subtitle, click "Translate to Vietnamese", wait a few seconds, verify Vietnamese subtitles appear on screen.
+
+### [x] Task 14: Implement Native Folder Selector
+- **Description**: Add native folder selector capability to the local player. Create a backend API endpoint `/api/browse-folder` that spawns a native directory chooser dialog (using `osascript` on macOS, PowerShell on Windows) and returns the chosen absolute path. Add a "Browse" button in the frontend `CourseSelector` that triggers this API, showing a loading indicator and auto-scanning the selected folder.
+- **Files**:
+  - `backend/server.js`
+  - `frontend/src/components/CourseSelector.jsx`
+  - `frontend/src/App.jsx`
+- **Acceptance Criteria**:
+  - Clicking "Browse" opens Finder's directory picker modal on macOS.
+  - Selecting a directory returns the correct absolute path to the frontend.
+  - Cancelling the picker does not crash the server or hang the frontend.
+  - The frontend updates the input field and triggers a course scan upon directory selection.
+- **Verify**: Start the app in dev mode, click the new "Browse" button in the course selector, select a course directory, and confirm the course loads and plays successfully. Cancel the dialog once to verify it fails/cancels gracefully.
 143: 

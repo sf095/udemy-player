@@ -2,10 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 const { scanCourseFolder } = require('./scanner');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3003;
 const DB_FILE = path.join(__dirname, 'progress_db.json');
 
 app.use(cors());
@@ -390,6 +391,39 @@ ${subtitleContent}`;
   } catch (error) {
     console.error('Subtitle translation error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// 12. Native Folder Dialog Browser
+app.post('/api/browse-folder', (req, res) => {
+  if (process.platform === 'darwin') {
+    const cmd = `osascript -e 'POSIX path of (choose folder with prompt "Select Udemy course folder:")'`;
+    exec(cmd, (err, stdout, stderr) => {
+      if (err) {
+        if (err.message.includes('-128') || err.message.includes('User canceled')) {
+          return res.json({ cancelled: true });
+        }
+        console.error('macOS Folder Selector error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      const selectedPath = stdout.trim();
+      res.json({ selectedPath });
+    });
+  } else if (process.platform === 'win32') {
+    const cmd = `powershell -Command "& { Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { $f.SelectedPath } }"`;
+    exec(cmd, (err, stdout, stderr) => {
+      if (err) {
+        console.error('Windows Folder Selector error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      const selectedPath = stdout.trim();
+      if (!selectedPath) {
+        return res.json({ cancelled: true });
+      }
+      res.json({ selectedPath });
+    });
+  } else {
+    res.status(500).json({ error: 'Native folder browser is only supported on macOS and Windows.' });
   }
 });
 
