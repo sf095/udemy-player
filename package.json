@@ -1,6 +1,6 @@
 {
   "name": "udemy-player-root",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local Udemy Course Player",
   "main": "electron/main.js",
   "scripts": {
@@ -12,6 +12,10 @@
     "package": "npm run build --prefix frontend && electron-builder",
     "package:win": "npm run build --prefix frontend && electron-builder --win",
     "package:all": "npm run build --prefix frontend && electron-builder --mac --win"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

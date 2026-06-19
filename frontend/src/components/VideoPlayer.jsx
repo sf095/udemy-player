@@ -81,7 +81,7 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
 
   const getBackendOrigin = () => {
     if (window.location.port === '3002') {
-      return 'http://localhost:3003';
+      return 'http://127.0.0.1:3003';
     }
     return window.location.origin;
   };

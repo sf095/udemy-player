@@ -51,9 +51,9 @@ async function startApp() {
   });
 
   if (app.isPackaged) {
-    mainWindow.loadURL(`http://localhost:${port}`);
+    mainWindow.loadURL(`http://127.0.0.1:${port}`);
   } else {
-    mainWindow.loadURL('http://localhost:3002');
+    mainWindow.loadURL('http://127.0.0.1:3002');
     mainWindow.webContents.openDevTools();
   }
 
