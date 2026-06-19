@@ -19,19 +19,25 @@ function readDb() {
       activeCoursePath: defaultPath,
       history: [defaultPath],
       progress: {}, // lessonId -> { completed: boolean, watchTime: number, duration: number }
-      notes: {}     // lessonId -> Array of { id, timestamp, text, createdAt }
+      notes: {},     // lessonId -> Array of { id, timestamp, text, createdAt }
+      settings: { geminiApiKey: '' }
     };
   }
   try {
     const data = fs.readFileSync(DB_FILE, 'utf8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (!parsed.settings) {
+      parsed.settings = { geminiApiKey: '' };
+    }
+    return parsed;
   } catch (e) {
     console.error('Error reading database file, returning fallback state', e);
     return {
       activeCoursePath: defaultPath,
       history: [defaultPath],
       progress: {},
-      notes: {}
+      notes: {},
+      settings: { geminiApiKey: '' }
     };
   }
 }
@@ -282,6 +288,109 @@ app.delete('/api/userdata/notes', (req, res) => {
 
   writeDb(db);
   res.json(db);
+});
+
+// 10. Update Settings
+app.post('/api/userdata/settings', (req, res) => {
+  const { geminiApiKey } = req.body;
+  const db = readDb();
+  if (!db.settings) {
+    db.settings = {};
+  }
+  db.settings.geminiApiKey = geminiApiKey || '';
+  writeDb(db);
+  res.json(db);
+});
+
+// 11. Translate Subtitle from English to Vietnamese
+app.post('/api/translate-subtitle', async (req, res) => {
+  const { subtitlePath, apiKey } = req.body;
+  if (!subtitlePath) {
+    return res.status(400).json({ error: 'subtitlePath is required' });
+  }
+
+  const db = readDb();
+  const effectiveApiKey = apiKey || (db.settings && db.settings.geminiApiKey);
+
+  if (!effectiveApiKey) {
+    return res.status(400).json({ error: 'Gemini API Key is missing. Please set it in Settings.' });
+  }
+
+  if (!fs.existsSync(subtitlePath)) {
+    return res.status(404).json({ error: `Subtitle file not found: ${subtitlePath}` });
+  }
+
+  try {
+    const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
+
+    const prompt = `Translate the following English subtitle file to Vietnamese. 
+You must preserve all timecodes, formatting, line numbers, and subtitle syntax exactly. 
+Do not translate or modify timecodes or line numbers (e.g. 00:01:23,450 --> 00:01:25,120).
+Ensure the Vietnamese translation is natural, fits the context, and uses appropriate terminology.
+Do not add any explanations, markdown code blocks, or introductory text. Return ONLY the translated subtitle file contents.
+
+[Subtitle File Content]:
+${subtitleContent}`;
+
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-lite:generateContent?key=${effectiveApiKey}`;
+    
+    console.log(`Calling Gemini API for translation...`);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API call failed:', errorText);
+      return res.status(response.status).json({ error: `Gemini API error: ${response.statusText}`, details: errorText });
+    }
+
+    const responseData = await response.json();
+    let translatedText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!translatedText) {
+      console.error('Empty response from Gemini API:', responseData);
+      return res.status(500).json({ error: 'No translation text returned from Gemini API' });
+    }
+
+    // Clean up markdown block if the model returned it
+    translatedText = translatedText.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '');
+
+    // Convert SRT to WebVTT format in-memory if needed
+    if (!translatedText.trim().startsWith('WEBVTT')) {
+      translatedText = srtToVtt(translatedText);
+    }
+
+    // Save translated file as .vi.vtt
+    const dir = path.dirname(subtitlePath);
+    const ext = path.extname(subtitlePath);
+    let base = path.basename(subtitlePath, ext);
+    
+    // Strip language suffixes if present in source
+    base = base.replace(/\.en_US$/i, '').replace(/\.en$/i, '');
+
+    const outPath = path.join(dir, `${base}.vi.vtt`);
+    fs.writeFileSync(outPath, translatedText, 'utf8');
+
+    res.json({ success: true, path: outPath });
+  } catch (error) {
+    console.error('Subtitle translation error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(PORT, () => {

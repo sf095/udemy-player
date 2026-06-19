@@ -1,8 +1,54 @@
 import React, { useEffect, useState } from 'react';
 
-export default function VideoPlayer({ videoPath, subtitlePath, initialTime, onTimeUpdate, playerRef }) {
+export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, onTimeUpdate, playerRef, onSubtitlesUpdated }) {
   const [speed, setSpeed] = useState(1);
+  const [activeLang, setActiveLang] = useState('');
+  const [translating, setTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState(null);
+
+  // Sync active language when subtitles list or video path changes
+  useEffect(() => {
+    if (subtitles?.vi) {
+      setActiveLang('vi');
+    } else if (subtitles?.en) {
+      setActiveLang('en');
+    } else {
+      setActiveLang('');
+    }
+    setTranslationError(null);
+  }, [videoPath, subtitles]);
+
+  const handleStartTranslation = async () => {
+    const englishPath = subtitles?.en;
+    if (!englishPath) return;
+
+    setTranslating(true);
+    setTranslationError(null);
+
+    try {
+      const response = await fetch('/api/translate-subtitle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtitlePath: englishPath })
+      });
+      const data = await response.json();
+      if (data.success) {
+        if (onSubtitlesUpdated) {
+          await onSubtitlesUpdated();
+        }
+      } else {
+        setTranslationError(data.error || 'Failed to translate subtitles.');
+      }
+    } catch (err) {
+      console.error('Translation error', err);
+      setTranslationError('Network error during translation.');
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const videoSrc = `http://localhost:3001/api/stream?path=${encodeURIComponent(videoPath)}`;
+  const subtitlePath = subtitles?.[activeLang];
   const subtitleSrc = subtitlePath ? `http://localhost:3001/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
 
   const hasSeekedRef = React.useRef(false);
@@ -126,14 +172,128 @@ export default function VideoPlayer({ videoPath, subtitlePath, initialTime, onTi
       >
         {subtitleSrc && (
           <track
+            key={activeLang}
             kind="subtitles"
             src={subtitleSrc}
-            srcLang="en"
-            label="English"
+            srcLang={activeLang}
+            label={activeLang === 'vi' ? 'Vietnamese' : 'English'}
             default
           />
         )}
       </video>
+
+      {/* Subtitles & Translation Overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '16px',
+          left: '16px',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '20px',
+          padding: '4px 8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          zIndex: 5
+        }}
+      >
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Subtitles:</span>
+        {subtitles?.en && (
+          <button
+            onClick={() => setActiveLang('en')}
+            style={{
+              background: activeLang === 'en' ? 'var(--primary)' : 'transparent',
+              color: activeLang === 'en' ? 'white' : 'var(--text-secondary)',
+              border: 'none',
+              borderRadius: '16px',
+              padding: '4px 8px',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'var(--transition-fast)'
+            }}
+          >
+            EN
+          </button>
+        )}
+        {subtitles?.vi ? (
+          <button
+            onClick={() => setActiveLang('vi')}
+            style={{
+              background: activeLang === 'vi' ? 'var(--primary)' : 'transparent',
+              color: activeLang === 'vi' ? 'white' : 'var(--text-secondary)',
+              border: 'none',
+              borderRadius: '16px',
+              padding: '4px 8px',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'var(--transition-fast)'
+            }}
+          >
+            VI
+          </button>
+        ) : (
+          subtitles?.en && (
+            <button
+              onClick={handleStartTranslation}
+              disabled={translating}
+              style={{
+                background: 'rgba(99, 102, 241, 0.15)',
+                color: 'var(--primary)',
+                border: '1px dashed var(--primary)',
+                borderRadius: '16px',
+                padding: '3px 8px',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'var(--transition-fast)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              onMouseEnter={(e) => { if (!translating) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.3)'; }}
+              onMouseLeave={(e) => { if (!translating) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+            >
+              {translating ? 'Translating...' : 'Translate to VI'}
+            </button>
+          )
+        )}
+        {!subtitles?.en && !subtitles?.vi && (
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '0 4px' }}>None</span>
+        )}
+      </div>
+
+      {translationError && (
+        <div style={{
+          position: 'absolute',
+          top: '52px',
+          left: '16px',
+          background: '#7f1d1d',
+          border: '1px solid #f87171',
+          color: '#fca5a5',
+          padding: '6px 12px',
+          borderRadius: '8px',
+          fontSize: '0.75rem',
+          maxWidth: '320px',
+          zIndex: 6,
+          boxShadow: 'var(--shadow-md)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          <span>{translationError}</span>
+          <button 
+            onClick={() => setTranslationError(null)}
+            style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Playback speed selector Overlay */}
       <div

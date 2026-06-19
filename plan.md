@@ -70,7 +70,39 @@ This plan breaks down the development of the Udemy Offline Player into logical, 
 - Verify the video player plays, seeks, and loads WebVTT subtitles correctly.
 - Verify Notes panel lists notes, and clicking a timestamp seeks the player.
 
-### Checkpoint C: Final Verification (End of Phase 4)
-- Verify overall progress calculation.
-- Test 90% auto-complete logic.
-- Verify notes are persistent across server restarts.
+72: ### Checkpoint C: Final Verification (End of Phase 4)
+73: - Verify overall progress calculation.
+74: - Test 90% auto-complete logic.
+75: - Verify notes are persistent across server restarts.
+76: 
+77: ## Phase 5: Subtitle Auto-Translation (Gemini 1.5 Flash)
+78: 1. **Scanner Upgrade**:
+79:    - Modify `backend/scanner.js` to scan for all subtitle tracks (English, Vietnamese, etc.) and output them as a `subtitles` dictionary.
+80: 2. **API Key Settings Endpoint**:
+81:    - Create endpoints to load and save `geminiApiKey` in `progress_db.json`.
+82: 3. **Translation Endpoint**:
+83:    - Create `POST /api/translate-subtitle` to translate an English subtitle file to Vietnamese using Gemini 1.5 Flash (via direct HTTPS request, no extra npm dependencies). Save the output as a `.vi.vtt` file next to the video.
+84: 4. **Settings Panel**:
+85:    - Add a Settings button/modal in the frontend where the user can enter their Gemini API Key.
+86: 5. **Player Multi-Track Support & Translate Action**:
+87:    - Update `VideoPlayer.jsx` to render multiple subtitle tracks if available.
+88:    - If Vietnamese subtitle is missing, render a button "Translate to Vietnamese" in the speed/subtitle overlay.
+89:    - Integrate smooth loading feedback (spinner) while the transcription/translation request is in progress.
+90: 
+91: ## Technical Risks & Mitigations (Updated)
+92: 
+93: | Risk | Mitigation |
+94: | --- | --- |
+95: | **Browser Video Seeks Fail** | Standard Node servers don't support streaming ranges out of the box, leading to broken video seeking. We will implement full `Range` header support in the Express stream endpoint. |
+96: | **Subtitle Format Incompatibility** | Browsers only support WebVTT (`.vtt`) for captions. Udemy courses are downloaded with SubRip (`.srt`). The backend will intercept requests for `.srt` and convert them to `.vtt` format in-memory using regex replacement of timestamps. |
+97: | **Large PDF/HTML Local Access** | Direct absolute local URLs are blocked by Chrome. The backend will expose a safe `/api/resource` router to serve those assets with appropriate MIME types. |
+98: | **API Translation Limits & Timeouts** | Large files might time out or exceed token limits. We will use the lightweight `gemini-1.5-flash` model which supports up to 1M tokens context and responds in a few seconds. We will also sanitize formatting artifacts from output. |
+99: 
+100: ## Verification Checkpoints (Updated)
+101: 
+102: ### Checkpoint D: Auto-Translation Verification (End of Phase 5)
+103: - Verify settings endpoint saves the Gemini API Key correctly.
+104: - Verify scan results return a list of subtitles for a lesson.
+105: - Verify calling `/api/translate-subtitle` saves a valid `.vi.vtt` file containing converted Vietnamese translations.
+106: - Verify the frontend player offers the track switcher and toggles languages properly.
+107: 

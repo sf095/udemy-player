@@ -91,13 +91,53 @@
   - Clicking a note's timestamp jumps the video player to that exact second.
 - **Verify**: Add a note at 0:10, play video, click the note's `0:10` chip, and confirm the player seeks to 10 seconds.
 
-### [x] Task 9: Implement Progress Logging, Auto-Completion, and Polish
-- **Description**: Track active play positions, auto-complete when reaching 90%, add transition animations, and finalize application style.
-- **Files**:
-  - `frontend/src/App.jsx`
-  - `frontend/src/components/VideoPlayer.jsx`
-- **Acceptance Criteria**:
-  - Progress updates sent to backend periodically.
-  - Reaching 90% automatically checks the completion box and syncs to backend.
-  - Smooth loading states, transitions, hover animations, and dark design accents.
-- **Verify**: Let a video run until 90% watched, ensure checkbox triggers and progress increments.
+94: ### [x] Task 9: Implement Progress Logging, Auto-Completion, and Polish
+95: - **Description**: Track active play positions, auto-complete when reaching 90%, add transition animations, and finalize application style.
+96: - **Files**:
+97:   - `frontend/src/App.jsx`
+98:   - `frontend/src/components/VideoPlayer.jsx`
+99: - **Acceptance Criteria**:
+100:   - Progress updates sent to backend periodically.
+101:   - Reaching 90% automatically checks the completion box and syncs to backend.
+102:   - Smooth loading states, transitions, hover animations, and dark design accents.
+103: - **Verify**: Let a video run until 90% watched, ensure checkbox triggers and progress increments.
+104: 
+105: ### [x] Task 10: Upgrade Course Scanner for Multiple Subtitles
+106: - **Description**: Modify `backend/scanner.js` to search for all files ending in `.srt` or `.vtt`, detect their language code (e.g. `.vi.` vs default English), and return them in a `subtitles` dictionary.
+107: - **Files**:
+108:   - `backend/scanner.js`
+109: - **Acceptance Criteria**:
+110:   - Returns structured `subtitles` field containing mappings like `{ en: '...', vi: '...' }` in course content API.
+111: - **Verify**: Manually add a dummy `.vi.srt` or `.vi.vtt` file next to a video and hit `/api/course-content` to check if it returns `subtitles: { en: "...", vi: "..." }`.
+112: 
+113: ### [x] Task 11: Implement Gemini API Key Settings & Subtitle Translation API
+114: - **Description**: Add endpoints for updating and fetching app settings in the backend (Gemini API Key). Create `POST /api/translate-subtitle` endpoint to read an English subtitle file, query Gemini 1.5 Flash to translate it into Vietnamese while preserving VTT/SRT timestamps, and save the result as a `.vi.vtt` file next to the video.
+115: - **Files**:
+116:   - `backend/server.js`
+117: - **Acceptance Criteria**:
+118:   - `/api/userdata` contains `settings.geminiApiKey`.
+119:   - `POST /api/userdata/settings` saves the API key.
+120:   - `POST /api/translate-subtitle` calls Gemini API using the API key, receives the translation, sanitizes markdown, converts from SRT to VTT if necessary, and writes the file.
+121: - **Verify**: Use postman or curl to save the API key and trigger a translation, verifying a new `.vi.vtt` file is generated.
+122: 
+123: ### [x] Task 12: Build Frontend Settings Panel for API Key Management
+124: - **Description**: Create a Settings button and modal in the React frontend where the user can enter and save their Gemini API key.
+125: - **Files**:
+126:   - `frontend/src/App.jsx`
+127:   - `frontend/src/components/SettingsModal.jsx` (new component)
+128: - **Acceptance Criteria**:
+129:   - Settings button opens the SettingsModal.
+130:   - Saving settings posts the API key to the backend, updates local app state.
+131: - **Verify**: Inspect settings modal, enter key, save, reload page, ensure settings show the saved API key.
+132: 
+133: ### [x] Task 13: Integrate Multi-Track Subtitles & Translate Action in Player
+134: - **Description**: Update the frontend VideoPlayer to support multiple subtitle tracks. Render track options ("English", "Vietnamese" if existing). If Vietnamese is missing, show "Translate to Vietnamese" in the selector. Render a loader when translation is in progress.
+135: - **Files**:
+136:   - `frontend/src/components/VideoPlayer.jsx`
+137:   - `frontend/src/components/Sidebar.jsx`
+138:   - `frontend/src/App.jsx`
+139: - **Acceptance Criteria**:
+140:   - Switching to Vietnamese loads the translated track.
+141:   - Clicking "Translate" triggers the translation API, updates the course content, and switches to the newly generated subtitle track once done.
+142: - **Verify**: Play a video with English subtitle, click "Translate to Vietnamese", wait a few seconds, verify Vietnamese subtitles appear on screen.
+143: 

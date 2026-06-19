@@ -32,6 +32,17 @@ function cleanSectionTitle(secDir) {
 }
 
 /**
+ * Identify subtitle language based on file naming patterns
+ */
+function getSubtitleLanguage(filename) {
+  const name = filename.toLowerCase();
+  if (name.includes('.vi.') || name.includes('_vi.') || name.endsWith('.vi.srt') || name.endsWith('.vi.vtt') || name.includes('-vi.')) {
+    return 'vi';
+  }
+  return 'en';
+}
+
+/**
  * Recursively scans the course root folder to build sections and grouped lessons
  */
 function scanCourseFolder(coursePath) {
@@ -96,7 +107,7 @@ function scanCourseFolder(coursePath) {
       const files = groups[prefix];
       
       let videoFile = null;
-      let srtFile = null;
+      const subtitles = {};
       let pdfFile = null;
       let htmlFile = null;
 
@@ -104,8 +115,11 @@ function scanCourseFolder(coursePath) {
         if (file.ext === '.mp4') {
           videoFile = file;
         } else if (file.ext === '.srt' || file.ext === '.vtt') {
-          // If there are multiple srt files, pick the first
-          if (!srtFile) srtFile = file;
+          const lang = getSubtitleLanguage(file.name);
+          // Keep first file found per language (avoid duplicates if any)
+          if (!subtitles[lang]) {
+            subtitles[lang] = file.fullPath;
+          }
         } else if (file.ext === '.pdf') {
           pdfFile = file;
         } else if (file.ext === '.html' || file.ext === '.htm') {
@@ -135,7 +149,8 @@ function scanCourseFolder(coursePath) {
         index: prefix === 'un-numbered' ? null : parseInt(prefix, 10),
         title: title || 'Untitled Lesson',
         video: videoFile ? videoFile.fullPath : null,
-        subtitle: srtFile ? srtFile.fullPath : null,
+        subtitle: subtitles['en'] || Object.values(subtitles)[0] || null,
+        subtitles: subtitles,
         pdf: pdfFile ? pdfFile.fullPath : null,
         html: htmlFile ? htmlFile.fullPath : null,
         type: videoFile ? 'video' : (htmlFile ? 'html' : 'pdf')

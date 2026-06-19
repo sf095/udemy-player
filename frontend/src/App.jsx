@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, BookOpen, Menu, Award, Activity, CheckSquare } from 'lucide-react';
+import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import Sidebar from './components/Sidebar';
 import VideoPlayer from './components/VideoPlayer';
 import DocViewer from './components/DocViewer';
 import NotesPanel from './components/NotesPanel';
+import SettingsModal from './components/SettingsModal';
 
 export default function App() {
   const [coursePath, setCoursePath] = useState('');
@@ -12,6 +13,7 @@ export default function App() {
   const [sections, setSections] = useState([]);
   const [progress, setProgress] = useState({});
   const [notes, setNotes] = useState({});
+  const [settings, setSettings] = useState({ geminiApiKey: '' });
   
   const [activeLesson, setActiveLesson] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -19,6 +21,7 @@ export default function App() {
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -38,6 +41,7 @@ export default function App() {
       setHistory(data.history);
       setProgress(data.progress || {});
       setNotes(data.notes || {});
+      setSettings(data.settings || { geminiApiKey: '' });
       
       if (shouldScanContent && data.activeCoursePath) {
         fetchCourseContent(data.activeCoursePath);
@@ -45,6 +49,46 @@ export default function App() {
     } catch (err) {
       console.error('Failed to load user data', err);
       setError('Failed to fetch user progress state.');
+    }
+  };
+
+  const handleSaveSettings = async (newSettings) => {
+    try {
+      const res = await fetch('/api/userdata/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
+      });
+      const data = await res.json();
+      setSettings(data.settings || { geminiApiKey: '' });
+      return true;
+    } catch (err) {
+      console.error('Failed to save settings', err);
+      return false;
+    }
+  };
+
+  const handleSubtitlesUpdated = async () => {
+    if (!coursePath || !activeLesson) return;
+    try {
+      const response = await fetch(`/api/course-content?path=${encodeURIComponent(coursePath)}`);
+      const data = await response.json();
+      if (data.success) {
+        setSections(data.sections);
+        let updatedLesson = null;
+        for (const sec of data.sections) {
+          const found = sec.lessons.find((l) => l.id === activeLesson.id);
+          if (found) {
+            updatedLesson = found;
+            break;
+          }
+        }
+        if (updatedLesson) {
+          setActiveLesson(updatedLesson);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update subtitle list after translation', err);
     }
   };
 
@@ -289,6 +333,35 @@ export default function App() {
             </div>
           </div>
         )}
+
+        <button
+          className="btn-toggle"
+          onClick={() => setShowSettingsModal(true)}
+          title="Settings"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            padding: '8px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'var(--transition-fast)',
+            marginLeft: '8px'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+          }}
+        >
+          <Settings size={18} />
+        </button>
       </header>
 
       <main className={`dashboard-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${notesCollapsed ? 'notes-collapsed' : ''}`}>
@@ -385,10 +458,11 @@ export default function App() {
                 {activeTab === 'video' && activeLesson.video ? (
                   <VideoPlayer
                     videoPath={activeLesson.video}
-                    subtitlePath={activeLesson.subtitle}
+                    subtitles={activeLesson.subtitles}
                     initialTime={activeLessonProgress.watchTime || 0}
                     onTimeUpdate={handleTimeUpdate}
                     playerRef={playerRef}
+                    onSubtitlesUpdated={handleSubtitlesUpdated}
                   />
                 ) : (
                   <DocViewer
@@ -422,6 +496,14 @@ export default function App() {
           />
         )}
       </main>
+
+      {showSettingsModal && (
+        <SettingsModal
+          settings={settings}
+          onSave={handleSaveSettings}
+          onClose={() => setShowSettingsModal(false)}
+        />
+      )}
     </div>
   );
 }
