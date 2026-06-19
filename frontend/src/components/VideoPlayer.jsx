@@ -5,6 +5,13 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
   const [activeLang, setActiveLang] = useState('');
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
+  const [subtitleSize, setSubtitleSize] = useState(() => {
+    return localStorage.getItem('udemy-player-subtitle-size') || '100%';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('udemy-player-subtitle-size', subtitleSize);
+  }, [subtitleSize]);
 
   // Sync active language when subtitles list or video path changes
   useEffect(() => {
@@ -157,7 +164,12 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
       className="video-container" 
       onKeyDown={handleKeyDown} 
       tabIndex={0} // Focusable for capturing hotkeys
-      style={{ outline: 'none', width: '100%', height: '100%' }}
+      style={{ 
+        outline: 'none', 
+        width: '100%', 
+        height: '100%',
+        '--subtitle-size': subtitleSize
+      }}
     >
       <video
         key={videoPath} // Force recreation of player state when path changes
@@ -260,6 +272,36 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
               {translating ? 'Translating...' : 'Translate to VI'}
             </button>
           )
+        )}
+        {(subtitles?.en || subtitles?.vi) && (
+          <>
+            <div style={{ width: '1px', height: '16px', background: 'rgba(255, 255, 255, 0.15)', margin: '0 4px' }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Size:</span>
+            <select
+              value={subtitleSize}
+              onChange={(e) => setSubtitleSize(e.target.value)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'var(--text-primary)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                transition: 'var(--transition-fast)'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'}
+            >
+              <option value="50%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>50%</option>
+              <option value="75%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>75%</option>
+              <option value="100%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>100%</option>
+              <option value="130%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>130%</option>
+              <option value="160%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>160%</option>
+            </select>
+          </>
         )}
         {!subtitles?.en && !subtitles?.vi && (
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '0 4px' }}>None</span>

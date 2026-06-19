@@ -312,7 +312,26 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <div className="brand">
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            className="btn-toggle"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title="Toggle Sidebar"
+            style={{
+              background: sidebarCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+              border: sidebarCollapsed ? '1px dashed var(--primary)' : '1px solid transparent',
+              color: sidebarCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
+              padding: '6px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'var(--transition-fast)'
+            }}
+          >
+            <Menu size={18} />
+          </button>
           <Play size={20} style={{ fill: 'var(--primary)', color: 'var(--primary)' }} />
           <span>Udemy Offline Player</span>
         </div>
@@ -323,45 +342,68 @@ export default function App() {
           onSelectPath={handleSelectPath}
         />
 
-        {sections.length > 0 && (
-          <div className="course-progress-container">
-            <span className="course-progress-text">
-              {percent}% Completed ({completed}/{total})
-            </span>
-            <div className="course-progress-bar">
-              <div className="course-progress-fill" style={{ width: `${percent}%` }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {sections.length > 0 && (
+            <div className="course-progress-container">
+              <span className="course-progress-text">
+                {percent}% Completed ({completed}/{total})
+              </span>
+              <div className="course-progress-bar">
+                <div className="course-progress-fill" style={{ width: `${percent}%` }} />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <button
-          className="btn-toggle"
-          onClick={() => setShowSettingsModal(true)}
-          title="Settings"
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            padding: '8px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'var(--transition-fast)',
-            marginLeft: '8px'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--text-primary)';
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--text-secondary)';
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-          }}
-        >
-          <Settings size={18} />
-        </button>
+          {activeLesson && activeLesson.type === 'video' && (
+            <button
+              className="btn-toggle"
+              onClick={() => setNotesCollapsed(!notesCollapsed)}
+              title="Toggle Notes"
+              style={{
+                background: notesCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                border: notesCollapsed ? '1px dashed var(--primary)' : '1px solid var(--border-color)',
+                color: notesCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'var(--transition-fast)'
+              }}
+            >
+              <BookOpen size={18} />
+            </button>
+          )}
+
+          <button
+            className="btn-toggle"
+            onClick={() => setShowSettingsModal(true)}
+            title="Settings"
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'var(--transition-fast)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+            }}
+          >
+            <Settings size={18} />
+          </button>
+        </div>
       </header>
 
       <main className={`dashboard-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${notesCollapsed ? 'notes-collapsed' : ''}`}>
@@ -377,48 +419,7 @@ export default function App() {
 
         {/* Center Screen Stage */}
         <section className="stage-panel">
-          {/* Header toggles for collapse sidebar/notes */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '12px',
-              zIndex: 10,
-              display: 'flex',
-              gap: '8px'
-            }}
-          >
-            <button
-              className="btn-toggle"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              title="Toggle Sidebar"
-              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid var(--border-color)' }}
-            >
-              <Menu size={16} />
-            </button>
-          </div>
-
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              zIndex: 10,
-              display: 'flex',
-              gap: '8px'
-            }}
-          >
-            {activeLesson && activeLesson.type === 'video' && (
-              <button
-                className="btn-toggle"
-                onClick={() => setNotesCollapsed(!notesCollapsed)}
-                title="Toggle Notes"
-                style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid var(--border-color)' }}
-              >
-                <BookOpen size={16} />
-              </button>
-            )}
-          </div>
+          {/* Main content stage renders here without overlapping float controls */}
 
           {loading ? (
             <div className="empty-state">

@@ -390,6 +390,14 @@ body {
   outline: none;
 }
 
+video::cue {
+  font-size: var(--subtitle-size, 100%) !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  font-family: var(--font-sans) !important;
+}
+
 /* Tabs for secondary document assets (PDF/HTML sheets inside a lesson) */
 .stage-tabs {
   display: flex;
