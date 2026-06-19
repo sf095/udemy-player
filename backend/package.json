@@ -13,5 +13,10 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.3"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "progress_db.json"
+    ]
   }
 }

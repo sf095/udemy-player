@@ -2,8 +2,15 @@ import React, { useEffect, useState } from 'react';
 
 export default function VideoPlayer({ videoPath, subtitlePath, initialTime, onTimeUpdate, playerRef }) {
   const [speed, setSpeed] = useState(1);
-  const videoSrc = `/api/stream?path=${encodeURIComponent(videoPath)}`;
-  const subtitleSrc = subtitlePath ? `/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
+  const videoSrc = `http://localhost:3001/api/stream?path=${encodeURIComponent(videoPath)}`;
+  const subtitleSrc = subtitlePath ? `http://localhost:3001/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
+
+  const hasSeekedRef = React.useRef(false);
+
+  // Reset the seek flag when the video file changes
+  useEffect(() => {
+    hasSeekedRef.current = false;
+  }, [videoPath]);
 
   useEffect(() => {
     const video = playerRef.current;
@@ -14,7 +21,8 @@ export default function VideoPlayer({ videoPath, subtitlePath, initialTime, onTi
 
     const handleLoadedMetadata = () => {
       video.playbackRate = speed;
-      if (initialTime && initialTime > 0) {
+      if (!hasSeekedRef.current && initialTime && initialTime > 0) {
+        hasSeekedRef.current = true;
         video.currentTime = initialTime;
       }
     };
@@ -27,7 +35,8 @@ export default function VideoPlayer({ videoPath, subtitlePath, initialTime, onTi
     video.addEventListener('timeupdate', handleTimeUpdate);
 
     // If video is already loaded or metadata is cached
-    if (video.readyState >= 1 && initialTime && initialTime > 0) {
+    if (video.readyState >= 1 && !hasSeekedRef.current && initialTime && initialTime > 0) {
+      hasSeekedRef.current = true;
       video.currentTime = initialTime;
     }
 
@@ -108,6 +117,7 @@ export default function VideoPlayer({ videoPath, subtitlePath, initialTime, onTi
         key={videoPath} // Force recreation of player state when path changes
         ref={playerRef}
         src={videoSrc}
+        crossOrigin="anonymous"
         className="custom-video"
         controls
         autoPlay

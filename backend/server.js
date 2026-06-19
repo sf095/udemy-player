@@ -46,8 +46,10 @@ function writeDb(data) {
 
 // Convert SubRip (.srt) to WebVTT (.vtt) in-memory
 function srtToVtt(srtContent) {
+  // Strip BOM (Byte Order Mark) if present at the start of the file
+  const cleanContent = srtContent.replace(/^\uFEFF/, '');
   let vtt = 'WEBVTT\n\n';
-  vtt += srtContent
+  vtt += cleanContent
     .replace(/\r\n/g, '\n')
     .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
   return vtt;
@@ -90,8 +92,8 @@ app.get('/api/stream', (req, res) => {
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
     
-    if (start >= fileSize) {
-      return res.status(416).send('Requested range not satisfiable\n' + start + ' >= ' + fileSize);
+    if (start >= fileSize || end >= fileSize || start > end) {
+      return res.status(416).send('Requested range not satisfiable\n' + start + '-' + end + ' of ' + fileSize);
     }
     
     const chunksize = (end - start) + 1;
@@ -104,6 +106,18 @@ app.get('/api/stream', (req, res) => {
     };
     
     res.writeHead(206, head);
+    
+    file.on('error', (err) => {
+      console.error('Video stream chunk read error:', err);
+      if (!res.headersSent) {
+        res.status(500).send('Stream error');
+      }
+    });
+
+    res.on('close', () => {
+      file.destroy();
+    });
+
     file.pipe(res);
   } else {
     const head = {
@@ -111,7 +125,20 @@ app.get('/api/stream', (req, res) => {
       'Content-Type': 'video/mp4',
     };
     res.writeHead(200, head);
-    fs.createReadStream(videoPath).pipe(res);
+    const file = fs.createReadStream(videoPath);
+    
+    file.on('error', (err) => {
+      console.error('Video stream read error:', err);
+      if (!res.headersSent) {
+        res.status(500).send('Stream error');
+      }
+    });
+
+    res.on('close', () => {
+      file.destroy();
+    });
+
+    file.pipe(res);
   }
 });
 
