@@ -1,7 +1,7 @@
 import React from 'react';
 
 export default function DocViewer({ path, type }) {
-  const src = `http://localhost:3001/api/resource?path=${encodeURIComponent(path)}`;
+  const src = `http://localhost:3003/api/resource?path=${encodeURIComponent(path)}`;
 
   if (type === 'pdf') {
     return (

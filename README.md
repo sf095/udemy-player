@@ -62,13 +62,13 @@ npm run install:all
 ```
 
 ### 2. Start the Development Stack
-Start both the API backend (Express on port `3001`) and client frontend (Vite on port `3000`) concurrently:
+Start both the API backend (Express on port `3003`) and client frontend (Vite on port `3002`) concurrently:
 ```bash
 npm run dev
 ```
 
 ### 3. Open in Browser
-Visit **[http://localhost:3000](http://localhost:3000)** to browse and play your courses.
+Visit **[http://localhost:3002](http://localhost:3002)** to browse and play your courses.
 
 ---
 

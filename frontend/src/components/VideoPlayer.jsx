@@ -47,9 +47,9 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
     }
   };
 
-  const videoSrc = `http://localhost:3001/api/stream?path=${encodeURIComponent(videoPath)}`;
+  const videoSrc = `http://localhost:3003/api/stream?path=${encodeURIComponent(videoPath)}`;
   const subtitlePath = subtitles?.[activeLang];
-  const subtitleSrc = subtitlePath ? `http://localhost:3001/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
+  const subtitleSrc = subtitlePath ? `http://localhost:3003/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
 
   const hasSeekedRef = React.useRef(false);
 
