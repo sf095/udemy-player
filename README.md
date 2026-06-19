@@ -87,6 +87,21 @@ npm run dev
 ### 3. Open in Browser
 Visit **[http://localhost:3002](http://localhost:3002)** to browse and play your courses.
 
+### 4. Running the Desktop App (macOS DMG)
+If you build/package the desktop application using `npm run package` or download the compiled `.dmg` from GitHub, macOS Gatekeeper may block it on first launch with a warning that the app is "damaged" or "developer cannot be verified".
+
+To bypass this restriction and run the app:
+1. Drag **Udemy Offline Player.app** to your `/Applications` folder.
+2. Open terminal and run:
+   ```bash
+   # Remove the quarantine attribute added by macOS for downloaded files
+   xattr -cr /Applications/Udemy\ Offline\ Player.app
+   
+   # Self-sign the application to allow it to run locally
+   codesign --force --deep --sign - /Applications/Udemy\ Offline\ Player.app
+   ```
+3. You can now launch the application normally from Applications or Launchpad.
+
 ---
 
 ## API Endpoints
