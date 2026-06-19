@@ -2,7 +2,7 @@
 
 A premium, local web-based learning portal to play and manage offline-downloaded Udemy courses. Bypass browser sandbox restrictions to stream videos, load SubRip subtitles, read companion sheets, mark completion status, and record interactive notes.
 <p align="center">
-  <img src="screenshot.jpg" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
+  <img src="screenshot.png" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
 </p>
 
 ---
