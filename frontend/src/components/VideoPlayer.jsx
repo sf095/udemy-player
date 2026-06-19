@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ShortcutToast from './ShortcutToast';
 
 const CURATED_LANGUAGES = [
   { code: 'vi', name: 'Vietnamese' },
@@ -21,9 +22,12 @@ export default function VideoPlayer({
   playerRef,
   onSubtitlesUpdated,
   activeLang,
-  setActiveLang
+  setActiveLang,
+  speed,
+  onSpeedChange,
+  toastMessage,
+  toastId
 }) {
-  const [speed, setSpeed] = useState(1);
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
   const [subtitleSize, setSubtitleSize] = useState(() => {
@@ -145,74 +149,12 @@ export default function VideoPlayer({
     };
   }, [videoPath, initialTime]);
 
-  const handleSpeedChange = (newSpeed) => {
-    setSpeed(newSpeed);
-    if (playerRef.current) {
-      playerRef.current.playbackRate = newSpeed;
-    }
-  };
-
-  // Keyboard controls for standard hotkeys
-  const handleKeyDown = (e) => {
-    const video = playerRef.current;
-    if (!video) return;
-
-    // Block keyboard control when typing notes
-    if (
-      document.activeElement.tagName === 'INPUT' || 
-      document.activeElement.tagName === 'TEXTAREA' ||
-      document.activeElement.isContentEditable
-    ) {
-      return;
-    }
-
-    switch (e.key) {
-      case ' ':
-        e.preventDefault();
-        if (video.paused) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-        }
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        video.currentTime = Math.max(0, video.currentTime - 5);
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        video.volume = Math.min(1, video.volume + 0.1);
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        video.volume = Math.max(0, video.volume - 0.1);
-        break;
-      case 'f':
-      case 'F':
-        e.preventDefault();
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {});
-        } else {
-          video.requestFullscreen().catch(() => {});
-        }
-        break;
-      default:
-        break;
-    }
-  };
-
   const availableLangs = Object.keys(subtitles || {});
   const translatableLangs = CURATED_LANGUAGES.filter(lang => !availableLangs.includes(lang.code));
 
   return (
     <div 
       className="video-container" 
-      onKeyDown={handleKeyDown} 
-      tabIndex={0} // Focusable for capturing hotkeys
       style={{ 
         outline: 'none', 
         width: '100%', 
@@ -396,7 +338,7 @@ export default function VideoPlayer({
         {[1, 1.25, 1.5, 1.75, 2].map((s) => (
           <button
             key={s}
-            onClick={() => handleSpeedChange(s)}
+            onClick={() => onSpeedChange(s)}
             style={{
               background: speed === s ? 'var(--primary)' : 'transparent',
               color: speed === s ? 'white' : 'var(--text-secondary)',
@@ -413,6 +355,9 @@ export default function VideoPlayer({
           </button>
         ))}
       </div>
+
+      {/* Keyboard shortcut toast */}
+      <ShortcutToast message={toastMessage} id={toastId} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings } from 'lucide-react';
+import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import Sidebar from './components/Sidebar';
 import VideoPlayer from './components/VideoPlayer';
@@ -7,6 +7,8 @@ import DocViewer from './components/DocViewer';
 import NotesPanel from './components/NotesPanel';
 import SettingsModal from './components/SettingsModal';
 import CourseManagerModal from './components/CourseManagerModal';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 
 export default function App() {
   const [coursePath, setCoursePath] = useState('');
@@ -25,11 +27,15 @@ export default function App() {
   const [notesCollapsed, setNotesCollapsed] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCourseManager, setShowCourseManager] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [speed, setSpeed] = useState(1);
+  const [toast, setToast] = useState({ message: null, id: 0 });
 
   const playerRef = useRef(null);
   const saveProgressThrottleRef = useRef(null);
+  const toastTimerRef = useRef(null);
 
   // Initialize and load user data on mount
   useEffect(() => {
@@ -360,6 +366,140 @@ export default function App() {
   const activeLessonNotes = activeLesson ? (notes[activeLesson.id] || []) : [];
   const activeLessonProgress = activeLesson ? (progress[activeLesson.id] || {}) : {};
 
+  // --- Keyboard Shortcuts Infrastructure ---
+  const SPEED_STEPS = [1, 1.25, 1.5, 1.75, 2];
+
+  const showToast = (msg) => {
+    setToast(prev => ({ message: msg, id: prev.id + 1 }));
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(prev => ({ ...prev, message: null })), 1500);
+  };
+
+  const getAllLessons = () => {
+    const all = [];
+    sections.forEach(sec => sec.lessons.forEach(l => all.push(l)));
+    return all;
+  };
+
+  const goToNextLesson = () => {
+    const all = getAllLessons();
+    const idx = all.findIndex(l => l.id === activeLesson?.id);
+    if (idx >= 0 && idx < all.length - 1) {
+      handleSelectLesson(all[idx + 1]);
+      showToast(`⏭ ${all[idx + 1].title}`);
+    }
+  };
+
+  const goToPrevLesson = () => {
+    const all = getAllLessons();
+    const idx = all.findIndex(l => l.id === activeLesson?.id);
+    if (idx > 0) {
+      handleSelectLesson(all[idx - 1]);
+      showToast(`⏮ ${all[idx - 1].title}`);
+    }
+  };
+
+  const handleSpeedChange = (newSpeed) => {
+    setSpeed(newSpeed);
+    if (playerRef.current) {
+      playerRef.current.playbackRate = newSpeed;
+    }
+  };
+
+  const changeSpeedStep = (direction) => {
+    const idx = SPEED_STEPS.indexOf(speed);
+    const currentIdx = idx >= 0 ? idx : SPEED_STEPS.findIndex(s => s >= speed);
+    const nextIdx = direction === 'up'
+      ? Math.min(SPEED_STEPS.length - 1, currentIdx + 1)
+      : Math.max(0, currentIdx - 1);
+    const newSpeed = SPEED_STEPS[nextIdx];
+    handleSpeedChange(newSpeed);
+    showToast(`⏱ ${newSpeed}x`);
+  };
+
+  const isVideoActive = () => !!activeLesson?.video && activeTab === 'video';
+  const hasLesson = () => !!activeLesson;
+
+  useKeyboardShortcuts([
+    // --- Video Playback ---
+    { key: ' ', action: () => {
+      const video = playerRef.current;
+      if (!video) return;
+      if (video.paused) { video.play().catch(() => {}); showToast('▶ Playing'); }
+      else { video.pause(); showToast('⏸ Paused'); }
+    }, when: isVideoActive },
+    { key: 'ArrowLeft', action: () => {
+      const video = playerRef.current;
+      if (video) { video.currentTime = Math.max(0, video.currentTime - 5); showToast('⏪ -5s'); }
+    }, when: isVideoActive },
+    { key: 'ArrowRight', action: () => {
+      const video = playerRef.current;
+      if (video) { video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); showToast('⏩ +5s'); }
+    }, when: isVideoActive },
+    { key: 'j', action: () => {
+      const video = playerRef.current;
+      if (video) { video.currentTime = Math.max(0, video.currentTime - 10); showToast('⏪ -10s'); }
+    }, when: isVideoActive },
+    { key: 'l', action: () => {
+      const video = playerRef.current;
+      if (video) { video.currentTime = Math.min(video.duration || 0, video.currentTime + 10); showToast('⏩ +10s'); }
+    }, when: isVideoActive },
+    { key: 'ArrowUp', action: () => {
+      const video = playerRef.current;
+      if (video) { video.volume = Math.min(1, video.volume + 0.1); showToast(`🔊 ${Math.round(video.volume * 100)}%`); }
+    }, when: isVideoActive },
+    { key: 'ArrowDown', action: () => {
+      const video = playerRef.current;
+      if (video) { video.volume = Math.max(0, video.volume - 0.1); showToast(`🔉 ${Math.round(video.volume * 100)}%`); }
+    }, when: isVideoActive },
+    { key: 'm', action: () => {
+      const video = playerRef.current;
+      if (video) { video.muted = !video.muted; showToast(video.muted ? '🔇 Muted' : '🔊 Unmuted'); }
+    }, when: isVideoActive },
+    { key: 'f', action: () => {
+      const video = playerRef.current;
+      if (!video) return;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else video.requestFullscreen().catch(() => {});
+    }, when: isVideoActive },
+    { key: '[', action: () => changeSpeedStep('down'), when: isVideoActive },
+    { key: ']', action: () => changeSpeedStep('up'), when: isVideoActive },
+    // 0-9 percentage seek
+    ...Array.from({ length: 10 }, (_, i) => ({
+      key: String(i),
+      action: () => {
+        const video = playerRef.current;
+        if (video && video.duration) {
+          video.currentTime = video.duration * (i / 10);
+          showToast(`⏩ ${i * 10}%`);
+        }
+      },
+      when: isVideoActive
+    })),
+    // --- Lesson Navigation ---
+    { key: 'N', modifiers: ['shift'], action: goToNextLesson, when: hasLesson },
+    { key: 'P', modifiers: ['shift'], action: goToPrevLesson, when: hasLesson },
+    { key: 'Enter', modifiers: ['shift'], action: () => {
+      if (!activeLesson) return;
+      const isCompleted = progress[activeLesson.id]?.completed;
+      handleToggleComplete(activeLesson.id, !isCompleted);
+      showToast(isCompleted ? '⬜ Unmarked' : '✅ Completed');
+    }, when: hasLesson },
+    // --- UI Panels ---
+    { key: 'b', action: () => setSidebarCollapsed(c => !c) },
+    { key: 'n', action: () => {
+      if (activeLesson?.type === 'video') setNotesCollapsed(c => !c);
+    }},
+    { key: 'Escape', action: () => {
+      if (showShortcutsModal) setShowShortcutsModal(false);
+      else if (showSettingsModal) setShowSettingsModal(false);
+      else if (showCourseManager) setShowCourseManager(false);
+    }},
+    // --- App-Level ---
+    { key: '?', modifiers: ['shift'], action: () => setShowShortcutsModal(s => !s) },
+    { key: ',', action: () => setShowSettingsModal(true) },
+  ]);
+
   // Check if active lesson has both video and resource documents (PDF/HTML)
   const hasMultipleTabs = activeLesson && activeLesson.video && (activeLesson.pdf || activeLesson.html);
 
@@ -521,6 +661,10 @@ export default function App() {
                     onSubtitlesUpdated={handleSubtitlesUpdated}
                     activeLang={activeLang}
                     setActiveLang={setActiveLang}
+                    speed={speed}
+                    onSpeedChange={handleSpeedChange}
+                    toastMessage={toast.message}
+                    toastId={toast.id}
                   />
                 ) : (
                   <DocViewer
@@ -582,6 +726,11 @@ export default function App() {
           onDeletePath={handleDeletePath}
           onModifyPath={handleModifyPath}
           onClose={() => setShowCourseManager(false)}
+        />
+      )}
+      {showShortcutsModal && (
+        <KeyboardShortcutsModal
+          onClose={() => setShowShortcutsModal(false)}
         />
       )}
     </div>
