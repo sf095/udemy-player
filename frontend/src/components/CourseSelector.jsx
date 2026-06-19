@@ -22,16 +22,24 @@ export default function CourseSelector({ currentPath, history, onSelectPath }) {
     if (isBrowsing) return;
     setIsBrowsing(true);
     try {
-      const res = await fetch('/api/browse-folder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (data.selectedPath) {
-        setInputPath(data.selectedPath);
-        onSelectPath(data.selectedPath);
-      } else if (data.error) {
-        alert(`Error opening folder selector: ${data.error}`);
+      if (window.electronAPI) {
+        const data = await window.electronAPI.browseFolder();
+        if (data.selectedPath) {
+          setInputPath(data.selectedPath);
+          onSelectPath(data.selectedPath);
+        }
+      } else {
+        const res = await fetch('/api/browse-folder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.selectedPath) {
+          setInputPath(data.selectedPath);
+          onSelectPath(data.selectedPath);
+        } else if (data.error) {
+          alert(`Error opening folder selector: ${data.error}`);
+        }
       }
     } catch (err) {
       console.error('Failed to browse folder', err);

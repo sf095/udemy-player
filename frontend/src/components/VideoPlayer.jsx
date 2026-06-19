@@ -79,9 +79,17 @@ export default function VideoPlayer({ videoPath, subtitles = {}, initialTime, on
     return found ? found.name : code.toUpperCase();
   };
 
-  const videoSrc = `http://localhost:3003/api/stream?path=${encodeURIComponent(videoPath)}`;
+  const getBackendOrigin = () => {
+    if (window.location.port === '3002') {
+      return 'http://localhost:3003';
+    }
+    return window.location.origin;
+  };
+
+  const backendOrigin = getBackendOrigin();
+  const videoSrc = `${backendOrigin}/api/stream?path=${encodeURIComponent(videoPath)}`;
   const subtitlePath = subtitles?.[activeLang];
-  const subtitleSrc = subtitlePath ? `http://localhost:3003/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
+  const subtitleSrc = subtitlePath ? `${backendOrigin}/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
 
   const hasSeekedRef = React.useRef(false);
 

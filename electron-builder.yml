@@ -1,0 +1,17 @@
+appId: com.udemyplayer.offline
+productName: Udemy Offline Player
+directories:
+  output: dist-desktop
+files:
+  - electron/**/*
+  - backend/**/*
+  - "!backend/progress_db.json"
+  - frontend/dist/**/*
+  - package.json
+mac:
+  category: public.app-category.education
+  target:
+    - target: dmg
+win:
+  target:
+    - target: nsis

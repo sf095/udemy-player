@@ -2,14 +2,20 @@
   "name": "udemy-player-root",
   "version": "1.0.0",
   "description": "Local Udemy Course Player",
+  "main": "electron/main.js",
   "scripts": {
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
     "backend": "npm run dev --prefix backend",
     "frontend": "npm run dev --prefix frontend",
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "dev:desktop": "concurrently \"npm run frontend\" \"electron .\"",
+    "package": "npm run build --prefix frontend && electron-builder",
+    "package:win": "npm run build --prefix frontend && electron-builder --win",
+    "package:all": "npm run build --prefix frontend && electron-builder --mac --win"
   },
-  "dependencies": {},
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3"
   }
 }

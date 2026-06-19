@@ -7,7 +7,9 @@ const { scanCourseFolder } = require('./scanner');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
-const DB_FILE = path.join(__dirname, 'progress_db.json');
+const DB_FILE = process.env.USER_DATA_PATH
+  ? path.join(process.env.USER_DATA_PATH, 'progress_db.json')
+  : path.join(__dirname, 'progress_db.json');
 
 app.use(cors());
 app.use(express.json());
@@ -443,6 +445,21 @@ app.post('/api/browse-folder', (req, res) => {
     res.status(500).json({ error: 'Native folder browser is only supported on macOS and Windows.' });
   }
 });
+
+// Serve frontend static assets in production
+if (process.env.NODE_ENV === 'production' || process.env.PACKAGED === 'true') {
+  const frontendDist = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(frontendDist));
+  
+  // Fallback for SPA routing: serve index.html for all non-API paths
+  app.get('*', (req, res, next) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendDist, 'index.html'));
+    } else {
+      next();
+    }
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
