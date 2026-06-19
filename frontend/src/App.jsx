@@ -6,6 +6,7 @@ import VideoPlayer from './components/VideoPlayer';
 import DocViewer from './components/DocViewer';
 import NotesPanel from './components/NotesPanel';
 import SettingsModal from './components/SettingsModal';
+import CourseManagerModal from './components/CourseManagerModal';
 
 export default function App() {
   const [coursePath, setCoursePath] = useState('');
@@ -23,6 +24,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showCourseManager, setShowCourseManager] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -94,6 +96,11 @@ export default function App() {
   };
 
   const fetchCourseContent = async (path) => {
+    if (!path) {
+      setSections([]);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -135,6 +142,52 @@ export default function App() {
       setError('Error scanning selected course path.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Delete course path from history
+  const handleDeletePath = async (pathToDelete) => {
+    try {
+      const res = await fetch('/api/userdata/course', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: pathToDelete })
+      });
+      const data = await res.json();
+      setHistory(data.history);
+      if (data.activeCoursePath !== coursePath) {
+        setCoursePath(data.activeCoursePath);
+        setActiveLesson(null);
+        fetchCourseContent(data.activeCoursePath);
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to delete path', err);
+      return false;
+    }
+  };
+
+  // Modify/rename course path in history
+  const handleModifyPath = async (oldPath, newPath) => {
+    try {
+      const res = await fetch('/api/userdata/course', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldPath, newPath })
+      });
+      if (!res.ok) {
+        return false;
+      }
+      const data = await res.json();
+      setHistory(data.history);
+      if (oldPath === coursePath) {
+        setCoursePath(data.activeCoursePath);
+        await fetchCourseContent(data.activeCoursePath);
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to modify path', err);
+      return false;
     }
   };
 
@@ -341,6 +394,7 @@ export default function App() {
           currentPath={coursePath}
           history={history}
           onSelectPath={handleSelectPath}
+          onManageCourses={() => setShowCourseManager(true)}
         />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -476,6 +530,14 @@ export default function App() {
                 )}
               </div>
             </div>
+          ) : !coursePath ? (
+            <div className="empty-state">
+              <Award className="empty-state-icon animate-pulse" style={{ strokeWidth: 1.5, size: 48, color: 'var(--primary)' }} />
+              <div className="empty-state-title">Welcome to Udemy Offline Player!</div>
+              <div className="empty-state-desc">
+                To get started, please select a course folder directory using the selector in the top bar.
+              </div>
+            </div>
           ) : (
             <div className="empty-state">
               <Award className="empty-state-icon" style={{ strokeWidth: 1.5, size: 48 }} />
@@ -509,6 +571,17 @@ export default function App() {
           settings={settings}
           onSave={handleSaveSettings}
           onClose={() => setShowSettingsModal(false)}
+        />
+      )}
+
+      {showCourseManager && (
+        <CourseManagerModal
+          currentPath={coursePath}
+          history={history}
+          onSelectPath={handleSelectPath}
+          onDeletePath={handleDeletePath}
+          onModifyPath={handleModifyPath}
+          onClose={() => setShowCourseManager(false)}
         />
       )}
     </div>

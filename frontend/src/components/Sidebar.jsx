@@ -37,75 +37,81 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
         <h3 className="sidebar-title">Course Content</h3>
       </div>
       <div className="sidebar-scrollable">
-        {sections.map((sec) => {
-          const isExpanded = !!expandedSections[sec.id];
-          const stats = getSectionStats(sec.lessons);
+        {sections.length === 0 ? (
+          <div className="sidebar-empty-state" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+            No course folder loaded.
+          </div>
+        ) : (
+          sections.map((sec) => {
+            const isExpanded = !!expandedSections[sec.id];
+            const stats = getSectionStats(sec.lessons);
 
-          return (
-            <div key={sec.id} className={`section-accordion ${isExpanded ? 'expanded' : ''}`}>
-              <button className="section-trigger" onClick={() => toggleSection(sec.id)}>
-                <div className="section-title-container">
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {sec.title}
-                  </span>
-                  <span className="section-meta">{stats}</span>
-                </div>
-                {isExpanded ? <ChevronDown size={16} style={{ minWidth: '16px' }} /> : <ChevronRight size={16} style={{ minWidth: '16px' }} />}
-              </button>
-              
-              {isExpanded && (
-                <div className="section-lessons">
-                  {sec.lessons.map((lesson) => {
-                    const isCompleted = !!progress[lesson.id]?.completed;
-                    const isActive = activeLesson?.id === lesson.id;
-                    
-                    // Calculate progress percent
-                    const lessonProg = progress[lesson.id];
-                    const progressPercent = lessonProg && lessonProg.duration > 0
-                      ? (lessonProg.watchTime / lessonProg.duration) * 100
-                      : 0;
+            return (
+              <div key={sec.id} className={`section-accordion ${isExpanded ? 'expanded' : ''}`}>
+                <button className="section-trigger" onClick={() => toggleSection(sec.id)}>
+                  <div className="section-title-container">
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sec.title}
+                    </span>
+                    <span className="section-meta">{stats}</span>
+                  </div>
+                  {isExpanded ? <ChevronDown size={16} style={{ minWidth: '16px' }} /> : <ChevronRight size={16} style={{ minWidth: '16px' }} />}
+                </button>
+                
+                {isExpanded && (
+                  <div className="section-lessons">
+                    {sec.lessons.map((lesson) => {
+                      const isCompleted = !!progress[lesson.id]?.completed;
+                      const isActive = activeLesson?.id === lesson.id;
+                      
+                      // Calculate progress percent
+                      const lessonProg = progress[lesson.id];
+                      const progressPercent = lessonProg && lessonProg.duration > 0
+                        ? (lessonProg.watchTime / lessonProg.duration) * 100
+                        : 0;
 
-                    return (
-                      <div
-                        key={lesson.id}
-                        className={`lesson-item ${isActive ? 'active' : ''}`}
-                        onClick={() => onSelectLesson(lesson)}
-                      >
+                      return (
                         <div
-                          className="checkbox-container"
-                          onClick={(e) => {
-                            e.stopPropagation(); // prevent choosing lesson when checking completion
-                            onToggleComplete(lesson.id, !isCompleted);
-                          }}
+                          key={lesson.id}
+                          className={`lesson-item ${isActive ? 'active' : ''}`}
+                          onClick={() => onSelectLesson(lesson)}
                         >
-                          {isCompleted ? (
-                            <CheckCircle2 size={16} style={{ color: 'var(--accent-green)', fill: 'rgba(16,185,129,0.1)', minWidth: '16px' }} />
-                          ) : (
-                            <Circle size={16} style={{ color: 'var(--text-muted)', minWidth: '16px' }} />
-                          )}
+                          <div
+                            className="checkbox-container"
+                            onClick={(e) => {
+                              e.stopPropagation(); // prevent choosing lesson when checking completion
+                              onToggleComplete(lesson.id, !isCompleted);
+                            }}
+                          >
+                            {isCompleted ? (
+                              <CheckCircle2 size={16} style={{ color: 'var(--accent-green)', fill: 'rgba(16,185,129,0.1)', minWidth: '16px' }} />
+                            ) : (
+                              <Circle size={16} style={{ color: 'var(--text-muted)', minWidth: '16px' }} />
+                            )}
+                          </div>
+                          {getLessonIcon(lesson.type)}
+                          <div className="lesson-details">
+                            <span className="lesson-title-text" title={lesson.title}>
+                              {lesson.title}
+                            </span>
+                            {!isCompleted && progressPercent > 0 && (
+                              <div className="lesson-progress-bar">
+                                <div
+                                  className="lesson-progress-fill"
+                                  style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {getLessonIcon(lesson.type)}
-                        <div className="lesson-details">
-                          <span className="lesson-title-text" title={lesson.title}>
-                            {lesson.title}
-                          </span>
-                          {!isCompleted && progressPercent > 0 && (
-                            <div className="lesson-progress-bar">
-                              <div
-                                className="lesson-progress-fill"
-                                style={{ width: `${Math.min(progressPercent, 100)}%` }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

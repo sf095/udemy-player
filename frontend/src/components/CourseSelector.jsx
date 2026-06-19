@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, Loader2 } from 'lucide-react';
+import { FolderOpen, Loader2, Folders } from 'lucide-react';
 
-export default function CourseSelector({ currentPath, history, onSelectPath }) {
+export default function CourseSelector({ currentPath, history, onSelectPath, onManageCourses }) {
   const [inputPath, setInputPath] = useState(currentPath || '');
   const [isBrowsing, setIsBrowsing] = useState(false);
 
@@ -103,6 +103,24 @@ export default function CourseSelector({ currentPath, history, onSelectPath }) {
             </option>
           ))}
         </select>
+      )}
+      {history && history.length > 0 && (
+        <button
+          type="button"
+          className="btn-browse"
+          onClick={onManageCourses}
+          disabled={isBrowsing}
+          title="Manage Opened Courses"
+          style={{
+            padding: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '34px'
+          }}
+        >
+          <Folders size={16} style={{ color: 'var(--text-secondary)' }} />
+        </button>
       )}
       <button type="submit" className="btn-load" disabled={isBrowsing || !inputPath.trim()}>
         Scan Course

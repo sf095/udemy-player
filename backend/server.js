@@ -16,11 +16,11 @@ app.use(express.json());
 
 // Helper to load/save JSON database file
 function readDb() {
-  const defaultPath = '/Users/hientranthanh/Downloads/udemy_courses/downloads/Pianoforall - Incredible New Way To Learn Piano & Keyboard';
+  const defaultPath = '';
   if (!fs.existsSync(DB_FILE)) {
     return {
       activeCoursePath: defaultPath,
-      history: [defaultPath],
+      history: [],
       progress: {}, // lessonId -> { completed: boolean, watchTime: number, duration: number }
       notes: {},     // lessonId -> Array of { id, timestamp, text, createdAt }
       settings: { geminiApiKey: '' }
@@ -32,12 +32,22 @@ function readDb() {
     if (!parsed.settings) {
       parsed.settings = { geminiApiKey: '' };
     }
+    // Ensure activeCoursePath exists on disk
+    if (parsed.activeCoursePath && !fs.existsSync(parsed.activeCoursePath)) {
+      parsed.activeCoursePath = '';
+    }
+    // Filter history to paths that actually exist on disk
+    if (parsed.history && Array.isArray(parsed.history)) {
+      parsed.history = parsed.history.filter(h => fs.existsSync(h));
+    } else {
+      parsed.history = [];
+    }
     return parsed;
   } catch (e) {
     console.error('Error reading database file, returning fallback state', e);
     return {
       activeCoursePath: defaultPath,
-      history: [defaultPath],
+      history: [],
       progress: {},
       notes: {},
       settings: { geminiApiKey: '' }
@@ -112,6 +122,9 @@ app.get('/api/health', (req, res) => {
 // 1. Get Course Structure
 app.get('/api/course-content', (req, res) => {
   const coursePath = req.query.path || readDb().activeCoursePath;
+  if (!coursePath) {
+    return res.json({ success: false, error: 'No course folder selected.' });
+  }
   try {
     const content = scanCourseFolder(coursePath);
     res.json({ success: true, coursePath, sections: content });
@@ -254,6 +267,45 @@ app.post('/api/userdata/course', (req, res) => {
   db.activeCoursePath = coursePath;
   if (!db.history.includes(coursePath)) {
     db.history.push(coursePath);
+  }
+  writeDb(db);
+  res.json(db);
+});
+
+// 6a. Delete Course Path from History
+app.delete('/api/userdata/course', (req, res) => {
+  const { path: coursePath } = req.body;
+  if (!coursePath) {
+    return res.status(400).json({ error: 'Course path is required' });
+  }
+
+  const db = readDb();
+  db.history = db.history.filter(h => h !== coursePath);
+  if (db.activeCoursePath === coursePath) {
+    db.activeCoursePath = '';
+  }
+  writeDb(db);
+  res.json(db);
+});
+
+// 6b. Modify Course Path in History
+app.put('/api/userdata/course', (req, res) => {
+  const { oldPath, newPath } = req.body;
+  if (!oldPath || !newPath) {
+    return res.status(400).json({ error: 'Both oldPath and newPath are required' });
+  }
+
+  if (!fs.existsSync(newPath)) {
+    return res.status(400).json({ error: 'New folder does not exist on disk' });
+  }
+
+  const db = readDb();
+  db.history = db.history.map(h => h === oldPath ? newPath : h);
+  // Ensure no duplicates
+  db.history = [...new Set(db.history)];
+
+  if (db.activeCoursePath === oldPath) {
+    db.activeCoursePath = newPath;
   }
   writeDb(db);
   res.json(db);
