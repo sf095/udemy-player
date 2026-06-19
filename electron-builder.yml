@@ -12,6 +12,7 @@ mac:
   category: public.app-category.education
   target:
     - target: dmg
+  artifactName: ${productName}-${version}-${arch}.${ext}
 win:
   target:
     - target: nsis
