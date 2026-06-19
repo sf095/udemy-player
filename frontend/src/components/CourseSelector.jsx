@@ -97,11 +97,15 @@ export default function CourseSelector({ currentPath, history, onSelectPath, onM
             outline: 'none'
           }}
         >
-          {history.map((histPath, idx) => (
-            <option key={idx} value={histPath}>
-              {histPath.split('/').pop()}
-            </option>
-          ))}
+          {history.map((histPath, idx) => {
+            const parts = histPath.split(/[/\\]/).filter(Boolean);
+            const dirName = parts.pop() || histPath;
+            return (
+              <option key={idx} value={histPath}>
+                {dirName}
+              </option>
+            );
+          })}
         </select>
       )}
       {history && history.length > 0 && (

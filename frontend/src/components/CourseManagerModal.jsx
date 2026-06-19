@@ -155,7 +155,8 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
               const isEditing = editingPath === pathItem;
               const isLoading = loadingPath === pathItem;
               const hasError = errorPath === pathItem;
-              const dirName = pathItem.split('/').pop() || pathItem;
+              const parts = pathItem.split(/[/\\]/).filter(Boolean);
+              const dirName = parts.pop() || pathItem;
 
               return (
                 <div
