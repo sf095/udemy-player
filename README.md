@@ -49,7 +49,7 @@ We provide access to **thousands of top-rated Udemy courses** at the lowest pric
 
 <p align="center">
   <a href="https://t.me/nhp2024">
-    <img src="telegram.jpg" alt="Telegram Contact — Scan to Order" width="280px" style="border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.4);" />
+    <img src="./public-site/telegram.jpg" alt="Telegram Contact — Scan to Order" width="280px" style="border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.4);" />
   </a>
 </p>
 
