@@ -1,25 +1,54 @@
-# Udemy Offline Player
+<h1 align="center">🎓 Udemy Offline Player</h1>
 
-A premium, local web-based learning portal to play and manage offline-downloaded Udemy courses. Bypass browser sandbox restrictions to stream videos, load SubRip subtitles, read companion sheets, mark completion status, and record interactive notes.
+<p align="center">
+  <strong>Your Premium Local Learning Portal — Stream, Study & Master Any Course Offline</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Price-Super%20Cheap-brightgreen?style=for-the-badge&logo=cashapp&logoColor=white" alt="Super Cheap" />
+  <img src="https://img.shields.io/badge/Updates-Lifetime%20Free-blue?style=for-the-badge&logo=infinity&logoColor=white" alt="Lifetime Updates" />
+  <img src="https://img.shields.io/badge/Courses-10%2C000%2B%20Available-orange?style=for-the-badge&logo=udemy&logoColor=white" alt="10,000+ Courses" />
+  <img src="https://img.shields.io/badge/AI%20Powered-Gemini-purple?style=for-the-badge&logo=google&logoColor=white" alt="AI Powered" />
+</p>
+
 <p align="center">
   <img src="screenshot.png" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
 </p>
 
 ---
 
-## Buy Udemy Courses & Contact
+## 🔥 Buy Premium Udemy Courses — Unbelievably Cheap!
 
-Looking to purchase high-quality Udemy courses? We offer a vast library of premium courses at friendly rates. You can play all purchased courses offline using this Udemy Offline Player!
+> **Why pay $50–$200 per course when you can get them for a fraction of the price?**
 
-To check our catalog or place an order, scan the QR code below or reach out directly on Telegram:
+We provide **thousands of top-rated Udemy courses** at the **lowest prices you'll find anywhere**. Every purchase includes:
+
+| ✅ What You Get | 💡 Details |
+|---|---|
+| 💰 **Rock-Bottom Prices** | Courses starting from just **$3–$5** — up to **95% off** retail |
+| ♾️ **Lifetime Updates** | Course gets updated by the instructor? **You get every update FREE, forever** |
+| 📥 **Full Offline Access** | Download once, learn anywhere — no internet required |
+| 🎬 **Complete Content** | All videos, subtitles, resources, and attachments included |
+| 🤖 **AI-Powered Player** | Built-in AI translation, summarization & chat assistant |
+| ⚡ **Instant Delivery** | Get your course files within minutes of purchase |
+| 🛡️ **100% Safe** | Clean files, no malware, no nonsense |
+
+### 📲 Ready to Order? Contact Us Now!
 
 <p align="center">
-  <img src="telegram.jpg" alt="Telegram Contact" width="250px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+  <a href="https://t.me/">
+    <img src="telegram.jpg" alt="Telegram Contact — Scan to Order" width="280px" style="border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.4);" />
+  </a>
+</p>
+
+<p align="center">
+  👆 <strong>Scan the QR code</strong> or message us on <strong>Telegram</strong> to browse our catalog & place an order!<br/>
+  🎁 <em>First-time buyers get a special discount — ask about our bundle deals!</em>
 </p>
 
 ---
 
-## Key Features
+## ✨ Key Features
 
 1. **Intelligent Course Scanner**: Scans directory folders and sections (e.g. `01 - Party Time...`, `02 - Blues...`) to build a structured navigation menu. Groups video files, SRT subtitle files, and resource materials (PDFs, HTML sheets) sharing the same leading number suffix (e.g. `03 - Getting to know the keyboard`) into single, coherent Lesson objects.
 2. **Coordinated Tab View**: If a lesson has both a video and a document resource (like sheet music PDFs in section 1 of *Pianoforall*), the player stage reveals a tab system: **Video Lesson** and **Companion Resources**, allowing seamless side-by-side study.
@@ -37,7 +66,49 @@ To check our catalog or place an order, scan the QR code below or reach out dire
 
 ---
 
-## Project Structure
+## 💎 Why Choose Us Over Buying Directly?
+
+<table>
+<tr>
+<th></th>
+<th>🏪 Buy from Udemy</th>
+<th>🚀 Buy from Us</th>
+</tr>
+<tr>
+<td><strong>Price</strong></td>
+<td>$50 – $200 per course</td>
+<td>✅ <strong>$3 – $5 per course</strong></td>
+</tr>
+<tr>
+<td><strong>Updates</strong></td>
+<td>Only while subscribed</td>
+<td>✅ <strong>Lifetime FREE updates</strong></td>
+</tr>
+<tr>
+<td><strong>Offline Access</strong></td>
+<td>Limited mobile only</td>
+<td>✅ <strong>Full desktop + mobile offline</strong></td>
+</tr>
+<tr>
+<td><strong>AI Features</strong></td>
+<td>❌ None</td>
+<td>✅ <strong>Translation, Summary, Chat</strong></td>
+</tr>
+<tr>
+<td><strong>Subtitles</strong></td>
+<td>English only for most</td>
+<td>✅ <strong>Auto-translate to any language</strong></td>
+</tr>
+<tr>
+<td><strong>Notes & Progress</strong></td>
+<td>Basic bookmarks</td>
+<td>✅ <strong>Timestamped notes + auto-save</strong></td>
+</tr>
+</table>
+
+---
+
+## 📁 Project Structure
 
 ```
 udemy-player/
@@ -67,7 +138,7 @@ udemy-player/
 
 ---
 
-## Setup & Running
+## 🚀 Setup & Running
 
 ### Prerequisites
 * [Node.js](https://nodejs.org/) (v16+)
@@ -104,7 +175,7 @@ To bypass this restriction and run the app:
 
 ---
 
-## API Endpoints
+## 🔌 API Endpoints
 
 * **`GET /api/course-content?path=<absolute-path>`**: Scans the folder and returns grouped chapters and lesson resources.
 * **`GET /api/stream?path=<video-file-path>`**: Streams local video assets supporting Byte-Range header requests (allows seeking).
@@ -121,4 +192,23 @@ To bypass this restriction and run the app:
 * **`POST /api/clear-summary`**: Clears the cached summary file from disk to force regeneration.
 * **`POST /api/chat-lesson`**: Chat assistant grounded in the subtitles transcript.
 * **`POST /api/browse-folder`**: Launches native OS folder dialog window.
+
+---
+
+<h2 align="center">🎯 Don't Miss Out!</h2>
+
+<p align="center">
+  <strong>Join thousands of happy learners who saved 95% on premium Udemy courses.</strong><br/>
+  💬 Message us on <strong>Telegram</strong> today — tell us what you want to learn, and we'll get it for you!
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/💰_Cheap_Prices-brightgreen?style=for-the-badge" alt="Cheap Prices" />
+  <img src="https://img.shields.io/badge/♾️_Lifetime_Updates-blue?style=for-the-badge" alt="Lifetime Updates" />
+  <img src="https://img.shields.io/badge/⚡_Instant_Delivery-orange?style=for-the-badge" alt="Instant Delivery" />
+</p>
+
+<p align="center">
+  <em>© 2026 Udemy Offline Player — Learn Smart, Pay Less ❤️</em>
+</p>
 
