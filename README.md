@@ -8,7 +8,7 @@ Your Premium Local Learning Portal — Stream, Study & Master Any Course Offline
 [![](https://img.shields.io/badge/AI%20Powered-Gemini-purple?style=for-the-badge&logo=google&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
 
 <p align="center">
-  <img src="screenshot.png" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
+  <img src="./public-site/screenshot.png" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
 </p>
 
 ---
