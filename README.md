@@ -25,6 +25,8 @@ Watch our quick walkthrough to see how easy it is to set up your local study por
 
 <p align="center">
   ▶️ <a href="https://www.youtube.com/watch?v=U0gidDeZN0I"><strong>Watch the guide on YouTube</strong></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;
+  📥 <a href="https://github.com/sf095/udemy-player/releases"><strong>Download Free Demo Pack (ZIP)</strong></a>
 </p>
 
 ---
@@ -57,6 +59,8 @@ We provide access to **thousands of top-rated Udemy courses** at the lowest pric
   Scan the QR code or click the image to message us on <strong>Telegram</strong>. Browse our [course catalog](./catalog.md) and place your order.
   <br/>
   <em>Special offer: First-time buyers get a special discount. Ask about our bundle deals.</em>
+  <br/>
+  <em>Want to test first? Download our <a href="https://github.com/sf095/udemy-player/releases"><strong>Free Demo Pack</strong></a> to try the offline player immediately.</em>
 </p>
 
 ---
