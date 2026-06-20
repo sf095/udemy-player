@@ -33,7 +33,7 @@ Watch our quick walkthrough to see how easy it is to set up your local study por
 
 Why pay $50 to $200 per course when you can get the exact same content for a fraction of the price?
 
-We provide access to **thousands of top-rated Udemy courses** at the lowest prices available. Every purchase includes:
+We provide access to **thousands of top-rated Udemy courses** at the lowest prices available (see our [course catalog](./catalog.md) for listings). Every purchase includes:
 
 | What You Get | Details |
 |---|---|
@@ -54,7 +54,7 @@ We provide access to **thousands of top-rated Udemy courses** at the lowest pric
 </p>
 
 <p align="center">
-  Scan the QR code or click the image to message us on <strong>Telegram</strong>. Browse our catalog and place your order.
+  Scan the QR code or click the image to message us on <strong>Telegram</strong>. Browse our [course catalog](./catalog.md) and place your order.
   <br/>
   <em>Special offer: First-time buyers get a special discount. Ask about our bundle deals.</em>
 </p>
