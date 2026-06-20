@@ -195,6 +195,50 @@
         </div>
     </section>
 
+    <!-- Searchable Catalog Section -->
+    <section class="catalog-section container" id="catalog">
+        <div class="section-title">
+            <h2>Explore Our Course Catalog</h2>
+            <p>Select your course and place an order instantly on Telegram. Don't see what you want? We have 10,000+ courses available on request.</p>
+        </div>
+
+        <div class="search-wrapper">
+            <input type="text" id="catalog-search" class="search-input" placeholder="Search courses by title, instructor, or category...">
+        </div>
+
+        <div class="filter-pills" id="catalog-filters">
+            <span class="filter-pill active" data-category="all">All Courses</span>
+            <span class="filter-pill" data-category="webdev">Web Development</span>
+            <span class="filter-pill" data-category="ai">AI & Data Science</span>
+            <span class="filter-pill" data-category="design">Design</span>
+            <span class="filter-pill" data-category="business">Business & Marketing</span>
+        </div>
+
+        <div class="catalog-table-wrapper" id="table-wrapper">
+            <table class="catalog-table">
+                <thead>
+                    <tr>
+                        <th style="width: 55%;">Course Title</th>
+                        <th style="width: 20%;">Instructor</th>
+                        <th style="width: 10%;">Rating</th>
+                        <th style="width: 10%;">Normal Price</th>
+                        <th style="width: 5%;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="catalog-list">
+                    <!-- Dynamic Rows Rendered Here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Custom Request Fallback (Hidden by default) -->
+        <div class="no-results-card" id="no-results" style="display: none;">
+            <h3>Don't see your course?</h3>
+            <p>We can verify, source, and package any of Udemy's 10,000+ courses for you in minutes.</p>
+            <a href="https://t.me/nhp2024?text=Hi,%20I'd%20like%20to%20request%20a%20custom%20Udemy%20course:" id="custom-request-btn" class="cta-btn" style="background: #24A1DE; box-shadow: 0 10px 25px -5px rgba(36, 161, 222, 0.4);">Request Custom Course via Telegram</a>
+        </div>
+    </section>
+
     <!-- Ordering / Telegram Panel -->
     <section id="order" class="container">
         <div class="telegram-panel">
@@ -247,6 +291,108 @@
         </div>
         <p>&copy; 2026 Udemy Offline Player. All rights reserved. Learn Smart, Pay Less.</p>
     </footer>
+
+    <script>
+        const courses = [
+            // Web Dev & Programming
+            { title: "The Complete 2026 Web Development Bootcamp", instructor: "Angela Yu", rating: "4.8 ⭐", normalPrice: "$120.00", category: "webdev" },
+            { title: "The Web Developer Bootcamp 2026", instructor: "Colt Steele", rating: "4.7 ⭐", normalPrice: "$110.00", category: "webdev" },
+            { title: "The Complete JavaScript Course 2026: From Zero to Expert!", instructor: "Jonas Schmedtmann", rating: "4.8 ⭐", normalPrice: "$130.00", category: "webdev" },
+            { title: "Modern React with Redux [2026 Update]", instructor: "Stephen Grider", rating: "4.7 ⭐", normalPrice: "$95.00", category: "webdev" },
+            { title: "100 Days of Code: The Complete Python Pro Bootcamp", instructor: "Angela Yu", rating: "4.8 ⭐", normalPrice: "$120.00", category: "webdev" },
+            { title: "Next.js & React - The Complete Guide", instructor: "Maximilian Schwarzmüller", rating: "4.8 ⭐", normalPrice: "$115.00", category: "webdev" },
+            { title: "Design Rules for Developers", instructor: "Erik D. Kennedy", rating: "4.9 ⭐", normalPrice: "$150.00", category: "webdev" },
+            
+            // AI & Data Science
+            { title: "Machine Learning A-Z™: AI, Python & R", instructor: "Kirill Eremenko", rating: "4.6 ⭐", normalPrice: "$125.00", category: "ai" },
+            { title: "Deep Learning A-Z™ 2026: Neural Networks", instructor: "Kirill Eremenko", rating: "4.6 ⭐", normalPrice: "$120.00", category: "ai" },
+            { title: "Artificial Intelligence A-Z™ 2026: Build an AI", instructor: "Kirill Eremenko", rating: "4.7 ⭐", normalPrice: "$130.00", category: "ai" },
+            { title: "Python for Data Science and Machine Learning", instructor: "Jose Portilla", rating: "4.7 ⭐", normalPrice: "$115.00", category: "ai" },
+            
+            // UI/UX & Design
+            { title: "User Experience Design Essentials - Adobe XD", instructor: "Daniel Walter Scott", rating: "4.8 ⭐", normalPrice: "$90.00", category: "design" },
+            { title: "Ultimate Photoshop Training: From Beginner to Pro", instructor: "Cristian Doru Barin", rating: "4.7 ⭐", normalPrice: "$85.00", category: "design" },
+            { title: "Adobe Illustrator CC - Essentials Training", instructor: "Daniel Walter Scott", rating: "4.8 ⭐", normalPrice: "$90.00", category: "design" },
+            { title: "Figma UI/UX Design Essentials", instructor: "Daniel Walter Scott", rating: "4.7 ⭐", normalPrice: "$95.00", category: "design" },
+            
+            // Business & Marketing
+            { title: "An Entire MBA in 1 Course", instructor: "Chris Haroun", rating: "4.6 ⭐", normalPrice: "$140.00", category: "business" },
+            { title: "The Complete Digital Marketing Course - 12 in 1", instructor: "Rob Percival", rating: "4.5 ⭐", normalPrice: "$100.00", category: "business" },
+            { title: "Financial Analysis and Financial Modeling", instructor: "365 Careers", rating: "4.7 ⭐", normalPrice: "$110.00", category: "business" },
+            { title: "Google SEO Course: The Complete Guide", instructor: "Julian Goldie", rating: "4.6 ⭐", normalPrice: "$95.00", category: "business" }
+        ];
+
+        const searchInput = document.getElementById('catalog-search');
+        const filterPills = document.querySelectorAll('.filter-pill');
+        const catalogList = document.getElementById('catalog-list');
+        const tableWrapper = document.getElementById('table-wrapper');
+        const noResults = document.getElementById('no-results');
+        const customRequestBtn = document.getElementById('custom-request-btn');
+
+        let currentSearch = '';
+        let currentCategory = 'all';
+
+        function renderCatalog() {
+            const filtered = courses.filter(course => {
+                const matchesSearch = course.title.toLowerCase().includes(currentSearch.toLowerCase()) ||
+                                      course.instructor.toLowerCase().includes(currentSearch.toLowerCase());
+                const matchesCategory = currentCategory === 'all' || course.category === currentCategory;
+                return matchesSearch && matchesCategory;
+            });
+
+            catalogList.innerHTML = '';
+
+            if (filtered.length === 0) {
+                tableWrapper.style.display = 'none';
+                noResults.style.display = 'block';
+                customRequestBtn.href = `https://t.me/nhp2024?text=Hi,%20I'd%20like%20to%20request%20a%20custom%20Udemy%20course:%20"${encodeURIComponent(currentSearch)}"`;
+            } else {
+                tableWrapper.style.display = 'block';
+                noResults.style.display = 'none';
+
+                filtered.forEach(course => {
+                    const tr = document.createElement('tr');
+                    
+                    const telegramText = `Hi, I want to order the course: "${course.title}" by ${course.instructor} ($4.00)`;
+                    const orderUrl = `https://t.me/nhp2024?text=${encodeURIComponent(telegramText)}`;
+
+                    tr.innerHTML = `
+                        <td><strong>${course.title}</strong></td>
+                        <td>${course.instructor}</td>
+                        <td>${course.rating}</td>
+                        <td style="text-decoration: line-through;">${course.normalPrice}</td>
+                        <td>
+                            <a href="${orderUrl}" class="catalog-order-btn" target="_blank">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                                Order
+                            </a>
+                        </td>
+                    `;
+                    catalogList.appendChild(tr);
+                });
+            }
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            currentSearch = e.target.value;
+            renderCatalog();
+        });
+
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                filterPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                currentCategory = pill.getAttribute('data-category');
+                renderCatalog();
+            });
+        });
+
+        // Initial Render
+        renderCatalog();
+    </script>
 
 </body>
 </html>
