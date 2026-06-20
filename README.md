@@ -17,6 +17,22 @@
 
 ---
 
+## 🎬 Video Guide
+
+> **New here? Watch our quick walkthrough to get started in minutes!**
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=U0gidDeZN0I">
+    <img src="https://img.youtube.com/vi/U0gidDeZN0I/maxresdefault.jpg" alt="Udemy Offline Player — Video Guide" width="700px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
+  </a>
+</p>
+
+<p align="center">
+  ▶️ <a href="https://www.youtube.com/watch?v=U0gidDeZN0I"><strong>Click to watch the full guide on YouTube</strong></a>
+</p>
+
+---
+
 ## 🔥 Buy Premium Udemy Courses — Unbelievably Cheap!
 
 > **Why pay $50–$200 per course when you can get them for a fraction of the price?**
