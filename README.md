@@ -1,15 +1,11 @@
-<h1 align="center">🎓 Udemy Offline Player</h1>
+# 🎓 Udemy Offline Player
 
-<p align="center">
-  <strong>Your Premium Local Learning Portal — Stream, Study & Master Any Course Offline</strong>
-</p>
+Your Premium Local Learning Portal — Stream, Study & Master Any Course Offline
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Price-Super%20Cheap-brightgreen?style=for-the-badge&logo=cashapp&logoColor=white" alt="Super Cheap" />
-  <img src="https://img.shields.io/badge/Updates-Lifetime%20Free-blue?style=for-the-badge&logo=infinity&logoColor=white" alt="Lifetime Updates" />
-  <img src="https://img.shields.io/badge/Courses-10%2C000%2B%20Available-orange?style=for-the-badge&logo=udemy&logoColor=white" alt="10,000+ Courses" />
-  <img src="https://img.shields.io/badge/AI%20Powered-Gemini-purple?style=for-the-badge&logo=google&logoColor=white" alt="AI Powered" />
-</p>
+[![](https://img.shields.io/badge/Price-Super%20Cheap-brightgreen?style=for-the-badge&logo=cashapp&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
+[![](https://img.shields.io/badge/Updates-Lifetime%20Free-blue?style=for-the-badge&logo=infinity&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
+[![](https://img.shields.io/badge/Courses-10%2C000%2B%20Available-orange?style=for-the-badge&logo=udemy&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
+[![](https://img.shields.io/badge/AI%20Powered-Gemini-purple?style=for-the-badge&logo=google&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
 
 <p align="center">
   <img src="screenshot.png" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
@@ -17,9 +13,9 @@
 
 ---
 
-## 🎬 Video Guide
+## 🎬 See How It Works
 
-> **New here? Watch our quick walkthrough to get started in minutes!**
+Watch our quick walkthrough to see how easy it is to set up your local study portal.
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=U0gidDeZN0I">
@@ -28,103 +24,80 @@
 </p>
 
 <p align="center">
-  ▶️ <a href="https://www.youtube.com/watch?v=U0gidDeZN0I"><strong>Click to watch the full guide on YouTube</strong></a>
+  ▶️ <a href="https://www.youtube.com/watch?v=U0gidDeZN0I"><strong>Watch the guide on YouTube</strong></a>
 </p>
 
 ---
 
-## 🔥 Buy Premium Udemy Courses — Unbelievably Cheap!
+## 🔥 Buy Premium Udemy Courses — Unbelievably Cheap
 
-> **Why pay $50–$200 per course when you can get them for a fraction of the price?**
+Why pay $50 to $200 per course when you can get the exact same content for a fraction of the price?
 
-We provide **thousands of top-rated Udemy courses** at the **lowest prices you'll find anywhere**. Every purchase includes:
+We provide access to **thousands of top-rated Udemy courses** at the lowest prices available. Every purchase includes:
 
-| ✅ What You Get | 💡 Details |
+| What You Get | Details |
 |---|---|
-| 💰 **Rock-Bottom Prices** | Courses starting from just **$3–$5** — up to **95% off** retail |
-| ♾️ **Lifetime Updates** | Course gets updated by the instructor? **You get every update FREE, forever** |
-| 📥 **Full Offline Access** | Download once, learn anywhere — no internet required |
-| 🎬 **Complete Content** | All videos, subtitles, resources, and attachments included |
-| 🤖 **AI-Powered Player** | Built-in AI translation, summarization & chat assistant |
-| ⚡ **Instant Delivery** | Get your course files within minutes of purchase |
-| 🛡️ **100% Safe** | Clean files, no malware, no nonsense |
+| 💰 **Rock-Bottom Prices** | Courses starting from just **$3 to $5** — save up to **95%** off retail |
+| ♾️ **Lifetime Updates** | If the instructor updates the course, you get the updates for free, forever |
+| 📥 **Full Offline Access** | Download the course once and learn anywhere — no internet required |
+| 🎬 **Complete Content** | All videos, high-quality subtitles, resources, and project attachments included |
+| 🤖 **AI-Powered Player** | Built-in AI translation, structured summarization, and chat assistant |
+| ⚡ **Instant Delivery** | Get your download link within minutes of placing an order |
+| 🛡️ **100% Safe** | Clean, secure files with no malware and no subscription lock-ins |
 
 ### 📲 Ready to Order? Contact Us Now!
 
 <p align="center">
-  <a href="https://t.me/">
+  <a href="https://t.me/nhp2024">
     <img src="telegram.jpg" alt="Telegram Contact — Scan to Order" width="280px" style="border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.4);" />
   </a>
 </p>
 
 <p align="center">
-  👆 <strong>Scan the QR code</strong> or message us on <strong>Telegram</strong> to browse our catalog & place an order!<br/>
-  🎁 <em>First-time buyers get a special discount — ask about our bundle deals!</em>
+  Scan the QR code or click the image to message us on <strong>Telegram</strong>. Browse our catalog and place your order.
+  <br/>
+  <em>Special offer: First-time buyers get a special discount. Ask about our bundle deals.</em>
 </p>
-
----
-
-## ✨ Key Features
-
-1. **Intelligent Course Scanner**: Scans directory folders and sections (e.g. `01 - Party Time...`, `02 - Blues...`) to build a structured navigation menu. Groups video files, SRT subtitle files, and resource materials (PDFs, HTML sheets) sharing the same leading number suffix (e.g. `03 - Getting to know the keyboard`) into single, coherent Lesson objects.
-2. **Coordinated Tab View**: If a lesson has both a video and a document resource (like sheet music PDFs in section 1 of *Pianoforall*), the player stage reveals a tab system: **Video Lesson** and **Companion Resources**, allowing seamless side-by-side study.
-3. **Custom HTML5 Video Stage**:
-   - Converts standard `.srt` subtitle files to WebVTT (`.vtt`) on-the-fly.
-   - Built-in adjustable playback rate options (`1x`, `1.25x`, `1.5x`, `1.75x`, `2x`).
-   - Browser hotkeys: `Space` (play/pause), `ArrowLeft`/`ArrowRight` (skip back/forward 5 seconds), `ArrowUp`/`ArrowDown` (volume), and `F` (fullscreen toggle).
- 4. **Interactive Notes Timeline**: Pauses the video automatically when you start typing a note. Note entries are logged with click-to-seek timestamp badges; clicking a note badge seeks the video player to that exact second.
-5. **Auto-Completion & Auto-Save**: Auto-completes a video lesson when watch progress reaches `90%`. Periodically saves current playback timestamps every 5 seconds to local storage so you can resume precisely where you paused.
-6. **AI Subtitle Translation**: Automatically translates English subtitle tracks into Vietnamese (or other selected languages) using the Gemini API, saving `.vi.vtt` (or target lang code) files next to the videos.
-7. **Offline AI Summarization**: Generates structured, bulleted summaries of video lessons based on the active subtitle track. Caches them next to subtitles as `.summary.[lang].txt` files to enable instant, offline reloading without invoking the API again.
-8. **Transcript-Grounded AI Chat**: Features a conversational chat sidebar where you can ask quick questions about the lesson, using the subtitle transcript text as the grounding context.
-9. **API Resilience Failover**: Implements automatic fallback from `gemini-2.5-flash` to `gemini-1.5-flash` via the `v1beta` API to ensure high availability and self-healing against transient Google API outages or rate limits.
-10. **Premium Dark Theme Layout**: Responsive design crafted with custom Vanilla CSS variables, visual hierarchy grid panels, and glassmorphism styling.
 
 ---
 
 ## 💎 Why Choose Us Over Buying Directly?
 
-<table>
-<tr>
-<th></th>
-<th>🏪 Buy from Udemy</th>
-<th>🚀 Buy from Us</th>
-</tr>
-<tr>
-<td><strong>Price</strong></td>
-<td>$50 – $200 per course</td>
-<td>✅ <strong>$3 – $5 per course</strong></td>
-</tr>
-<tr>
-<td><strong>Updates</strong></td>
-<td>Only while subscribed</td>
-<td>✅ <strong>Lifetime FREE updates</strong></td>
-</tr>
-<tr>
-<td><strong>Offline Access</strong></td>
-<td>Limited mobile only</td>
-<td>✅ <strong>Full desktop + mobile offline</strong></td>
-</tr>
-<tr>
-<td><strong>AI Features</strong></td>
-<td>❌ None</td>
-<td>✅ <strong>Translation, Summary, Chat</strong></td>
-</tr>
-<tr>
-<td><strong>Subtitles</strong></td>
-<td>English only for most</td>
-<td>✅ <strong>Auto-translate to any language</strong></td>
-</tr>
-<tr>
-<td><strong>Notes & Progress</strong></td>
-<td>Basic bookmarks</td>
-<td>✅ <strong>Timestamped notes + auto-save</strong></td>
-</tr>
-</table>
+Compare how our local portal matches up against buying directly from Udemy:
+
+| Feature | Buying from Udemy | Learning with Us |
+|---|---|---|
+| **Price** | $50 to $200 per course | **$3 to $5 per course** |
+| **Updates** | Only while subscribed or active | **Lifetime updates included free** |
+| **Offline Access** | Limited mobile download only | **Full desktop and mobile offline access** |
+| **AI Features** | None | **Translation, summarization, and chat** |
+| **Subtitles** | English-only for most courses | **Auto-translate subtitles to any language** |
+| **Notes & Progress** | Basic bookmarks | **Timestamped notes + auto-save progress** |
 
 ---
 
-## 📁 Project Structure
+## ✨ Features Built for Power Learners
+
+This player is built to help you learn faster and retain more information:
+
+1. **Intelligent Course Scanner**: Point the player at your downloaded course folder. It automatically organizes lessons, chapters, and companion files into a clean sidebar menu.
+2. **Coordinated Tab View**: Study side-by-side. If a lesson contains both a video and companion resources (like PDFs or cheat sheets), the player shows them together in coordinated tabs.
+3. **Custom HTML5 Video Stage**:
+   - Supports adjustable playback speeds (`1x`, `1.25x`, `1.5x`, `1.75x`, `2x`).
+   - Browser hotkeys: `Space` (play/pause), `Arrow Left/Right` (skip 5 seconds), `Arrow Up/Down` (volume), and `F` (fullscreen toggle).
+4. **Interactive Notes Timeline**: Type notes as you watch. The player pauses the video automatically while you type, and links each note to a click-to-seek timestamp.
+5. **Auto-Completion & Auto-Save**: Lessons are marked complete at `90%` watch progress. Your playback position saves every 5 seconds so you can resume exactly where you left off.
+6. **AI Subtitle Translation**: Automatically translate English subtitle tracks to your native language using the built-in Gemini API.
+7. **Offline AI Summarization**: Generate structured, bulleted summaries of video lessons. The summaries cache locally, letting you review them instantly without internet access.
+8. **Transcript-Grounded AI Chat**: Ask questions about the lesson in the chat sidebar. The AI answers using the active subtitle transcript as context.
+
+---
+
+## 🛠️ Developer Setup & Project Run
+
+If you want to run the project locally, build it, or modify the code, follow these technical instructions.
+
+### Project Structure
 
 ```
 udemy-player/
@@ -136,12 +109,7 @@ udemy-player/
 ├── docs/                  # Technical specifications, implementation plans, and task lists
 ├── frontend/              # Vite React client
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── CourseSelector.jsx # Course folder scanner input & history
-│   │   │   ├── Sidebar.jsx        # Chapter accordion menu & completion logs
-│   │   │   ├── VideoPlayer.jsx    # Media streaming stage with hotkeys & speeds
-│   │   │   ├── DocViewer.jsx      # Local PDF embeds & HTML checkpoint iframes
-│   │   │   └── NotesPanel.jsx     # Annotation manager with timestamp seeks
+│   │   ├── components/    # CourseSelector, Sidebar, VideoPlayer, DocViewer, NotesPanel
 │   │   ├── App.jsx        # App logic controller
 │   │   ├── main.jsx       # Client entry
 │   │   └── index.css      # Dark-mode styling tokens and layout rules
@@ -149,18 +117,14 @@ udemy-player/
 │   └── package.json       # Client dependencies
 ├── package.json           # Root runner scripts (starts concurrently)
 ├── telegram.jpg           # Telegram contact image/QR code
-└── README.md              # This setup guide
+└── README.md              # Project documentation
 ```
-
----
-
-## 🚀 Setup & Running
 
 ### Prerequisites
 * [Node.js](https://nodejs.org/) (v16+)
 
 ### 1. Install Dependencies
-Install all root, client, and server dependencies in one go:
+Install all root, client, and server dependencies in one command:
 ```bash
 npm run install:all
 ```
@@ -175,56 +139,48 @@ npm run dev
 Visit **[http://localhost:3002](http://localhost:3002)** to browse and play your courses.
 
 ### 4. Running the Desktop App (macOS DMG)
-If you build/package the desktop application using `npm run package` or download the compiled `.dmg` from GitHub, macOS Gatekeeper may block it on first launch with a warning that the app is "damaged" or "developer cannot be verified".
-
-To bypass this restriction and run the app:
-1. Drag **Udemy Offline Player.app** to your `/Applications` folder.
-2. Open terminal and run:
+To package and run the application as a standalone desktop app on macOS:
+1. Build the frontend and compile the package:
    ```bash
-   # Remove the quarantine attribute added by macOS for downloaded files
+   npm run package
+   ```
+2. Drag **Udemy Offline Player.app** from `dist-desktop/` to your `/Applications` folder.
+3. If macOS Gatekeeper blocks the app from running, remove the quarantine attribute and self-sign it:
+   ```bash
+   # Remove the quarantine attribute
    xattr -cr /Applications/Udemy\ Offline\ Player.app
    
-   # Self-sign the application to allow it to run locally
+   # Self-sign the application
    codesign --force --deep --sign - /Applications/Udemy\ Offline\ Player.app
    ```
-3. You can now launch the application normally from Applications or Launchpad.
+4. Launch the application normally from Applications or Launchpad.
 
 ---
 
-## 🔌 API Endpoints
+## 🔒 API Endpoints
 
 * **`GET /api/course-content?path=<absolute-path>`**: Scans the folder and returns grouped chapters and lesson resources.
-* **`GET /api/stream?path=<video-file-path>`**: Streams local video assets supporting Byte-Range header requests (allows seeking).
+* **`GET /api/stream?path=<video-file-path>`**: Streams local video assets supporting Byte-Range header requests.
 * **`GET /api/subtitle?path=<subtitle-file-path>`**: Feeds SubRip (`.srt`) contents converted to WebVTT format on-the-fly.
-* **`GET /api/resource?path=<document-file-path>`**: Serves PDFs and HTML checkpoints securely with appropriate MIME types.
-* **`GET /api/userdata`**: Returns completion logs, note timelines, and active paths from `progress_db.json`.
+* **`GET /api/resource?path=<document-file-path>`**: Serves PDFs and HTML checkpoints securely.
+* **`GET /api/userdata`**: Returns completion logs, note timelines, and active paths.
 * **`POST /api/userdata/course`**: Scans and adds new course path to recent history.
 * **`POST /api/userdata/progress`**: Updates completion states and watch logs.
 * **`POST /api/userdata/notes`**: Inserts or updates annotation notes.
 * **`DELETE /api/userdata/notes`**: Removes note entries from a lesson timeline.
 * **`POST /api/userdata/settings`**: Saves application settings (such as the Gemini API Key).
-* **`POST /api/translate-subtitle`**: Translates English subtitles into a target language using Gemini, saving the `.vtt` file next to the media.
-* **`POST /api/summarize-lesson`**: Generates (and caches to disk next to subtitles) or retrieves a cached lesson summary.
-* **`POST /api/clear-summary`**: Clears the cached summary file from disk to force regeneration.
+* **`POST /api/translate-subtitle`**: Translates subtitles using the Gemini API.
+* **`POST /api/summarize-lesson`**: Generates and caches lesson summaries.
 * **`POST /api/chat-lesson`**: Chat assistant grounded in the subtitles transcript.
 * **`POST /api/browse-folder`**: Launches native OS folder dialog window.
 
 ---
 
-<h2 align="center">🎯 Don't Miss Out!</h2>
-
 <p align="center">
-  <strong>Join thousands of happy learners who saved 95% on premium Udemy courses.</strong><br/>
+  <strong>Join learners who saved 95% on premium Udemy courses.</strong><br/>
   💬 Message us on <strong>Telegram</strong> today — tell us what you want to learn, and we'll get it for you!
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/💰_Cheap_Prices-brightgreen?style=for-the-badge" alt="Cheap Prices" />
-  <img src="https://img.shields.io/badge/♾️_Lifetime_Updates-blue?style=for-the-badge" alt="Lifetime Updates" />
-  <img src="https://img.shields.io/badge/⚡_Instant_Delivery-orange?style=for-the-badge" alt="Instant Delivery" />
 </p>
 
 <p align="center">
   <em>© 2026 Udemy Offline Player — Learn Smart, Pay Less ❤️</em>
 </p>
-

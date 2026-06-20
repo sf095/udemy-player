@@ -44,3 +44,8 @@ backend/progress_db.json
 
 # OS metadata
 Thumbs.db
+
+# Agents
+.agents
+.claude
+skills-lock.json
