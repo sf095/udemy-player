@@ -27,6 +27,7 @@ body {
     overflow-x: hidden;
     background-image: var(--gradient-glow);
     background-size: 100% 100%;
+    padding-top: 24px;
 }
 
 .container {
@@ -37,11 +38,13 @@ body {
 
 /* Header */
 header {
-    padding: 24px 0;
+    padding: 12px 0 20px 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border-color);
+    margin-top: 0;
+    margin-bottom: 32px;
 }
 
 .logo {
@@ -124,6 +127,28 @@ h1 span {
 .cta-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 15px 30px -5px rgba(99, 102, 241, 0.6);
+}
+
+.cta-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 36px;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.cta-btn-secondary:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 /* Screenshot Preview */
