@@ -224,7 +224,7 @@ app.get('/api/subtitle', (req, res) => {
   });
 });
 
-// 4. Serve resources (PDF and HTML pages)
+// 4. Serve resources (PDF, HTML pages, and downloadable companion files)
 app.get('/api/resource', (req, res) => {
   const resourcePath = req.query.path;
   if (!resourcePath) {
@@ -236,14 +236,32 @@ app.get('/api/resource', (req, res) => {
   }
 
   const ext = path.extname(resourcePath).toLowerCase();
-  let contentType = 'application/octet-stream';
-  if (ext === '.pdf') {
-    contentType = 'application/pdf';
-  } else if (ext === '.html' || ext === '.htm') {
-    contentType = 'text/html';
+  const mimeTypes = {
+    '.pdf': 'application/pdf',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.txt': 'text/plain',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.zip': 'application/zip',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  };
+
+  const contentType = mimeTypes[ext] || 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+
+  // Force download for binary document formats, archives, etc.
+  const previewTypes = ['application/pdf', 'text/html', 'text/plain', 'image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'];
+  if (!previewTypes.includes(contentType)) {
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(path.basename(resourcePath))}"`);
   }
 
-  res.setHeader('Content-Type', contentType);
   fs.createReadStream(resourcePath).pipe(res);
 });
 

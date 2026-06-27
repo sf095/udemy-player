@@ -4,6 +4,7 @@ import CourseSelector from './components/CourseSelector';
 import Sidebar from './components/Sidebar';
 import VideoPlayer from './components/VideoPlayer';
 import DocViewer from './components/DocViewer';
+import ResourceList from './components/ResourceList';
 import NotesPanel from './components/NotesPanel';
 import SettingsModal from './components/SettingsModal';
 import CourseManagerModal from './components/CourseManagerModal';
@@ -22,6 +23,7 @@ export default function App() {
   const [activeLang, setActiveLang] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'doc'
+  const [activeResource, setActiveResource] = useState(null);
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
@@ -332,10 +334,33 @@ export default function App() {
     }
   };
 
+  // Safe helper to get resources with backwards compatibility fallback
+  const getLessonResources = (lesson) => {
+    if (!lesson) return [];
+    if (lesson.resources) return lesson.resources;
+    const fallback = [];
+    if (lesson.pdf) {
+      const parts = lesson.pdf.split(/[/\\]/);
+      const name = parts[parts.length - 1];
+      fallback.push({ name: name, title: 'PDF Document', path: lesson.pdf, ext: '.pdf', type: 'pdf' });
+    }
+    if (lesson.html) {
+      const parts = lesson.html.split(/[/\\]/);
+      const name = parts[parts.length - 1];
+      fallback.push({ name: name, title: 'HTML Document', path: lesson.html, ext: '.html', type: 'html' });
+    }
+    return fallback;
+  };
+
   // Select lesson click handler
   const handleSelectLesson = (lesson) => {
     setActiveLesson(lesson);
     setCurrentTime(0);
+
+    const resources = getLessonResources(lesson);
+    const firstPreviewable = resources.find(r => r.type === 'pdf' || r.type === 'html') || null;
+    setActiveResource(firstPreviewable);
+
     // Auto-select tab based on available assets
     if (lesson.type === 'video') {
       setActiveTab('video');
@@ -501,7 +526,8 @@ export default function App() {
   ]);
 
   // Check if active lesson has both video and resource documents (PDF/HTML)
-  const hasMultipleTabs = activeLesson && activeLesson.video && (activeLesson.pdf || activeLesson.html);
+  const lessonResources = getLessonResources(activeLesson);
+  const hasMultipleTabs = activeLesson && activeLesson.video && lessonResources.length > 0;
 
   return (
     <div className="app-container">
@@ -667,10 +693,47 @@ export default function App() {
                     toastId={toast.id}
                   />
                 ) : (
-                  <DocViewer
-                    path={activeLesson.pdf || activeLesson.html}
-                    type={activeLesson.pdf ? 'pdf' : 'html'}
-                  />
+                  <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>
+                    {lessonResources.length > 1 && (
+                      <div style={{ width: '320px', minWidth: '320px', borderRight: '1px solid var(--border-color)', height: '100%', overflowY: 'auto' }}>
+                        <ResourceList
+                          resources={lessonResources}
+                          activeResource={activeResource}
+                          onSelectResource={setActiveResource}
+                        />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      {activeResource && (activeResource.type === 'pdf' || activeResource.type === 'html') ? (
+                        <DocViewer
+                          path={activeResource.path}
+                          type={activeResource.type}
+                        />
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px', color: 'var(--text-secondary)', textAlign: 'center', gap: '16px' }}>
+                          <BookOpen size={48} style={{ color: 'var(--text-muted)' }} />
+                          <div>
+                            <h5 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 600 }}>Companion Resource Viewer</h5>
+                            <p style={{ margin: 0, fontSize: '0.85rem', maxWidth: '360px' }}>
+                              {activeResource 
+                                ? `"${activeResource.title}" is an external or downloadable resource. Look for your download, or select a PDF/HTML resource on the left to preview.`
+                                : "No previewable resource selected. Select a PDF or HTML resource on the left to preview it here."
+                              }
+                            </p>
+                          </div>
+                          {lessonResources.length === 1 && (
+                            <div style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                              <ResourceList
+                                resources={lessonResources}
+                                activeResource={activeResource}
+                                onSelectResource={setActiveResource}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

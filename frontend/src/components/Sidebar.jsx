@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File } from 'lucide-react';
 
 export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete }) {
   const [expandedSections, setExpandedSections] = useState({});
@@ -26,6 +26,8 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
         return <FileText size={14} style={{ color: 'var(--primary)' }} />;
       case 'html':
         return <Globe size={14} style={{ color: 'var(--accent-amber)' }} />;
+      case 'resource':
+        return <File size={14} style={{ color: 'var(--text-secondary)' }} />;
       default:
         return <FileText size={14} />;
     }

@@ -111,8 +111,7 @@ function scanCourseFolder(coursePath) {
       
       let videoFile = null;
       const subtitles = {};
-      let pdfFile = null;
-      let htmlFile = null;
+      const resources = [];
 
       for (const file of files) {
         if (file.ext === '.mp4') {
@@ -123,25 +122,66 @@ function scanCourseFolder(coursePath) {
           if (!subtitles[lang]) {
             subtitles[lang] = file.fullPath;
           }
-        } else if (file.ext === '.pdf') {
-          pdfFile = file;
-        } else if (file.ext === '.html' || file.ext === '.htm') {
-          htmlFile = file;
+        } else if (file.name.toLowerCase() !== '.ds_store') {
+          // Process as a lesson resource/document
+          let resourceType = 'file';
+          let resourcePath = file.fullPath;
+
+          if (file.ext === '.pdf') {
+            resourceType = 'pdf';
+          } else if (file.ext === '.html' || file.ext === '.htm') {
+            resourceType = 'html';
+          } else if (file.ext === '.url') {
+            resourceType = 'url';
+            try {
+              const content = fs.readFileSync(file.fullPath, 'utf8');
+              const match = content.match(/^URL=(.+)$/m);
+              if (match) {
+                resourcePath = match[1].trim();
+              }
+            } catch (err) {
+              console.error(`Failed to parse .url file at ${file.fullPath}:`, err);
+            }
+          }
+
+          resources.push({
+            name: file.name,
+            title: cleanTitle(file.name, prefix),
+            path: resourcePath,
+            ext: file.ext,
+            type: resourceType
+          });
         }
       }
 
-      // Ignore groups that do not contain valid media or documents
-      if (!videoFile && !pdfFile && !htmlFile) {
+      // Ignore groups that do not contain valid video or resources
+      if (!videoFile && resources.length === 0) {
         continue;
       }
+
+      const firstPdf = resources.find(r => r.type === 'pdf');
+      const firstHtml = resources.find(r => r.type === 'html');
 
       let title = '';
       if (videoFile) {
         title = cleanTitle(videoFile.name, prefix);
-      } else if (htmlFile) {
-        title = cleanTitle(htmlFile.name, prefix);
-      } else if (pdfFile) {
-        title = cleanTitle(pdfFile.name, prefix);
+      } else if (firstHtml) {
+        title = firstHtml.title;
+      } else if (firstPdf) {
+        title = firstPdf.title;
+      } else if (resources.length > 0) {
+        title = resources[0].title;
+      }
+
+      let lessonType = 'video';
+      if (!videoFile) {
+        if (firstHtml) {
+          lessonType = 'html';
+        } else if (firstPdf) {
+          lessonType = 'pdf';
+        } else {
+          lessonType = 'resource';
+        }
       }
 
       // Unique ID for progress tracking
@@ -154,9 +194,10 @@ function scanCourseFolder(coursePath) {
         video: videoFile ? videoFile.fullPath : null,
         subtitle: subtitles['en'] || Object.values(subtitles)[0] || null,
         subtitles: subtitles,
-        pdf: pdfFile ? pdfFile.fullPath : null,
-        html: htmlFile ? htmlFile.fullPath : null,
-        type: videoFile ? 'video' : (htmlFile ? 'html' : 'pdf')
+        pdf: firstPdf ? firstPdf.path : null,
+        html: firstHtml ? firstHtml.path : null,
+        resources: resources,
+        type: lessonType
       });
     }
 
