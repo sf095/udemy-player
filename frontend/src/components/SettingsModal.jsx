@@ -157,7 +157,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 borderRadius: '8px',
                 padding: '10px 12px',
                 fontSize: '0.75rem',
-                color: '#a5b4fc',
+                color: 'var(--text-secondary)',
                 marginBottom: '20px'
               }}
             >
@@ -193,7 +193,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 cursor: 'pointer',
                 transition: 'var(--transition-fast)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               Cancel

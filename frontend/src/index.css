@@ -43,6 +43,17 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-glow: 0 0 15px rgba(99, 102, 241, 0.25);
   
+  /* Decorative / special-purpose backgrounds */
+  --toast-bg: rgba(15, 23, 42, 0.88);
+  --toast-border: rgba(255, 255, 255, 0.1);
+  --toast-color: #ffffff;
+  --kbd-bg: rgba(255, 255, 255, 0.06);
+  --kbd-border: rgba(255, 255, 255, 0.12);
+  --doc-bg: #1e293b;
+  --overlay-chip-bg: rgba(15, 23, 42, 0.75);
+  --overlay-chip-border: rgba(255, 255, 255, 0.08);
+  --select-option-bg: #1e293b;
+
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -51,7 +62,7 @@
   --notes-width: 360px;
 }
 
-body.light-theme {
+.light-theme {
   --bg-main: #f1f5f9;
   --bg-card: rgba(255, 255, 255, 0.85);
   --bg-sidebar: rgba(255, 255, 255, 0.9);
@@ -82,6 +93,17 @@ body.light-theme {
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
   --shadow-glow: 0 0 15px rgba(99, 102, 241, 0.15);
+
+  /* Decorative / special-purpose backgrounds (Light Theme) */
+  --toast-bg: rgba(241, 245, 249, 0.94);
+  --toast-border: rgba(15, 23, 42, 0.1);
+  --toast-color: #0f172a;
+  --kbd-bg: rgba(0, 0, 0, 0.06);
+  --kbd-border: rgba(0, 0, 0, 0.12);
+  --doc-bg: #ffffff;
+  --overlay-chip-bg: rgba(241, 245, 249, 0.85);
+  --overlay-chip-border: rgba(15, 23, 42, 0.1);
+  --select-option-bg: #f1f5f9;
 }
 
 * {
@@ -97,7 +119,7 @@ body {
   overflow: hidden;
   height: 100vh;
   -webkit-font-smoothing: antialiased;
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition: background-color var(--transition-normal), color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 /* Custom Scrollbars */
@@ -125,7 +147,7 @@ body {
   background-image: 
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
-  transition: background-color var(--transition-normal);
+  transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 /* Header */
@@ -139,7 +161,7 @@ body {
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .brand {
@@ -248,7 +270,7 @@ body {
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -422,7 +444,7 @@ body {
   overflow: hidden;
   height: 100%;
   position: relative;
-  transition: background-color var(--transition-normal);
+  transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .video-container {
@@ -460,7 +482,7 @@ video::cue {
   height: 48px;
   align-items: center;
   gap: 8px;
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .tab-btn {
@@ -493,7 +515,7 @@ video::cue {
   flex: 1;
   width: 100%;
   height: 100%;
-  background: white;
+  background: var(--doc-bg);
 }
 
 .document-frame {
@@ -527,7 +549,7 @@ video::cue {
   flex-direction: column;
   overflow: hidden;
   height: 100%;
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .notes-header {
@@ -615,7 +637,7 @@ video::cue {
   padding: 16px;
   border-top: 1px solid var(--border-color);
   background: var(--bg-notes-form);
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .textarea-note {
@@ -757,7 +779,7 @@ video::cue {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  transition: background-color var(--transition-normal);
+  transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 @keyframes fade-in {
@@ -836,7 +858,7 @@ video::cue {
 
 .shortcuts-close-btn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
 }
 
 .shortcuts-modal-body {
@@ -890,8 +912,8 @@ video::cue {
   min-width: 26px;
   height: 26px;
   padding: 0 7px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
   border-bottom-width: 2px;
   border-radius: 6px;
   font-size: 0.72rem;
@@ -930,9 +952,9 @@ video::cue {
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%) translateY(8px);
-  background: rgba(15, 23, 42, 0.88);
+  background: var(--toast-bg);
   backdrop-filter: blur(12px);
-  color: white;
+  color: var(--toast-color);
   padding: 8px 22px;
   border-radius: 24px;
   font-size: 0.9rem;
@@ -942,7 +964,7 @@ video::cue {
   opacity: 0;
   transition: opacity 0.2s ease, transform 0.2s ease;
   white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--toast-border);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 

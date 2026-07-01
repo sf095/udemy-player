@@ -191,9 +191,9 @@ export default function VideoPlayer({
           position: 'absolute',
           top: '16px',
           left: '16px',
-          background: 'rgba(15, 23, 42, 0.75)',
+          background: 'var(--overlay-chip-bg)',
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: '1px solid var(--overlay-chip-border)',
           borderRadius: '20px',
           padding: '4px 8px',
           display: 'flex',
@@ -233,7 +233,7 @@ export default function VideoPlayer({
               }
             }}
             style={{
-              background: 'rgba(99, 102, 241, 0.15)',
+              background: 'var(--overlay-chip-bg)',
               color: 'var(--primary)',
               border: '1px dashed var(--primary)',
               borderRadius: '16px',
@@ -245,11 +245,11 @@ export default function VideoPlayer({
               outline: 'none'
             }}
           >
-            <option value="" disabled style={{ background: '#0f172a', color: 'var(--text-secondary)' }}>
+            <option value="" disabled style={{ background: 'var(--select-option-bg)', color: 'var(--text-secondary)' }}>
               {translating ? 'Translating...' : 'Translate to...'}
             </option>
             {translatableLangs.map((lang) => (
-              <option key={lang.code} value={lang.code} style={{ background: '#0f172a', color: 'var(--text-primary)' }}>
+              <option key={lang.code} value={lang.code} style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>
                 {lang.name}
               </option>
             ))}
@@ -257,15 +257,15 @@ export default function VideoPlayer({
         )}
         {availableLangs.length > 0 && (
           <>
-            <div style={{ width: '1px', height: '16px', background: 'rgba(255, 255, 255, 0.15)', margin: '0 4px' }} />
+            <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Size:</span>
             <select
               value={subtitleSize}
               onChange={(e) => setSubtitleSize(e.target.value)}
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'var(--overlay-chip-bg)',
                 color: 'var(--text-primary)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--overlay-chip-border)',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -274,14 +274,14 @@ export default function VideoPlayer({
                 borderRadius: '12px',
                 transition: 'var(--transition-fast)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--text-muted)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--overlay-chip-border)'}
             >
-              <option value="50%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>50%</option>
-              <option value="75%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>75%</option>
-              <option value="100%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>100%</option>
-              <option value="130%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>130%</option>
-              <option value="160%" style={{ background: '#0f172a', color: 'var(--text-primary)' }}>160%</option>
+              <option value="50%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>50%</option>
+              <option value="75%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>75%</option>
+              <option value="100%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>100%</option>
+              <option value="130%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>130%</option>
+              <option value="160%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>160%</option>
             </select>
           </>
         )}
@@ -325,9 +325,9 @@ export default function VideoPlayer({
           position: 'absolute',
           top: '16px',
           right: '16px',
-          background: 'rgba(15, 23, 42, 0.75)',
+          background: 'var(--overlay-chip-bg)',
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: '1px solid var(--overlay-chip-border)',
           borderRadius: '20px',
           padding: '4px 8px',
           display: 'flex',
