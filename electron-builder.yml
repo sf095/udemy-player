@@ -12,7 +12,9 @@ mac:
   category: public.app-category.education
   target:
     - target: dmg
+  icon: build/icon.icns
   artifactName: ${productName}-${version}-${arch}.${ext}
 win:
   target:
     - target: nsis
+  icon: build/icon.ico

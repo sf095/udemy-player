@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import Sidebar from './components/Sidebar';
+import AppLogo from './components/AppLogo';
 import VideoPlayer from './components/VideoPlayer';
 import DocViewer from './components/DocViewer';
 import ResourceList from './components/ResourceList';
@@ -624,8 +625,8 @@ export default function App() {
           >
             <Menu size={18} />
           </button>
-          <Play size={20} style={{ fill: 'var(--primary)', color: 'var(--primary)' }} />
-          <span>Udemy Offline Player</span>
+          <AppLogo size={24} />
+          <span style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>Udemy Offline Player</span>
         </div>
 
         <CourseSelector

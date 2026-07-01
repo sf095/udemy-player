@@ -43,6 +43,7 @@ async function startApp() {
     width: 1280,
     height: 800,
     title: 'Udemy Offline Player',
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
