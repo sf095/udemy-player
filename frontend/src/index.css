@@ -16,6 +16,20 @@
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   
+  /* Component backgrounds using transparency (Dark Theme) */
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-hover-subtle: rgba(255, 255, 255, 0.02);
+  --bg-hover-active: rgba(255, 255, 255, 0.1);
+  --bg-header: rgba(13, 17, 28, 0.7);
+  --bg-stage-tabs: rgba(13, 17, 28, 0.6);
+  --bg-note-item: rgba(255, 255, 255, 0.03);
+  --bg-notes-form: rgba(0, 0, 0, 0.2);
+  --bg-notes-tabs: rgba(0, 0, 0, 0.15);
+  --bg-modal-overlay: rgba(7, 10, 18, 0.8);
+  --bg-stage-panel: rgba(15, 23, 42, 0.3);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+  
   /* Accents */
   --primary: #6366f1; /* Indigo */
   --primary-hover: #4f46e5;
@@ -37,6 +51,39 @@
   --notes-width: 360px;
 }
 
+body.light-theme {
+  --bg-main: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-sidebar: rgba(255, 255, 255, 0.9);
+  --bg-input: #e2e8f0;
+  
+  --border-color: rgba(15, 23, 42, 0.08);
+  --border-active: rgba(99, 102, 241, 0.5);
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  
+  /* Component backgrounds using transparency (Light Theme) */
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-hover-subtle: rgba(0, 0, 0, 0.015);
+  --bg-hover-active: rgba(0, 0, 0, 0.08);
+  --bg-header: rgba(255, 255, 255, 0.8);
+  --bg-stage-tabs: rgba(241, 245, 249, 0.85);
+  --bg-note-item: rgba(0, 0, 0, 0.02);
+  --bg-notes-form: rgba(248, 250, 252, 0.85);
+  --bg-notes-tabs: rgba(241, 245, 249, 0.8);
+  --bg-modal-overlay: rgba(15, 23, 42, 0.4);
+  --bg-stage-panel: rgba(241, 245, 249, 0.5);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  --shadow-glow: 0 0 15px rgba(99, 102, 241, 0.15);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -50,6 +97,7 @@ body {
   overflow: hidden;
   height: 100vh;
   -webkit-font-smoothing: antialiased;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 /* Custom Scrollbars */
@@ -61,11 +109,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Layout Boilerplate */
@@ -77,6 +125,7 @@ body {
   background-image: 
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%);
+  transition: background-color var(--transition-normal);
 }
 
 /* Header */
@@ -86,10 +135,11 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: rgba(13, 17, 28, 0.7);
+  background: var(--bg-header);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .brand {
@@ -164,7 +214,7 @@ body {
 }
 
 .btn-browse:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-hover-active);
   border-color: var(--primary);
 }
 
@@ -198,6 +248,7 @@ body {
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -229,12 +280,12 @@ body {
   border-radius: 8px;
   margin-bottom: 8px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.02);
-  transition: var(--transition-fast);
+  background: var(--bg-hover-subtle);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .section-accordion.expanded {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg-hover);
 }
 
 .section-trigger {
@@ -254,7 +305,7 @@ body {
 }
 
 .section-trigger:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-hover-subtle);
 }
 
 .section-title-container {
@@ -287,7 +338,7 @@ body {
 }
 
 .lesson-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -350,7 +401,7 @@ body {
 
 .lesson-progress-bar {
   height: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-color);
   border-radius: 1px;
   margin-top: 4px;
   overflow: hidden;
@@ -365,12 +416,13 @@ body {
 /* Stage (Center) */
 .stage-panel {
   grid-column: 2;
-  background: rgba(15, 23, 42, 0.3);
+  background: var(--bg-stage-panel);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   height: 100%;
   position: relative;
+  transition: background-color var(--transition-normal);
 }
 
 .video-container {
@@ -402,12 +454,13 @@ video::cue {
 /* Tabs for secondary document assets (PDF/HTML sheets inside a lesson) */
 .stage-tabs {
   display: flex;
-  background: rgba(13, 17, 28, 0.6);
+  background: var(--bg-stage-tabs);
   border-bottom: 1px solid var(--border-color);
   padding: 0 16px;
   height: 48px;
   align-items: center;
   gap: 8px;
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .tab-btn {
@@ -474,6 +527,7 @@ video::cue {
   flex-direction: column;
   overflow: hidden;
   height: 100%;
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .notes-header {
@@ -494,7 +548,7 @@ video::cue {
 }
 
 .note-item {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-note-item);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 12px;
@@ -503,8 +557,8 @@ video::cue {
 }
 
 .note-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--bg-hover);
+  border-color: var(--border-color);
 }
 
 .note-header {
@@ -560,7 +614,8 @@ video::cue {
 .notes-form {
   padding: 16px;
   border-top: 1px solid var(--border-color);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-notes-form);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .textarea-note {
@@ -625,7 +680,7 @@ video::cue {
 }
 
 .btn-toggle:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -645,7 +700,7 @@ video::cue {
 .course-progress-bar {
   width: 120px;
   height: 6px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-color);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -696,12 +751,13 @@ video::cue {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(7, 10, 18, 0.8);
+  background: var(--bg-modal-overlay);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  transition: background-color var(--transition-normal);
 }
 
 @keyframes fade-in {

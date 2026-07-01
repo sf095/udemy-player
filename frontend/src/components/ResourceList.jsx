@@ -55,8 +55,8 @@ export default function ResourceList({ resources, activeResource, onSelectResour
               }}
               onMouseEnter={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                  e.currentTarget.style.background = 'rgba(30, 41, 59, 0.8)';
+                  e.currentTarget.style.borderColor = 'var(--border-active)';
+                  e.currentTarget.style.background = 'var(--bg-hover)';
                 }
               }}
               onMouseLeave={(e) => {

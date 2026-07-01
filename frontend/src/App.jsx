@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard } from 'lucide-react';
+import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import Sidebar from './components/Sidebar';
 import AppLogo from './components/AppLogo';
@@ -36,6 +36,10 @@ export default function App() {
     const saved = localStorage.getItem('udemy-player:notes-width');
     return saved ? parseInt(saved, 10) : 360;
   });
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('udemy-player-theme');
+    return saved || 'dark';
+  });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCourseManager, setShowCourseManager] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
@@ -60,6 +64,15 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('udemy-player:notes-width', notesWidth);
   }, [notesWidth]);
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+    localStorage.setItem('udemy-player-theme', theme);
+  }, [theme]);
 
   const fetchUserData = async (shouldScanContent = true) => {
     try {
@@ -654,7 +667,7 @@ export default function App() {
               onClick={() => setNotesCollapsed(!notesCollapsed)}
               title="Toggle Notes"
               style={{
-                background: notesCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                background: notesCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-hover)',
                 border: notesCollapsed ? '1px dashed var(--primary)' : '1px solid var(--border-color)',
                 color: notesCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
                 cursor: 'pointer',
@@ -672,10 +685,10 @@ export default function App() {
 
           <button
             className="btn-toggle"
-            onClick={() => setShowSettingsModal(true)}
-            title="Settings"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'var(--bg-hover)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
@@ -688,11 +701,39 @@ export default function App() {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.background = 'var(--bg-hover-active)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.background = 'var(--bg-hover)';
+            }}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          <button
+            className="btn-toggle"
+            onClick={() => setShowSettingsModal(true)}
+            title="Settings"
+            style={{
+              background: 'var(--bg-hover)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'var(--transition-fast)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'var(--bg-hover-active)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.background = 'var(--bg-hover)';
             }}
           >
             <Settings size={18} />

@@ -162,7 +162,7 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                 <div
                   key={index}
                   style={{
-                    background: isActive ? 'rgba(99, 102, 241, 0.04)' : 'rgba(255, 255, 255, 0.02)',
+                    background: isActive ? 'rgba(99, 102, 241, 0.04)' : 'var(--bg-hover-subtle)',
                     border: isActive ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid var(--border-color)',
                     borderRadius: '12px',
                     padding: '14px 16px',
@@ -194,7 +194,7 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                       >
                         <div
                           style={{
-                            background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                            background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-hover)',
                             padding: '10px',
                             borderRadius: '8px',
                             color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
@@ -264,7 +264,7 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                           onClick={() => handleStartEdit(pathItem)}
                           title="Edit Course Path"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            background: 'var(--bg-hover)',
                             border: '1px solid var(--border-color)',
                             color: 'var(--text-secondary)',
                             padding: '6px',
@@ -278,7 +278,7 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                             e.currentTarget.style.color = 'var(--primary)';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                            e.currentTarget.style.background = 'var(--bg-hover)';
                             e.currentTarget.style.color = 'var(--text-secondary)';
                           }}
                         >
@@ -289,7 +289,7 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                           onClick={() => handleDelete(pathItem)}
                           title="Remove from History"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            background: 'var(--bg-hover)',
                             border: '1px solid var(--border-color)',
                             color: 'var(--text-secondary)',
                             padding: '6px',
@@ -303,7 +303,7 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                             e.currentTarget.style.color = '#ef4444';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                            e.currentTarget.style.background = 'var(--bg-hover)';
                             e.currentTarget.style.color = 'var(--text-secondary)';
                           }}
                         >
@@ -386,7 +386,7 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                             disabled={isLoading}
                             title="Cancel"
                             style={{
-                              background: 'rgba(255, 255, 255, 0.05)',
+                              background: 'var(--bg-hover)',
                               border: '1px solid var(--border-color)',
                               color: 'var(--text-secondary)',
                               padding: '8px',

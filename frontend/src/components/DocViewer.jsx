@@ -84,7 +84,7 @@ export default function DocViewer({ path, type }) {
           title="Zoom Out"
           disabled={zoom <= 0.5}
           style={{
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'var(--bg-hover)',
             border: '1px solid var(--border-color)',
             color: zoom <= 0.5 ? 'var(--text-muted)' : 'var(--text-primary)',
             padding: '6px 10px',
@@ -105,7 +105,7 @@ export default function DocViewer({ path, type }) {
           title="Zoom In"
           disabled={zoom >= 2.5}
           style={{
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'var(--bg-hover)',
             border: '1px solid var(--border-color)',
             color: zoom >= 2.5 ? 'var(--text-muted)' : 'var(--text-primary)',
             padding: '6px 10px',
@@ -122,7 +122,7 @@ export default function DocViewer({ path, type }) {
           onClick={handleResetZoom}
           title="Reset Zoom"
           style={{
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'var(--bg-hover)',
             border: '1px solid var(--border-color)',
             color: 'var(--text-primary)',
             padding: '6px 10px',

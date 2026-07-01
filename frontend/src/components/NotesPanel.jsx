@@ -250,7 +250,7 @@ export default function NotesPanel({
   return (
     <div className="notes-panel">
       {/* Right Sidebar Tabs */}
-      <div className="panel-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'rgba(0, 0, 0, 0.15)' }}>
+      <div className="panel-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-notes-tabs)' }}>
         <button
           className={`panel-tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
           onClick={() => setActiveTab('notes')}
@@ -532,7 +532,7 @@ export default function NotesPanel({
                           borderRadius: '12px',
                           borderTopRightRadius: msg.role === 'user' ? '4px' : '12px',
                           borderTopLeftRadius: msg.role === 'user' ? '12px' : '4px',
-                          background: msg.role === 'user' ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
+                          background: msg.role === 'user' ? 'var(--primary)' : 'var(--bg-hover)',
                           border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)',
                           color: msg.role === 'user' ? 'white' : 'var(--text-primary)',
                           fontSize: '0.825rem',
@@ -554,7 +554,7 @@ export default function NotesPanel({
                         padding: '10px 12px',
                         borderRadius: '12px',
                         borderTopLeftRadius: '4px',
-                        background: 'rgba(255, 255, 255, 0.03)',
+                        background: 'var(--bg-hover-subtle)',
                         border: '1px solid var(--border-color)',
                         color: 'var(--text-secondary)',
                         fontSize: '0.8rem',
