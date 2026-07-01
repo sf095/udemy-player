@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File } from 'lucide-react';
 
-export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete }) {
+export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete, onResizeStart, onResizeReset }) {
   const [expandedSections, setExpandedSections] = useState({});
 
   const toggleSection = (secId) => {
@@ -115,6 +115,11 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
           })
         )}
       </div>
+      <div 
+        className="resize-handle right-handle" 
+        onPointerDown={onResizeStart} 
+        onDoubleClick={onResizeReset} 
+      />
     </div>
   );
 }

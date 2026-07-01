@@ -27,6 +27,14 @@ export default function App() {
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('udemy-player:sidebar-width');
+    return saved ? parseInt(saved, 10) : 320;
+  });
+  const [notesWidth, setNotesWidth] = useState(() => {
+    const saved = localStorage.getItem('udemy-player:notes-width');
+    return saved ? parseInt(saved, 10) : 360;
+  });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCourseManager, setShowCourseManager] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
@@ -43,6 +51,14 @@ export default function App() {
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('udemy-player:sidebar-width', sidebarWidth);
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('udemy-player:notes-width', notesWidth);
+  }, [notesWidth]);
 
   const fetchUserData = async (shouldScanContent = true) => {
     try {
@@ -352,6 +368,62 @@ export default function App() {
     return fallback;
   };
 
+  // Resizing event handlers for side panels
+  const handleSidebarResizeStart = (e) => {
+    e.preventDefault();
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (moveEvent) => {
+      const clientX = moveEvent.clientX;
+      const maxSidebarWidth = window.innerWidth - notesWidth - 400;
+      const clampedWidth = Math.max(200, Math.min(500, maxSidebarWidth, clientX));
+      setSidebarWidth(clampedWidth);
+    };
+
+    const handlePointerUp = () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
+    };
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+  };
+
+  const handleNotesResizeStart = (e) => {
+    e.preventDefault();
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (moveEvent) => {
+      const clientX = moveEvent.clientX;
+      const maxNotesWidth = window.innerWidth - sidebarWidth - 400;
+      const calculatedWidth = window.innerWidth - clientX;
+      const clampedWidth = Math.max(260, Math.min(600, maxNotesWidth, calculatedWidth));
+      setNotesWidth(clampedWidth);
+    };
+
+    const handlePointerUp = () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
+    };
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+  };
+
+  const handleSidebarResizeReset = () => {
+    setSidebarWidth(320);
+  };
+
+  const handleNotesResizeReset = () => {
+    setNotesWidth(360);
+  };
+
   // Select lesson click handler
   const handleSelectLesson = (lesson) => {
     setActiveLesson(lesson);
@@ -627,7 +699,13 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`dashboard-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${notesCollapsed ? 'notes-collapsed' : ''}`}>
+      <main 
+        className={`dashboard-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${notesCollapsed ? 'notes-collapsed' : ''}`}
+        style={{
+          '--sidebar-width': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
+          '--notes-width': (notesCollapsed || !activeLesson || activeLesson.type !== 'video') ? '0px' : `${notesWidth}px`
+        }}
+      >
         
         {/* Left Sidebar */}
         <Sidebar
@@ -636,6 +714,8 @@ export default function App() {
           activeLesson={activeLesson}
           onSelectLesson={handleSelectLesson}
           onToggleComplete={handleToggleComplete}
+          onResizeStart={handleSidebarResizeStart}
+          onResizeReset={handleSidebarResizeReset}
         />
 
         {/* Center Screen Stage */}
@@ -661,7 +741,7 @@ export default function App() {
               {hasMultipleTabs && (
                 <div className="stage-tabs">
                   <button
-                    className={`tab-btn ${activeTab === 'video' ? 'active' : ''}`}
+                     className={`tab-btn ${activeTab === 'video' ? 'active' : ''}`}
                     onClick={() => setActiveTab('video')}
                   >
                     <Play size={14} /> Video Lesson
@@ -769,6 +849,8 @@ export default function App() {
             activeLesson={activeLesson}
             activeLang={activeLang}
             hasApiKey={!!settings.geminiApiKey}
+            onResizeStart={handleNotesResizeStart}
+            onResizeReset={handleNotesResizeReset}
           />
         )}
       </main>

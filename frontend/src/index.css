@@ -193,6 +193,7 @@ body {
 
 /* Sidebar Section styling */
 .sidebar-panel {
+  position: relative;
   grid-column: 1;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
@@ -464,6 +465,7 @@ video::cue {
 
 /* Notes Panel (Right) */
 .notes-panel {
+  position: relative;
   grid-column: 3;
   background: var(--bg-sidebar);
   border-left: 1px solid var(--border-color);
@@ -891,4 +893,47 @@ video::cue {
 .shortcut-toast.visible {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Drag resize handles for resizable panels */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px; /* Slightly wider hover zone for easier grabbing */
+  cursor: col-resize;
+  z-index: 100;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: transparent;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.resize-handle.right-handle {
+  right: 0;
+}
+
+.resize-handle.right-handle::after {
+  right: 0;
+}
+
+.resize-handle.left-handle {
+  left: 0;
+}
+
+.resize-handle.left-handle::after {
+  left: 0;
+}
+
+.resize-handle:hover::after,
+.resize-handle:active::after {
+  background-color: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
 }

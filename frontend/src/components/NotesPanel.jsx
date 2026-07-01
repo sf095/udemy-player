@@ -57,7 +57,9 @@ export default function NotesPanel({
   // New props for Summarization & Chat
   activeLesson,
   activeLang,
-  hasApiKey
+  hasApiKey,
+  onResizeStart,
+  onResizeReset
 }) {
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' | 'summary' | 'chat'
   
@@ -620,6 +622,11 @@ export default function NotesPanel({
           )}
         </div>
       )}
+      <div 
+        className="resize-handle left-handle" 
+        onPointerDown={onResizeStart} 
+        onDoubleClick={onResizeReset} 
+      />
     </div>
   );
 }
