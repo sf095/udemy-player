@@ -61,8 +61,8 @@ export default function VideoPlayer({
   }, [videoPath, subtitles, activeLang, setActiveLang]);
 
   const handleStartTranslation = async (targetLangCode) => {
-    const englishPath = subtitles?.en;
-    if (!englishPath) return;
+    const sourcePath = subtitles?.[activeLang];
+    if (!sourcePath) return;
 
     setTranslating(true);
     setTranslationError(null);
@@ -71,7 +71,7 @@ export default function VideoPlayer({
       const response = await fetch('/api/translate-subtitle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtitlePath: englishPath, targetLang: targetLangCode })
+        body: JSON.stringify({ subtitlePath: sourcePath, targetLang: targetLangCode })
       });
       const data = await response.json();
       if (data.success) {
@@ -222,7 +222,7 @@ export default function VideoPlayer({
             {lang.toUpperCase()}
           </button>
         ))}
-        {subtitles?.en && translatableLangs.length > 0 && (
+        {activeLang && subtitles?.[activeLang] && translatableLangs.length > 0 && (
           <select
             value=""
             disabled={translating}

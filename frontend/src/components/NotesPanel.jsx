@@ -416,7 +416,7 @@ export default function NotesPanel({
               <AlertCircle size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
               <div className="empty-state-title">No Subtitles Track</div>
               <div className="empty-state-desc">
-                Summarization requires subtitles. Please select an English track or translate subtitles first.
+                Summarization requires subtitles. Please select a subtitle track or translate subtitles first.
               </div>
             </div>
           ) : !hasApiKey ? (
@@ -492,7 +492,7 @@ export default function NotesPanel({
               <AlertCircle size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
               <div className="empty-state-title">No Subtitles Track</div>
               <div className="empty-state-desc">
-                AI chat features require subtitles. Please select an English track or translate subtitles first.
+                AI chat features require subtitles. Please select a subtitle track or translate subtitles first.
               </div>
             </div>
           ) : !hasApiKey ? (

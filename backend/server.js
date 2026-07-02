@@ -443,16 +443,28 @@ app.post('/api/translate-subtitle', async (req, res) => {
     ru: 'Russian',
     ar: 'Arabic',
     pt: 'Portuguese',
-    en: 'English'
+    en: 'English',
+    id: 'Indonesian',
+    it: 'Italian'
   };
 
+  const getLanguageName = (code) => {
+    const cleanCode = (code || '').split(/[_-]/)[0].toLowerCase();
+    return SUPPORTED_LANGUAGES[cleanCode] || cleanCode.toUpperCase();
+  };
+
+  const filename = path.basename(subtitlePath);
+  const match = filename.toLowerCase().match(/[._-]([a-z]{2}(?:_[a-z]{2,4})?)\.(?:srt|vtt)$/i);
+  const sourceLangCode = match ? match[1].toLowerCase() : 'en';
+
+  const sourceLanguageName = getLanguageName(sourceLangCode);
   const targetLangCode = (targetLang || 'vi').toLowerCase();
-  const targetLanguageName = SUPPORTED_LANGUAGES[targetLangCode] || targetLangCode.toUpperCase();
+  const targetLanguageName = getLanguageName(targetLangCode);
 
   try {
     const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
 
-    const prompt = `Translate the following English subtitle file to ${targetLanguageName}. 
+    const prompt = `Translate the following ${sourceLanguageName} subtitle file to ${targetLanguageName}. 
 You must preserve all timecodes, formatting, line numbers, and subtitle syntax exactly. 
 Do not translate or modify timecodes or line numbers (e.g. 00:01:23,450 --> 00:01:25,120).
 Ensure the ${targetLanguageName} translation is natural, fits the context, and uses appropriate terminology.
