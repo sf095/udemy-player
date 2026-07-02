@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const net = require('net');
 
@@ -17,6 +17,19 @@ function findFreePort(startPort) {
       });
     });
   });
+}
+
+function isExternalUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    return !isLocal;
+  } catch (e) {
+    return false;
+  }
 }
 
 let mainWindow;
@@ -49,6 +62,29 @@ async function startApp() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // Open external links in default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isExternalUrl(url)) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (isExternalUrl(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
+  mainWindow.webContents.on('will-frame-navigate', (event, details) => {
+    if (isExternalUrl(details.url)) {
+      event.preventDefault();
+      shell.openExternal(details.url);
+    }
   });
 
   if (app.isPackaged) {
