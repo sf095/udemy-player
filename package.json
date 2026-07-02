@@ -1,6 +1,6 @@
 {
   "name": "udemy-player-root",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Local Udemy Course Player",
   "main": "electron/main.js",
   "scripts": {
