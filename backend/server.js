@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
-  anthropicBaseUrl: 'https://api.anthropic.com'
+  anthropicBaseUrl: 'https://api.anthropic.com',
+  autoplayNext: false
 };
 
 const DEFAULT_DB = {
@@ -579,7 +580,7 @@ app.delete('/api/userdata/notes', (req, res) => {
 
 // 10. Update Settings
 app.post('/api/userdata/settings', (req, res) => {
-  const { aiProvider, geminiApiKey, anthropicApiKey, anthropicModel, anthropicBaseUrl } = req.body;
+  const { aiProvider, geminiApiKey, anthropicApiKey, anthropicModel, anthropicBaseUrl, autoplayNext } = req.body;
   const db = readDb();
   if (!db.settings) {
     db.settings = {};
@@ -589,6 +590,7 @@ app.post('/api/userdata/settings', (req, res) => {
   db.settings.anthropicApiKey = anthropicApiKey || DEFAULT_SETTINGS.anthropicApiKey;
   db.settings.anthropicModel = anthropicModel || DEFAULT_SETTINGS.anthropicModel;
   db.settings.anthropicBaseUrl = anthropicBaseUrl || DEFAULT_SETTINGS.anthropicBaseUrl;
+  db.settings.autoplayNext = typeof autoplayNext === 'boolean' ? autoplayNext : DEFAULT_SETTINGS.autoplayNext;
   writeDb(db);
   res.json(db);
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import Sidebar from './components/Sidebar';
@@ -17,7 +17,8 @@ const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
-  anthropicBaseUrl: 'https://api.anthropic.com'
+  anthropicBaseUrl: 'https://api.anthropic.com',
+  autoplayNext: false
 };
 
 export default function App() {
@@ -494,27 +495,53 @@ export default function App() {
     toastTimerRef.current = setTimeout(() => setToast(prev => ({ ...prev, message: null })), 1500);
   };
 
-  const getAllLessons = () => {
+  const allLessonsFlat = useMemo(() => {
     const all = [];
     sections.forEach(sec => sec.lessons.forEach(l => all.push(l)));
     return all;
-  };
+  }, [sections]);
 
-  const goToNextLesson = () => {
-    const all = getAllLessons();
-    const idx = all.findIndex(l => l.id === activeLesson?.id);
-    if (idx >= 0 && idx < all.length - 1) {
-      handleSelectLesson(all[idx + 1]);
-      showToast(`⏭ ${all[idx + 1].title}`);
+  const goToNextLesson = useCallback(() => {
+    const idx = allLessonsFlat.findIndex(l => l.id === activeLesson?.id);
+    if (idx >= 0 && idx < allLessonsFlat.length - 1) {
+      handleSelectLesson(allLessonsFlat[idx + 1]);
+      showToast(`⏭ ${allLessonsFlat[idx + 1].title}`);
     }
-  };
+  }, [allLessonsFlat, activeLesson]);
 
-  const goToPrevLesson = () => {
-    const all = getAllLessons();
-    const idx = all.findIndex(l => l.id === activeLesson?.id);
+  const goToPrevLesson = useCallback(() => {
+    const idx = allLessonsFlat.findIndex(l => l.id === activeLesson?.id);
     if (idx > 0) {
-      handleSelectLesson(all[idx - 1]);
-      showToast(`⏮ ${all[idx - 1].title}`);
+      handleSelectLesson(allLessonsFlat[idx - 1]);
+      showToast(`⏮ ${allLessonsFlat[idx - 1].title}`);
+    }
+  }, [allLessonsFlat, activeLesson]);
+
+  const nextLesson = useMemo(() => {
+    if (!activeLesson) return null;
+    const idx = allLessonsFlat.findIndex(l => l.id === activeLesson.id);
+    if (idx >= 0 && idx < allLessonsFlat.length - 1) {
+      return allLessonsFlat[idx + 1];
+    }
+    return null;
+  }, [allLessonsFlat, activeLesson]);
+
+  const handleToggleAutoplay = async () => {
+    const nextVal = !settings.autoplayNext;
+    const updatedSettings = { ...settings, autoplayNext: nextVal };
+
+    try {
+      const res = await fetch('/api/userdata/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSettings)
+      });
+      const data = await res.json();
+      if (data.settings) {
+        setSettings(data.settings);
+      }
+    } catch (err) {
+      console.error('Failed to save autoplay setting', err);
     }
   };
 
@@ -821,6 +848,11 @@ export default function App() {
                     onSpeedChange={handleSpeedChange}
                     toastMessage={toast.message}
                     toastId={toast.id}
+                    autoplayEnabled={settings.autoplayNext}
+                    onToggleAutoplay={handleToggleAutoplay}
+                    hasNextLesson={!!nextLesson}
+                    nextLessonTitle={nextLesson?.title || ''}
+                    onPlayNextLesson={goToNextLesson}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>

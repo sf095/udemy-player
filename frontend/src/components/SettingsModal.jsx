@@ -6,7 +6,8 @@ const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
-  anthropicBaseUrl: 'https://api.anthropic.com'
+  anthropicBaseUrl: 'https://api.anthropic.com',
+  autoplayNext: false
 };
 
 export default function SettingsModal({ settings, onSave, onClose }) {
@@ -16,6 +17,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const [anthropicApiKey, setAnthropicApiKey] = useState(merged.anthropicApiKey);
   const [anthropicModel, setAnthropicModel] = useState(merged.anthropicModel);
   const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(merged.anthropicBaseUrl);
+  const [autoplayNext, setAutoplayNext] = useState(merged.autoplayNext);
 
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
@@ -31,7 +33,8 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       geminiApiKey: geminiApiKey.trim(),
       anthropicApiKey: anthropicApiKey.trim(),
       anthropicModel: anthropicModel.trim() || 'claude-3-5-sonnet-latest',
-      anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com'
+      anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com',
+      autoplayNext
     });
     setSaving(false);
     if (result) {
@@ -342,6 +345,44 @@ export default function SettingsModal({ settings, onSave, onClose }) {
               </div>
             </>
           )}
+          {/* Autoplay Next Video */}
+          <div style={{ marginBottom: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+            <label 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={autoplayNext}
+                onChange={(e) => setAutoplayNext(e.target.checked)}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  accentColor: 'var(--primary)',
+                  cursor: 'pointer'
+                }}
+              />
+              <span>Autoplay Next Video</span>
+            </label>
+            <p 
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+                marginTop: '6px',
+                marginLeft: '28px',
+                lineHeight: 1.4
+              }}
+            >
+              Automatically start playing the next lesson video when the current video ends.
+            </p>
+          </div>
 
           {/* Alert check */}
           {isKeyEntered && (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import ShortcutToast from './ShortcutToast';
 
 const CURATED_LANGUAGES = [
@@ -26,13 +26,20 @@ export default function VideoPlayer({
   speed,
   onSpeedChange,
   toastMessage,
-  toastId
+  toastId,
+  autoplayEnabled = false,
+  onToggleAutoplay,
+  hasNextLesson = false,
+  nextLessonTitle = '',
+  onPlayNextLesson
 }) {
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
   const [subtitleSize, setSubtitleSize] = useState(() => {
     return localStorage.getItem('udemy-player-subtitle-size') || '100%';
   });
+  const [countdown, setCountdown] = useState(5);
+  const [showAutoplayOverlay, setShowAutoplayOverlay] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('udemy-player-subtitle-size', subtitleSize);
@@ -110,10 +117,54 @@ export default function VideoPlayer({
 
   const hasSeekedRef = React.useRef(false);
 
-  // Reset the seek flag when the video file changes
+  // Reset states when the video file changes
   useEffect(() => {
     hasSeekedRef.current = false;
+    setShowAutoplayOverlay(false);
+    setCountdown(5);
   }, [videoPath]);
+
+  // Stable ref for the play-next callback to avoid effect re-runs
+  const onPlayNextLessonRef = useRef(onPlayNextLesson);
+  onPlayNextLessonRef.current = onPlayNextLesson;
+
+  // Countdown timer logic when autoplay overlay is showing
+  useEffect(() => {
+    if (!showAutoplayOverlay) return;
+
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          // Brief fade-out before transitioning
+          const overlay = document.querySelector('.autoplay-overlay');
+          if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.2s ease';
+          }
+          setTimeout(() => {
+            setShowAutoplayOverlay(false);
+            onPlayNextLessonRef.current?.();
+          }, 200);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showAutoplayOverlay]);
+
+  const handleCancelAutoplay = () => {
+    setShowAutoplayOverlay(false);
+  };
+
+  const handlePlayNow = () => {
+    setShowAutoplayOverlay(false);
+    if (onPlayNextLesson) {
+      onPlayNextLesson();
+    }
+  };
 
   useEffect(() => {
     const video = playerRef.current;
@@ -134,8 +185,16 @@ export default function VideoPlayer({
       onTimeUpdate(video.currentTime, video.duration);
     };
 
+    const handleEnded = () => {
+      if (autoplayEnabled && hasNextLesson) {
+        setCountdown(5);
+        setShowAutoplayOverlay(true);
+      }
+    };
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('ended', handleEnded);
 
     // If video is already loaded or metadata is cached
     if (video.readyState >= 1 && !hasSeekedRef.current && initialTime && initialTime > 0) {
@@ -146,8 +205,9 @@ export default function VideoPlayer({
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('ended', handleEnded);
     };
-  }, [videoPath, initialTime]);
+  }, [videoPath, initialTime, autoplayEnabled, hasNextLesson]);
 
   const availableLangs = Object.keys(subtitles || {});
   const translatableLangs = CURATED_LANGUAGES.filter(lang => !availableLangs.includes(lang.code));
@@ -319,29 +379,36 @@ export default function VideoPlayer({
         </div>
       )}
 
-      {/* Playback speed selector Overlay */}
+      {/* Top Right Controls Overlay Container */}
       <div
         style={{
           position: 'absolute',
           top: '16px',
           right: '16px',
-          background: 'var(--overlay-chip-bg)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid var(--overlay-chip-border)',
-          borderRadius: '20px',
-          padding: '4px 8px',
           display: 'flex',
-          gap: '4px',
+          gap: '8px',
           zIndex: 5
         }}
       >
-        {[1, 1.25, 1.5, 1.75, 2].map((s) => (
+        {/* Autoplay Toggle Overlay */}
+        <div
+          style={{
+            background: 'var(--overlay-chip-bg)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--overlay-chip-border)',
+            borderRadius: '20px',
+            padding: '4px 8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Autoplay:</span>
           <button
-            key={s}
-            onClick={() => onSpeedChange(s)}
+            onClick={onToggleAutoplay}
             style={{
-              background: speed === s ? 'var(--primary)' : 'transparent',
-              color: speed === s ? 'white' : 'var(--text-secondary)',
+              background: autoplayEnabled ? 'var(--primary)' : 'transparent',
+              color: autoplayEnabled ? 'white' : 'var(--text-secondary)',
               border: 'none',
               borderRadius: '16px',
               padding: '4px 8px',
@@ -351,10 +418,154 @@ export default function VideoPlayer({
               transition: 'var(--transition-fast)'
             }}
           >
-            {s}x
+            {autoplayEnabled ? 'ON' : 'OFF'}
           </button>
-        ))}
+        </div>
+
+        {/* Playback speed selector Overlay */}
+        <div
+          style={{
+            background: 'var(--overlay-chip-bg)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--overlay-chip-border)',
+            borderRadius: '20px',
+            padding: '4px 8px',
+            display: 'flex',
+            gap: '4px'
+          }}
+        >
+          {[1, 1.25, 1.5, 1.75, 2].map((s) => (
+            <button
+              key={s}
+              onClick={() => onSpeedChange(s)}
+              style={{
+                background: speed === s ? 'var(--primary)' : 'transparent',
+                color: speed === s ? 'white' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '4px 8px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'var(--transition-fast)'
+              }}
+            >
+              {s}x
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Autoplay Countdown Overlay */}
+      {showAutoplayOverlay && (
+        <div
+          className="autoplay-overlay"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.9)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+            color: 'white',
+            textAlign: 'center',
+            padding: '24px',
+            animation: 'fade-in 0.3s ease'
+          }}
+        >
+          <div style={{ maxWidth: '480px', width: '100%' }}>
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Up Next
+            </span>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginTop: '8px', marginBottom: '24px', color: '#ffffff', lineHeight: 1.3 }}>
+              {nextLessonTitle}
+            </h2>
+            
+            {/* Smooth Shrinking Progress Bar */}
+            <div style={{
+              width: '100%',
+              height: '4px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '2px',
+              marginBottom: '20px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                height: '100%',
+                background: 'var(--primary)',
+                width: `${(countdown / 5) * 100}%`,
+                transition: 'width 1s linear',
+                borderRadius: '2px'
+              }} />
+            </div>
+            
+            <p style={{ fontSize: '0.95rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '32px' }}>
+              Starting in <strong style={{ color: 'white', fontSize: '1.15rem' }}>{countdown}</strong> seconds...
+            </p>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
+              <button
+                onClick={handleCancelAutoplay}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  color: 'white',
+                  padding: '10px 24px',
+                  borderRadius: '24px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  outline: 'none'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                  e.currentTarget.style.borderColor = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                }}
+              >
+                Cancel
+              </button>
+              
+              <button
+                onClick={handlePlayNow}
+                style={{
+                  background: 'var(--primary)',
+                  border: 'none',
+                  color: 'white',
+                  padding: '10px 24px',
+                  borderRadius: '24px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  outline: 'none',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--primary-hover)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--primary)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                Play Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Keyboard shortcut toast */}
       <ShortcutToast message={toastMessage} id={toastId} />
