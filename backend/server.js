@@ -23,15 +23,27 @@ function readDb() {
       history: [],
       progress: {}, // lessonId -> { completed: boolean, watchTime: number, duration: number }
       notes: {},     // lessonId -> Array of { id, timestamp, text, createdAt }
-      settings: { geminiApiKey: '' }
+      settings: {
+        aiProvider: 'gemini',
+        geminiApiKey: '',
+        anthropicApiKey: '',
+        anthropicModel: 'claude-3-5-sonnet-latest',
+        anthropicBaseUrl: 'https://api.anthropic.com'
+      }
     };
   }
   try {
     const data = fs.readFileSync(DB_FILE, 'utf8');
     const parsed = JSON.parse(data);
     if (!parsed.settings) {
-      parsed.settings = { geminiApiKey: '' };
+      parsed.settings = {};
     }
+    parsed.settings.aiProvider = parsed.settings.aiProvider || 'gemini';
+    parsed.settings.geminiApiKey = parsed.settings.geminiApiKey || '';
+    parsed.settings.anthropicApiKey = parsed.settings.anthropicApiKey || '';
+    parsed.settings.anthropicModel = parsed.settings.anthropicModel || 'claude-3-5-sonnet-latest';
+    parsed.settings.anthropicBaseUrl = parsed.settings.anthropicBaseUrl || 'https://api.anthropic.com';
+
     // Ensure activeCoursePath exists on disk
     if (parsed.activeCoursePath && !fs.existsSync(parsed.activeCoursePath)) {
       parsed.activeCoursePath = '';
@@ -50,7 +62,13 @@ function readDb() {
       history: [],
       progress: {},
       notes: {},
-      settings: { geminiApiKey: '' }
+      settings: {
+        aiProvider: 'gemini',
+        geminiApiKey: '',
+        anthropicApiKey: '',
+        anthropicModel: 'claude-3-5-sonnet-latest',
+        anthropicBaseUrl: 'https://api.anthropic.com'
+      }
     };
   }
 }
@@ -82,17 +100,27 @@ async function callGeminiWithFallback(apiKey, payloadBody, isV1Beta = false) {
         body: JSON.stringify(payloadBody)
       });
 
+      let responseText = '';
+      try {
+        responseText = await response.text();
+      } catch (readErr) {
+        console.warn(`Failed to read response body for model ${model}:`, readErr);
+      }
+
       if (response.ok) {
-        const responseData = await response.json();
-        const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          return text;
+        try {
+          const responseData = JSON.parse(responseText);
+          const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return text;
+          }
+        } catch (jsonErr) {
+          console.warn(`Failed to parse Gemini response as JSON:`, jsonErr);
         }
       }
-      
-      const errorText = await response.text();
-      console.warn(`Gemini call with model ${model} failed (HTTP ${response.status}):`, errorText);
-      lastError = new Error(`Gemini API error: ${response.statusText} (${errorText})`);
+
+      console.warn(`Gemini call with model ${model} failed (HTTP ${response.status}):`, responseText);
+      lastError = new Error(`Gemini API error: ${response.statusText} (${responseText})`);
     } catch (e) {
       console.warn(`Network error with model ${model}:`, e);
       lastError = e;
@@ -100,6 +128,64 @@ async function callGeminiWithFallback(apiKey, payloadBody, isV1Beta = false) {
   }
 
   throw lastError || new Error('All Gemini model attempts failed.');
+}
+
+// Caller for Anthropic API or Anthropic-compatible custom endpoints
+async function callAnthropic(apiKey, baseUrl, model, payloadBody) {
+  const cleanBaseUrl = (baseUrl || 'https://api.anthropic.com').replace(/\/$/, '');
+  const url = `${cleanBaseUrl}/v1/messages`;
+
+  console.log(`Attempting Anthropic API call with model ${model} via ${url}...`);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 4096,
+        system: payloadBody.system,
+        messages: payloadBody.messages
+      })
+    });
+
+    let responseText = '';
+    try {
+      responseText = await response.text();
+    } catch (readErr) {
+      console.warn('Failed to read response body:', readErr);
+    }
+
+    if (response.ok) {
+      try {
+        const responseData = JSON.parse(responseText);
+        if (responseData.content && Array.isArray(responseData.content)) {
+          const textBlocks = responseData.content.filter(block => block && block.type === 'text');
+          if (textBlocks.length > 0) {
+            return textBlocks.map(block => block.text).join('\n');
+          }
+          // Fallback: look for any block with a text property
+          const anyText = responseData.content.find(block => block && typeof block.text === 'string');
+          if (anyText) {
+            return anyText.text;
+          }
+        } else if (typeof responseData.content === 'string') {
+          return responseData.content;
+        }
+      } catch (jsonErr) {
+        console.warn('Failed to parse Anthropic response as JSON:', jsonErr);
+      }
+    }
+
+    console.warn(`Anthropic call with model ${model} failed (HTTP ${response.status}):`, responseText);
+    throw new Error(`Anthropic API error: HTTP ${response.status} - ${response.statusText} (${responseText})`);
+  } catch (e) {
+    console.warn(`Error connecting to Anthropic with model ${model}:`, e);
+    throw e;
+  }
 }
 
 // Convert SubRip (.srt) to WebVTT (.vtt) in-memory
@@ -404,12 +490,16 @@ app.delete('/api/userdata/notes', (req, res) => {
 
 // 10. Update Settings
 app.post('/api/userdata/settings', (req, res) => {
-  const { geminiApiKey } = req.body;
+  const { aiProvider, geminiApiKey, anthropicApiKey, anthropicModel, anthropicBaseUrl } = req.body;
   const db = readDb();
   if (!db.settings) {
     db.settings = {};
   }
+  db.settings.aiProvider = aiProvider || 'gemini';
   db.settings.geminiApiKey = geminiApiKey || '';
+  db.settings.anthropicApiKey = anthropicApiKey || '';
+  db.settings.anthropicModel = anthropicModel || 'claude-3-5-sonnet-latest';
+  db.settings.anthropicBaseUrl = anthropicBaseUrl || 'https://api.anthropic.com';
   writeDb(db);
   res.json(db);
 });
@@ -422,10 +512,16 @@ app.post('/api/translate-subtitle', async (req, res) => {
   }
 
   const db = readDb();
-  const effectiveApiKey = apiKey || (db.settings && db.settings.geminiApiKey);
+  const provider = db.settings ? db.settings.aiProvider : 'gemini';
+  const effectiveApiKey = provider === 'anthropic' 
+    ? (db.settings ? db.settings.anthropicApiKey : '') 
+    : (apiKey || (db.settings && db.settings.geminiApiKey));
 
   if (!effectiveApiKey) {
-    return res.status(400).json({ error: 'Gemini API Key is missing. Please set it in Settings.' });
+    const errorMsg = provider === 'anthropic' 
+      ? 'Anthropic API Key is missing. Please set it in Settings.'
+      : 'Gemini API Key is missing. Please set it in Settings.';
+    return res.status(400).json({ error: errorMsg });
   }
 
   if (!fs.existsSync(subtitlePath)) {
@@ -473,25 +569,43 @@ Do not add any explanations, markdown code blocks, or introductory text. Return 
 [Subtitle File Content]:
 ${subtitleContent}`;
 
-    const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt
-            }
-          ]
-        }
-      ]
-    };
-
-    console.log(`Calling Gemini API for translation to ${targetLanguageName} with fallback...`);
+    console.log(`Calling ${provider === 'anthropic' ? 'Anthropic' : 'Gemini'} API for translation to ${targetLanguageName}...`);
     let translatedText;
-    try {
-      translatedText = await callGeminiWithFallback(effectiveApiKey, payload, false);
-    } catch (apiError) {
-      console.error('Gemini API call failed for translation:', apiError);
-      return res.status(500).json({ error: apiError.message });
+    if (provider === 'anthropic') {
+      const payload = {
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      };
+      const anthropicModel = db.settings.anthropicModel || 'claude-3-5-sonnet-latest';
+      const anthropicBaseUrl = db.settings.anthropicBaseUrl || 'https://api.anthropic.com';
+      try {
+        translatedText = await callAnthropic(effectiveApiKey, anthropicBaseUrl, anthropicModel, payload);
+      } catch (apiError) {
+        console.error('Anthropic API call failed for translation:', apiError);
+        return res.status(500).json({ error: apiError.message });
+      }
+    } else {
+      const payload = {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ]
+      };
+      try {
+        translatedText = await callGeminiWithFallback(effectiveApiKey, payload, false);
+      } catch (apiError) {
+        console.error('Gemini API call failed for translation:', apiError);
+        return res.status(500).json({ error: apiError.message });
+      }
     }
 
     // Clean up markdown block if the model returned it
@@ -528,10 +642,16 @@ app.post('/api/summarize-lesson', async (req, res) => {
   }
 
   const db = readDb();
-  const effectiveApiKey = db.settings && db.settings.geminiApiKey;
+  const provider = db.settings ? db.settings.aiProvider : 'gemini';
+  const effectiveApiKey = provider === 'anthropic' 
+    ? (db.settings ? db.settings.anthropicApiKey : '') 
+    : (db.settings && db.settings.geminiApiKey);
 
   if (!effectiveApiKey) {
-    return res.status(400).json({ error: 'Gemini API Key is missing. Please set it in Settings.' });
+    const errorMsg = provider === 'anthropic' 
+      ? 'Anthropic API Key is missing. Please set it in Settings.'
+      : 'Gemini API Key is missing. Please set it in Settings.';
+    return res.status(400).json({ error: errorMsg });
   }
 
   if (!fs.existsSync(subtitlePath)) {
@@ -591,25 +711,43 @@ The summary must:
 [Subtitle Transcript]:
 ${subtitleContent}`;
 
-    const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt
-            }
-          ]
-        }
-      ]
-    };
-
-    console.log(`Calling Gemini API for summary in ${targetLanguageName} with fallback...`);
+    console.log(`Calling ${provider === 'anthropic' ? 'Anthropic' : 'Gemini'} API for summary in ${targetLanguageName}...`);
     let summaryText;
-    try {
-      summaryText = await callGeminiWithFallback(effectiveApiKey, payload, false);
-    } catch (apiError) {
-      console.error('Gemini API call failed for summary:', apiError);
-      return res.status(500).json({ error: apiError.message });
+    if (provider === 'anthropic') {
+      const payload = {
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      };
+      const anthropicModel = db.settings.anthropicModel || 'claude-3-5-sonnet-latest';
+      const anthropicBaseUrl = db.settings.anthropicBaseUrl || 'https://api.anthropic.com';
+      try {
+        summaryText = await callAnthropic(effectiveApiKey, anthropicBaseUrl, anthropicModel, payload);
+      } catch (apiError) {
+        console.error('Anthropic API call failed for summary:', apiError);
+        return res.status(500).json({ error: apiError.message });
+      }
+    } else {
+      const payload = {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ]
+      };
+      try {
+        summaryText = await callGeminiWithFallback(effectiveApiKey, payload, false);
+      } catch (apiError) {
+        console.error('Gemini API call failed for summary:', apiError);
+        return res.status(500).json({ error: apiError.message });
+      }
     }
 
     // Clean up markdown block if the model returned it
@@ -657,10 +795,16 @@ app.post('/api/chat-lesson', async (req, res) => {
   }
 
   const db = readDb();
-  const effectiveApiKey = db.settings && db.settings.geminiApiKey;
+  const provider = db.settings ? db.settings.aiProvider : 'gemini';
+  const effectiveApiKey = provider === 'anthropic' 
+    ? (db.settings ? db.settings.anthropicApiKey : '') 
+    : (db.settings && db.settings.geminiApiKey);
 
   if (!effectiveApiKey) {
-    return res.status(400).json({ error: 'Gemini API Key is missing. Please set it in Settings.' });
+    const errorMsg = provider === 'anthropic' 
+      ? 'Anthropic API Key is missing. Please set it in Settings.'
+      : 'Gemini API Key is missing. Please set it in Settings.';
+    return res.status(400).json({ error: errorMsg });
   }
 
   if (!fs.existsSync(subtitlePath)) {
@@ -679,25 +823,42 @@ Use the transcript above to answer the student's question accurately.
 If the question is about something not discussed in the transcript but relevant to the lesson topic, feel free to answer using your general knowledge, but prioritize the transcript details.
 Keep your response concise, clear, and direct. Use the same language as the student's question.`;
 
-    const formattedContents = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
-
-    const payload = {
-      systemInstruction: {
-        parts: [{ text: systemInstruction }]
-      },
-      contents: formattedContents
-    };
-
-    console.log(`Calling Gemini API for chat question with fallback...`);
+    console.log(`Calling ${provider === 'anthropic' ? 'Anthropic' : 'Gemini'} API for chat question...`);
     let replyText;
-    try {
-      replyText = await callGeminiWithFallback(effectiveApiKey, payload, true);
-    } catch (apiError) {
-      console.error('Gemini API call failed for chat:', apiError);
-      return res.status(500).json({ error: apiError.message });
+    if (provider === 'anthropic') {
+      const formattedMessages = messages.map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content
+      }));
+      const payload = {
+        system: systemInstruction,
+        messages: formattedMessages
+      };
+      const anthropicModel = db.settings.anthropicModel || 'claude-3-5-sonnet-latest';
+      const anthropicBaseUrl = db.settings.anthropicBaseUrl || 'https://api.anthropic.com';
+      try {
+        replyText = await callAnthropic(effectiveApiKey, anthropicBaseUrl, anthropicModel, payload);
+      } catch (apiError) {
+        console.error('Anthropic API call failed for chat:', apiError);
+        return res.status(500).json({ error: apiError.message });
+      }
+    } else {
+      const formattedContents = messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+      const payload = {
+        systemInstruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        contents: formattedContents
+      };
+      try {
+        replyText = await callGeminiWithFallback(effectiveApiKey, payload, true);
+      } catch (apiError) {
+        console.error('Gemini API call failed for chat:', apiError);
+        return res.status(500).json({ error: apiError.message });
+      }
     }
 
     res.json({ success: true, reply: replyText });

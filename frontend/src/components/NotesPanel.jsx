@@ -59,9 +59,11 @@ export default function NotesPanel({
   activeLang,
   hasApiKey,
   onResizeStart,
-  onResizeReset
+  onResizeReset,
+  aiProvider = 'gemini'
 }) {
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' | 'summary' | 'chat'
+  const providerName = aiProvider === 'anthropic' ? 'Anthropic' : 'Gemini';
   
   // Notes states
   const [newNoteText, setNewNoteText] = useState('');
@@ -81,6 +83,15 @@ export default function NotesPanel({
   const [chatError, setChatError] = useState(null);
 
   const chatEndRef = useRef(null);
+  const chatInputRef = useRef(null);
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 50);
+    }
+  }, [activeTab]);
 
   // Summary action handlers
   const checkSummaryCache = useCallback(async () => {
@@ -242,6 +253,9 @@ export default function NotesPanel({
       setChatError('Network error during chat.');
     } finally {
       setChatLoading(false);
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 50);
     }
   };
 
@@ -422,16 +436,16 @@ export default function NotesPanel({
           ) : !hasApiKey ? (
             <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
               <AlertCircle size={28} style={{ color: 'var(--accent-red)', marginBottom: '12px' }} />
-              <div className="empty-state-title">Gemini API Key Missing</div>
+              <div className="empty-state-title">{providerName} API Key Missing</div>
               <div className="empty-state-desc">
-                Please enter your Gemini API Key in Settings to generate AI summaries.
+                Please enter your {providerName} API Key in Settings to generate AI summaries.
               </div>
             </div>
           ) : summaryLoading ? (
             <div className="empty-state" style={{ height: '100%' }}>
               <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--primary)', marginBottom: '12px' }} />
               <div className="empty-state-title">Analyzing Transcript...</div>
-              <div className="empty-state-desc">Gemini is compiling your offline summary.</div>
+              <div className="empty-state-desc">{providerName} is compiling your offline summary.</div>
             </div>
           ) : summary ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -498,9 +512,9 @@ export default function NotesPanel({
           ) : !hasApiKey ? (
             <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
               <AlertCircle size={28} style={{ color: 'var(--accent-red)', marginBottom: '12px' }} />
-              <div className="empty-state-title">Gemini API Key Missing</div>
+              <div className="empty-state-title">{providerName} API Key Missing</div>
               <div className="empty-state-desc">
-                Please enter your Gemini API Key in Settings to chat with lesson contexts.
+                Please enter your {providerName} API Key in Settings to chat with lesson contexts.
               </div>
             </div>
           ) : (
@@ -578,6 +592,7 @@ export default function NotesPanel({
               {/* Chat Input form */}
               <form onSubmit={handleChatSubmit} style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
                 <input
+                  ref={chatInputRef}
                   type="text"
                   placeholder="Ask about this video..."
                   value={chatInput}

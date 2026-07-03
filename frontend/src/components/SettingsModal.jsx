@@ -2,8 +2,14 @@ import React, { useState } from 'react';
 import { X, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 export default function SettingsModal({ settings, onSave, onClose }) {
-  const [apiKey, setApiKey] = useState(settings.geminiApiKey || '');
-  const [showKey, setShowKey] = useState(false);
+  const [aiProvider, setAiProvider] = useState(settings.aiProvider || 'gemini');
+  const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey || '');
+  const [anthropicApiKey, setAnthropicApiKey] = useState(settings.anthropicApiKey || '');
+  const [anthropicModel, setAnthropicModel] = useState(settings.anthropicModel || 'claude-3-5-sonnet-latest');
+  const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(settings.anthropicBaseUrl || 'https://api.anthropic.com');
+
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -11,7 +17,13 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     e.preventDefault();
     setSaving(true);
     setSuccess(false);
-    const result = await onSave({ geminiApiKey: apiKey.trim() });
+    const result = await onSave({
+      aiProvider,
+      geminiApiKey: geminiApiKey.trim(),
+      anthropicApiKey: anthropicApiKey.trim(),
+      anthropicModel: anthropicModel.trim() || 'claude-3-5-sonnet-latest',
+      anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com'
+    });
     setSaving(false);
     if (result) {
       setSuccess(true);
@@ -21,6 +33,8 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       }, 1000);
     }
   };
+
+  const isKeyEntered = aiProvider === 'anthropic' ? !!anthropicApiKey : !!geminiApiKey;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -70,9 +84,10 @@ export default function SettingsModal({ settings, onSave, onClose }) {
 
         {/* Content */}
         <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
+          {/* AI Provider dropdown */}
           <div style={{ marginBottom: '20px' }}>
             <label 
-              htmlFor="gemini-key" 
+              htmlFor="ai-provider" 
               style={{
                 display: 'block',
                 fontSize: '0.875rem',
@@ -81,72 +96,246 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 marginBottom: '8px'
               }}
             >
-              Gemini API Key
+              Active AI Provider
             </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="gemini-key"
-                type={showKey ? 'text' : 'password'}
-                placeholder="AIzaSy..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '10px 40px 10px 12px',
-                  color: 'var(--text-primary)',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  transition: 'var(--transition-fast)'
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: 0
-                }}
-              >
-                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            <p 
+            <select
+              id="ai-provider"
+              value={aiProvider}
+              onChange={(e) => setAiProvider(e.target.value)}
               style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-secondary)',
-                marginTop: '8px',
-                lineHeight: 1.4
+                width: '100%',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+                outline: 'none',
+                cursor: 'pointer',
+                transition: 'var(--transition-fast)'
               }}
             >
-              Required for Vietnamese subtitle translation. Get a free API key from the{' '}
-              <a 
-                href="https://aistudio.google.com/" 
-                target="_blank" 
-                rel="noreferrer"
-                style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}
-                onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-              >
-                Google AI Studio
-              </a>.
-            </p>
+              <option value="gemini">Google Gemini</option>
+              <option value="anthropic">Anthropic Claude / Compatible</option>
+            </select>
           </div>
 
+          {/* Conditional provider inputs */}
+          {aiProvider === 'gemini' ? (
+            <div style={{ marginBottom: '20px' }}>
+              <label 
+                htmlFor="gemini-key" 
+                style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
+                }}
+              >
+                Gemini API Key
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="gemini-key"
+                  type={showGeminiKey ? 'text' : 'password'}
+                  placeholder="AIzaSy..."
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '10px 40px 10px 12px',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'var(--transition-fast)'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                >
+                  {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <p 
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  marginTop: '8px',
+                  lineHeight: 1.4
+                }}
+              >
+                Required for translation, summarization, and AI chat. Get a free API key from{' '}
+                <a 
+                  href="https://aistudio.google.com/" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}
+                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                >
+                  Google AI Studio
+                </a>.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Anthropic API Key */}
+              <div style={{ marginBottom: '16px' }}>
+                <label 
+                  htmlFor="anthropic-key" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Anthropic API Key
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="anthropic-key"
+                    type={showAnthropicKey ? 'text' : 'password'}
+                    placeholder="sk-ant-api03-..."
+                    value={anthropicApiKey}
+                    onChange={(e) => setAnthropicApiKey(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '10px 40px 10px 12px',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'monospace',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      transition: 'var(--transition-fast)'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAnthropicKey(!showAnthropicKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0
+                    }}
+                  >
+                    {showAnthropicKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Anthropic Model */}
+              <div style={{ marginBottom: '16px' }}>
+                <label 
+                  htmlFor="anthropic-model" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Claude Model Name
+                </label>
+                <input
+                  id="anthropic-model"
+                  type="text"
+                  placeholder="claude-3-5-sonnet-latest"
+                  value={anthropicModel}
+                  onChange={(e) => setAnthropicModel(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'var(--transition-fast)'
+                  }}
+                />
+              </div>
+
+              {/* Anthropic Custom Base URL */}
+              <div style={{ marginBottom: '20px' }}>
+                <label 
+                  htmlFor="anthropic-url" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Custom Base URL (Optional)
+                </label>
+                <input
+                  id="anthropic-url"
+                  type="text"
+                  placeholder="https://api.anthropic.com"
+                  value={anthropicBaseUrl}
+                  onChange={(e) => setAnthropicBaseUrl(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'var(--transition-fast)'
+                  }}
+                />
+                <p 
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
+                    marginTop: '8px',
+                    lineHeight: 1.4
+                  }}
+                >
+                  Leave default or point to Anthropic-compatible proxies/backends (e.g. OpenRouter, self-hosted LLM routers).
+                </p>
+              </div>
+            </>
+          )}
+
           {/* Alert check */}
-          {apiKey && (
+          {isKeyEntered && (
             <div 
               style={{
                 display: 'flex',

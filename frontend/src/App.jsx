@@ -18,7 +18,13 @@ export default function App() {
   const [sections, setSections] = useState([]);
   const [progress, setProgress] = useState({});
   const [notes, setNotes] = useState({});
-  const [settings, setSettings] = useState({ geminiApiKey: '' });
+  const [settings, setSettings] = useState({
+    aiProvider: 'gemini',
+    geminiApiKey: '',
+    anthropicApiKey: '',
+    anthropicModel: 'claude-3-5-sonnet-latest',
+    anthropicBaseUrl: 'https://api.anthropic.com'
+  });
   
   const [activeLesson, setActiveLesson] = useState(null);
   const [activeLang, setActiveLang] = useState('');
@@ -82,7 +88,13 @@ export default function App() {
       setHistory(data.history);
       setProgress(data.progress || {});
       setNotes(data.notes || {});
-      setSettings(data.settings || { geminiApiKey: '' });
+      setSettings(data.settings || {
+        aiProvider: 'gemini',
+        geminiApiKey: '',
+        anthropicApiKey: '',
+        anthropicModel: 'claude-3-5-sonnet-latest',
+        anthropicBaseUrl: 'https://api.anthropic.com'
+      });
       
       if (shouldScanContent && data.activeCoursePath) {
         fetchCourseContent(data.activeCoursePath);
@@ -101,7 +113,13 @@ export default function App() {
         body: JSON.stringify(newSettings)
       });
       const data = await res.json();
-      setSettings(data.settings || { geminiApiKey: '' });
+      setSettings(data.settings || {
+        aiProvider: 'gemini',
+        geminiApiKey: '',
+        anthropicApiKey: '',
+        anthropicModel: 'claude-3-5-sonnet-latest',
+        anthropicBaseUrl: 'https://api.anthropic.com'
+      });
       return true;
     } catch (err) {
       console.error('Failed to save settings', err);
@@ -890,7 +908,12 @@ export default function App() {
             onPauseVideo={handlePauseVideo}
             activeLesson={activeLesson}
             activeLang={activeLang}
-            hasApiKey={!!settings.geminiApiKey}
+            hasApiKey={
+              settings.aiProvider === 'anthropic'
+                ? !!settings.anthropicApiKey
+                : !!settings.geminiApiKey
+            }
+            aiProvider={settings.aiProvider || 'gemini'}
             onResizeStart={handleNotesResizeStart}
             onResizeReset={handleNotesResizeReset}
           />
