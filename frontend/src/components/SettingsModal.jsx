@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { X, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
+const DEFAULT_SETTINGS = {
+  aiProvider: 'gemini',
+  geminiApiKey: '',
+  anthropicApiKey: '',
+  anthropicModel: 'claude-3-5-sonnet-latest',
+  anthropicBaseUrl: 'https://api.anthropic.com'
+};
+
 export default function SettingsModal({ settings, onSave, onClose }) {
-  const [aiProvider, setAiProvider] = useState(settings.aiProvider || 'gemini');
-  const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey || '');
-  const [anthropicApiKey, setAnthropicApiKey] = useState(settings.anthropicApiKey || '');
-  const [anthropicModel, setAnthropicModel] = useState(settings.anthropicModel || 'claude-3-5-sonnet-latest');
-  const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(settings.anthropicBaseUrl || 'https://api.anthropic.com');
+  const merged = { ...DEFAULT_SETTINGS, ...settings };
+  const [aiProvider, setAiProvider] = useState(merged.aiProvider);
+  const [geminiApiKey, setGeminiApiKey] = useState(merged.geminiApiKey);
+  const [anthropicApiKey, setAnthropicApiKey] = useState(merged.anthropicApiKey);
+  const [anthropicModel, setAnthropicModel] = useState(merged.anthropicModel);
+  const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(merged.anthropicBaseUrl);
 
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);

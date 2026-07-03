@@ -87,9 +87,9 @@ export default function NotesPanel({
 
   useEffect(() => {
     if (activeTab === 'chat') {
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         chatInputRef.current?.focus();
-      }, 50);
+      });
     }
   }, [activeTab]);
 
@@ -246,16 +246,20 @@ export default function NotesPanel({
       if (data.success) {
         setChatMessages([...newMessages, { role: 'assistant', content: data.reply }]);
       } else {
-        setChatError(data.error || 'Failed to get AI response.');
+        const errorText = data.error || 'Failed to get AI response.';
+        setChatError(errorText);
+        setChatMessages([...newMessages, { role: 'error', content: `❌ ${errorText}` }]);
       }
     } catch (err) {
       console.error('Error in chat:', err);
-      setChatError('Network error during chat.');
+      const errorText = 'Network error during chat.';
+      setChatError(errorText);
+      setChatMessages([...newMessages, { role: 'error', content: `❌ ${errorText}` }]);
     } finally {
       setChatLoading(false);
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         chatInputRef.current?.focus();
-      }, 50);
+      });
     }
   };
 
@@ -535,21 +539,21 @@ export default function NotesPanel({
                       key={i}
                       style={{
                         display: 'flex',
-                        justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                        justifyContent: msg.role === 'user' ? 'flex-end' : msg.role === 'error' ? 'center' : 'flex-start',
                         width: '100%'
                       }}
                     >
                       <div
                         style={{
-                          maxWidth: '85%',
+                          maxWidth: msg.role === 'error' ? '90%' : '85%',
                           padding: '10px 12px',
                           borderRadius: '12px',
                           borderTopRightRadius: msg.role === 'user' ? '4px' : '12px',
                           borderTopLeftRadius: msg.role === 'user' ? '12px' : '4px',
-                          background: msg.role === 'user' ? 'var(--primary)' : 'var(--bg-hover)',
-                          border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)',
-                          color: msg.role === 'user' ? 'white' : 'var(--text-primary)',
-                          fontSize: '0.825rem',
+                          background: msg.role === 'user' ? 'var(--primary)' : msg.role === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-hover)',
+                          border: msg.role === 'error' ? '1px solid rgba(239, 68, 68, 0.2)' : msg.role === 'user' ? 'none' : '1px solid var(--border-color)',
+                          color: msg.role === 'error' ? 'var(--accent-red)' : msg.role === 'user' ? 'white' : 'var(--text-primary)',
+                          fontSize: msg.role === 'error' ? '0.8rem' : '0.825rem',
                           lineHeight: '1.4',
                           wordBreak: 'break-word',
                           whiteSpace: 'pre-wrap'

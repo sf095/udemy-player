@@ -12,19 +12,21 @@ import CourseManagerModal from './components/CourseManagerModal';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 
+const DEFAULT_SETTINGS = {
+  aiProvider: 'gemini',
+  geminiApiKey: '',
+  anthropicApiKey: '',
+  anthropicModel: 'claude-3-5-sonnet-latest',
+  anthropicBaseUrl: 'https://api.anthropic.com'
+};
+
 export default function App() {
   const [coursePath, setCoursePath] = useState('');
   const [history, setHistory] = useState([]);
   const [sections, setSections] = useState([]);
   const [progress, setProgress] = useState({});
   const [notes, setNotes] = useState({});
-  const [settings, setSettings] = useState({
-    aiProvider: 'gemini',
-    geminiApiKey: '',
-    anthropicApiKey: '',
-    anthropicModel: 'claude-3-5-sonnet-latest',
-    anthropicBaseUrl: 'https://api.anthropic.com'
-  });
+  const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
   
   const [activeLesson, setActiveLesson] = useState(null);
   const [activeLang, setActiveLang] = useState('');
@@ -88,13 +90,7 @@ export default function App() {
       setHistory(data.history);
       setProgress(data.progress || {});
       setNotes(data.notes || {});
-      setSettings(data.settings || {
-        aiProvider: 'gemini',
-        geminiApiKey: '',
-        anthropicApiKey: '',
-        anthropicModel: 'claude-3-5-sonnet-latest',
-        anthropicBaseUrl: 'https://api.anthropic.com'
-      });
+      setSettings(data.settings || { ...DEFAULT_SETTINGS });
       
       if (shouldScanContent && data.activeCoursePath) {
         fetchCourseContent(data.activeCoursePath);
@@ -113,13 +109,7 @@ export default function App() {
         body: JSON.stringify(newSettings)
       });
       const data = await res.json();
-      setSettings(data.settings || {
-        aiProvider: 'gemini',
-        geminiApiKey: '',
-        anthropicApiKey: '',
-        anthropicModel: 'claude-3-5-sonnet-latest',
-        anthropicBaseUrl: 'https://api.anthropic.com'
-      });
+      setSettings(data.settings || { ...DEFAULT_SETTINGS });
       return true;
     } catch (err) {
       console.error('Failed to save settings', err);
