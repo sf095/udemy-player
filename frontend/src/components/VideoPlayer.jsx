@@ -175,9 +175,11 @@ export default function VideoPlayer({
 
     const handleLoadedMetadata = () => {
       video.playbackRate = speed;
-      if (!hasSeekedRef.current && initialTime && initialTime > 0) {
+      if (!hasSeekedRef.current) {
         hasSeekedRef.current = true;
-        video.currentTime = initialTime;
+        if (initialTime && initialTime > 0) {
+          video.currentTime = initialTime;
+        }
       }
     };
 
@@ -197,9 +199,11 @@ export default function VideoPlayer({
     video.addEventListener('ended', handleEnded);
 
     // If video is already loaded or metadata is cached
-    if (video.readyState >= 1 && !hasSeekedRef.current && initialTime && initialTime > 0) {
+    if (video.readyState >= 1 && !hasSeekedRef.current) {
       hasSeekedRef.current = true;
-      video.currentTime = initialTime;
+      if (initialTime && initialTime > 0) {
+        video.currentTime = initialTime;
+      }
     }
 
     return () => {
