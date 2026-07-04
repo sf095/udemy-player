@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Globe, Link, FileIcon, ExternalLink, Download } from 'lucide-react';
+import { FileText, Globe, Link, FileIcon, ExternalLink, Download, HelpCircle } from 'lucide-react';
 
 export default function ResourceList({ resources, activeResource, onSelectResource }) {
   const getIcon = (type) => {
@@ -8,6 +8,8 @@ export default function ResourceList({ resources, activeResource, onSelectResour
         return <FileText size={18} style={{ color: 'var(--primary)' }} />;
       case 'html':
         return <Globe size={18} style={{ color: 'var(--accent-amber)' }} />;
+      case 'quiz':
+        return <HelpCircle size={18} style={{ color: 'var(--accent-amber)' }} />;
       case 'url':
         return <Link size={18} style={{ color: 'var(--accent-blue)' }} />;
       default:
@@ -22,7 +24,7 @@ export default function ResourceList({ resources, activeResource, onSelectResour
       </h4>
       <div className="resource-items-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', flex: 1 }}>
         {resources.map((res, index) => {
-          const isPreviewable = res.type === 'pdf' || res.type === 'html';
+          const isPreviewable = res.type === 'pdf' || res.type === 'html' || res.type === 'quiz';
           const isActive = activeResource && activeResource.path === res.path;
           
           const handleItemClick = (e) => {

@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import AppLogo from './components/AppLogo';
 import VideoPlayer from './components/VideoPlayer';
 import DocViewer from './components/DocViewer';
+import QuizViewer from './components/QuizViewer';
 import ResourceList from './components/ResourceList';
 import NotesPanel from './components/NotesPanel';
 import SettingsModal from './components/SettingsModal';
@@ -453,7 +454,7 @@ export default function App() {
     setCurrentTime(0);
 
     const resources = getLessonResources(lesson);
-    const firstPreviewable = resources.find(r => r.type === 'pdf' || r.type === 'html') || null;
+    const firstPreviewable = resources.find(r => r.type === 'pdf' || r.type === 'html' || r.type === 'quiz') || null;
     setActiveResource(firstPreviewable);
 
     // Auto-select tab based on available assets
@@ -834,7 +835,13 @@ export default function App() {
 
               {/* Media viewport content */}
               <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                {activeTab === 'video' && activeLesson.video ? (
+                {activeLesson.type === 'quiz' ? (
+                  <QuizViewer
+                    path={activeLesson.quiz}
+                    onComplete={(completed) => handleToggleComplete(activeLesson.id, completed)}
+                    isCompleted={!!progress[activeLesson.id]?.completed}
+                  />
+                ) : activeTab === 'video' && activeLesson.video ? (
                   <VideoPlayer
                     videoPath={activeLesson.video}
                     subtitles={activeLesson.subtitles}
@@ -870,6 +877,12 @@ export default function App() {
                         <DocViewer
                           path={activeResource.path}
                           type={activeResource.type}
+                        />
+                      ) : activeResource && activeResource.type === 'quiz' ? (
+                        <QuizViewer
+                          path={activeResource.path}
+                          onComplete={(completed) => handleToggleComplete(activeLesson.id, completed)}
+                          isCompleted={!!progress[activeLesson.id]?.completed}
                         />
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px', color: 'var(--text-secondary)', textAlign: 'center', gap: '16px' }}>

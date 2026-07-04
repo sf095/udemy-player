@@ -131,6 +131,8 @@ function scanCourseFolder(coursePath) {
             resourceType = 'pdf';
           } else if (file.ext === '.html' || file.ext === '.htm') {
             resourceType = 'html';
+          } else if (file.ext === '.json' && (file.name.toLowerCase().includes('quiz') || file.name.toLowerCase().includes('[quiz]'))) {
+            resourceType = 'quiz';
           } else if (file.ext === '.url') {
             resourceType = 'url';
             try {
@@ -161,10 +163,13 @@ function scanCourseFolder(coursePath) {
 
       const firstPdf = resources.find(r => r.type === 'pdf');
       const firstHtml = resources.find(r => r.type === 'html');
+      const firstQuiz = resources.find(r => r.type === 'quiz');
 
       let title = '';
       if (videoFile) {
         title = cleanTitle(videoFile.name, prefix);
+      } else if (firstQuiz) {
+        title = firstQuiz.title;
       } else if (firstHtml) {
         title = firstHtml.title;
       } else if (firstPdf) {
@@ -175,7 +180,9 @@ function scanCourseFolder(coursePath) {
 
       let lessonType = 'video';
       if (!videoFile) {
-        if (firstHtml) {
+        if (firstQuiz) {
+          lessonType = 'quiz';
+        } else if (firstHtml) {
           lessonType = 'html';
         } else if (firstPdf) {
           lessonType = 'pdf';
@@ -196,6 +203,7 @@ function scanCourseFolder(coursePath) {
         subtitles: subtitles,
         pdf: firstPdf ? firstPdf.path : null,
         html: firstHtml ? firstHtml.path : null,
+        quiz: firstQuiz ? firstQuiz.path : null,
         resources: resources,
         type: lessonType
       });
