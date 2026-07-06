@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File, HelpCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File, HelpCircle, Paperclip } from 'lucide-react';
 
 export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete, onResizeStart, onResizeReset }) {
   const [expandedSections, setExpandedSections] = useState({});
@@ -16,6 +16,15 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
     const total = lessons.length;
     const completed = lessons.filter(l => progress[l.id]?.completed).length;
     return `${completed}/${total} completed`;
+  };
+
+  // Helper to count companion resources for a lesson
+  const getLessonResourcesCount = (lesson) => {
+    if (lesson.resources) return lesson.resources.length;
+    let count = 0;
+    if (lesson.pdf) count++;
+    if (lesson.html) count++;
+    return count;
   };
 
   const getLessonIcon = (type) => {
@@ -95,11 +104,19 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
                           </div>
                           {getLessonIcon(lesson.type)}
                           <div className="lesson-details">
-                            <span className="lesson-title-text" title={lesson.title}>
-                              {lesson.title}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+                              <span className="lesson-title-text" title={lesson.title}>
+                                {lesson.title}
+                              </span>
+                              {getLessonResourcesCount(lesson) > 0 && (
+                                <span className="lesson-resource-badge" title={`${getLessonResourcesCount(lesson)} companion resource${getLessonResourcesCount(lesson) > 1 ? 's' : ''}`}>
+                                  <Paperclip size={10} />
+                                  <span>{getLessonResourcesCount(lesson)}</span>
+                                </span>
+                              )}
+                            </div>
                             {!isCompleted && progressPercent > 0 && (
-                              <div className="lesson-progress-bar">
+                              <div className="lesson-progress-bar" style={{ width: '100%' }}>
                                 <div
                                   className="lesson-progress-fill"
                                   style={{ width: `${Math.min(progressPercent, 100)}%` }}
