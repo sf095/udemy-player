@@ -289,6 +289,37 @@ function srtToVtt(srtContent) {
   return vtt;
 }
 
+// Parse subtitle content into cues/blocks separated by blank lines, filtering out metadata/headers/comments
+function parseSubtitleCues(content) {
+  const normalized = content.replace(/\r\n/g, '\n').replace(/\uFEFF/g, '');
+  const lines = normalized.split('\n');
+  const cues = [];
+  let currentCue = [];
+
+  for (const line of lines) {
+    if (line.trim() === '') {
+      if (currentCue.length > 0) {
+        const cueStr = currentCue.join('\n');
+        if (cueStr.includes('-->')) {
+          cues.push(cueStr);
+        }
+        currentCue = [];
+      }
+    } else {
+      currentCue.push(line);
+    }
+  }
+
+  if (currentCue.length > 0) {
+    const cueStr = currentCue.join('\n');
+    if (cueStr.includes('-->')) {
+      cues.push(cueStr);
+    }
+  }
+
+  return cues;
+}
+
 // -- API ROUTES --
 
 app.get('/api/health', (req, res) => {
@@ -645,23 +676,49 @@ app.post('/api/translate-subtitle', async (req, res) => {
 
   try {
     const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
+    const cues = parseSubtitleCues(subtitleContent);
 
-    const prompt = `Translate the following ${sourceLanguageName} subtitle file to ${targetLanguageName}.
+    if (cues.length === 0) {
+      return res.status(400).json({ error: 'No valid subtitle cues found in file.' });
+    }
+
+    const CHUNK_SIZE = 100;
+    const translatedChunks = [];
+    const totalChunks = Math.ceil(cues.length / CHUNK_SIZE);
+
+    console.log(`Parsed subtitle: ${cues.length} cues. Chunk size: ${CHUNK_SIZE}. Total chunks: ${totalChunks}`);
+
+    for (let i = 0; i < cues.length; i += CHUNK_SIZE) {
+      const chunkCues = cues.slice(i, i + CHUNK_SIZE);
+      const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
+      const chunkContent = chunkCues.join('\n\n');
+
+      const prompt = `Translate the following ${sourceLanguageName} subtitle cues (part of a larger subtitle file) to ${targetLanguageName}.
 You must preserve all timecodes, formatting, line numbers, and subtitle syntax exactly.
 Do not translate or modify timecodes or line numbers (e.g. 00:01:23,450 --> 00:01:25,120).
 Ensure the ${targetLanguageName} translation is natural, fits the context, and uses appropriate terminology.
-Do not add any explanations, markdown code blocks, or introductory text. Return ONLY the translated subtitle file contents.
+Do not add any explanations, markdown code blocks, or introductory text. Return ONLY the translated subtitle cues.
 
-[Subtitle File Content]:
-${subtitleContent}`;
+[Subtitle Cues]:
+${chunkContent}`;
 
-    console.log(`Calling ${config.providerName} API for translation to ${targetLanguageName}...`);
-    const translatedText = await callAiProvider(config, prompt);
+      console.log(`Calling ${config.providerName} API for chunk ${chunkIndex}/${totalChunks} (cues ${i + 1} to ${Math.min(i + CHUNK_SIZE, cues.length)})...`);
+      let chunkTranslatedText = await callAiProvider(config, prompt);
 
-    // Clean up markdown block if the model returned it
-    translatedText = translatedText.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '');
+      // Clean up markdown block if the model returned it
+      chunkTranslatedText = chunkTranslatedText.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '');
 
-    // Convert SRT to WebVTT format in-memory if needed
+      translatedChunks.push(chunkTranslatedText.trim());
+
+      // Respect rate limits with a brief delay between requests
+      if (i + CHUNK_SIZE < cues.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    let translatedText = translatedChunks.join('\n\n');
+
+    // Convert SRT/VTT fragments to WebVTT format (prepends WEBVTT header and normalizes timecodes)
     if (!translatedText.trim().startsWith('WEBVTT')) {
       translatedText = srtToVtt(translatedText);
     }
