@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon } from 'lucide-react';
+import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon, Minimize2 } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import Sidebar from './components/Sidebar';
 import AppLogo from './components/AppLogo';
@@ -666,7 +666,7 @@ export default function App() {
     { key: 'n', action: () => {
       if (activeLesson?.type === 'video') setNotesCollapsed(c => !c);
     }},
-    { key: 't', action: handleToggleTheaterMode, when: isVideoActive },
+    { key: 't', action: handleToggleTheaterMode, when: () => isVideoActive() || theaterMode },
     { key: 'Escape', action: () => {
       if (showShortcutsModal) setShowShortcutsModal(false);
       else if (showSettingsModal) setShowSettingsModal(false);
@@ -873,7 +873,7 @@ export default function App() {
                   </button>
                   <button
                     className={`tab-btn ${activeTab === 'doc' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('doc'); setTheaterMode(false); }}
+                    onClick={() => setActiveTab('doc')}
                   >
                     <BookOpen size={14} /> Companion Resources
                   </button>
@@ -965,6 +965,34 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+              {/* Floating tab bar in theater mode — overlays the video area */}
+              {theaterMode && hasMultipleTabs && (
+                <div className="stage-tabs-floating">
+                  <button
+                    className={`tab-btn-floating ${activeTab === 'video' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('video')}
+                    title="Video Lesson"
+                  >
+                    <Play size={14} /> Video
+                  </button>
+                  <button
+                    className={`tab-btn-floating ${activeTab === 'doc' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('doc')}
+                    title="Companion Resources"
+                  >
+                    <BookOpen size={14} /> Resources
+                  </button>
+                  <div className="tab-separator" />
+                  <button
+                    className="theater-exit-btn"
+                    onClick={handleToggleTheaterMode}
+                    title="Exit Theater Mode (t)"
+                  >
+                    <Minimize2 size={14} />
+                  </button>
+                </div>
+              )}
               </div>
             </div>
           ) : !coursePath ? (

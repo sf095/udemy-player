@@ -1201,6 +1201,103 @@ video::cue(.secondary) {
   pointer-events: none;
 }
 
+/* Hide standard stage-tabs in theater mode */
+.app-container.theater-mode .stage-tabs {
+  height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+  border-bottom-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─── Floating Tab Bar for Theater Mode ─── */
+.stage-tabs-floating {
+  position: absolute;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--overlay-chip-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--overlay-chip-border);
+  border-radius: 24px;
+  padding: 4px 6px;
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s ease;
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Auto-hide floating tabs with controls */
+.video-container.controls-hidden ~ .stage-tabs-floating {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(10px);
+}
+
+/* Floating tab button */
+.stage-tabs-floating .tab-btn-floating {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 20px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.stage-tabs-floating .tab-btn-floating:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.stage-tabs-floating .tab-btn-floating.active {
+  background: var(--primary);
+  color: white;
+}
+
+.stage-tabs-floating .tab-btn-floating.active:hover {
+  background: var(--primary-hover);
+}
+
+/* Floating tab separator */
+.stage-tabs-floating .tab-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--border-color);
+  margin: 0 2px;
+}
+
+/* Theater exit button inside floating tabs */
+.stage-tabs-floating .theater-exit-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.stage-tabs-floating .theater-exit-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 /* ─── Video Control Overlays & Cursor Hiding ─── */
 .video-container.controls-hidden {
   cursor: none;
