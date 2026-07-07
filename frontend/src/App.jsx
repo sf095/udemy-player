@@ -421,6 +421,7 @@ export default function App() {
     e.preventDefault();
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+    document.body.classList.add('resizing');
 
     const handlePointerMove = (moveEvent) => {
       const clientX = moveEvent.clientX;
@@ -432,6 +433,7 @@ export default function App() {
     const handlePointerUp = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      document.body.classList.remove('resizing');
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
     };
@@ -444,6 +446,7 @@ export default function App() {
     e.preventDefault();
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+    document.body.classList.add('resizing');
 
     const handlePointerMove = (moveEvent) => {
       const clientX = moveEvent.clientX;
@@ -456,6 +459,7 @@ export default function App() {
     const handlePointerUp = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      document.body.classList.remove('resizing');
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
     };

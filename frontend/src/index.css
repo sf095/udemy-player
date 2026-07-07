@@ -1176,6 +1176,18 @@ video::cue(.secondary) {
   box-shadow: 0 0 8px var(--primary);
 }
 
+/* Disable transitions and pointer events on iframes/embeds during resizing to keep dragging smooth */
+body.resizing * {
+  transition: none !important;
+}
+
+body.resizing iframe,
+body.resizing embed,
+body.resizing video {
+  pointer-events: none !important;
+}
+
+
 /* ─── Theater Mode ─── */
 .app-container.theater-mode {
   grid-template-rows: 0px 1fr;
