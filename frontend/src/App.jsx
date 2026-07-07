@@ -986,7 +986,7 @@ export default function App() {
                   </button>
                   <button
                     className={`tab-btn-floating ${activeTab === 'doc' ? 'active' : ''}`}
-                    onClick={() => { setActiveTab('doc'); setTheaterMode(false); }}
+                    onClick={() => setActiveTab('doc')}
                     title="Companion Resources"
                   >
                     <BookOpen size={14} /> Resources
