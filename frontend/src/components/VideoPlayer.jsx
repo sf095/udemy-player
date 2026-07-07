@@ -175,6 +175,8 @@ export default function VideoPlayer({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [confirmReTranslate, setConfirmReTranslate] = useState(null);
 
   // Auto-hide overlays and cursor on mouse inactivity when playing
   useEffect(() => {
@@ -216,6 +218,32 @@ export default function VideoPlayer({
   useEffect(() => {
     localStorage.setItem('udemy-player-subtitle-size', subtitleSize);
   }, [subtitleSize]);
+
+  // Close context menu on outside click or Escape key.
+  // Defer listener registration to the next tick so the right-click that opened
+  // the menu doesn't immediately fire the click-outside handler.
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleClick = () => setContextMenu(null);
+    const handleKey = (e) => {
+      if (e.key === 'Escape') {
+        setContextMenu(null);
+        setConfirmReTranslate(null);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClick);
+      document.addEventListener('keydown', handleKey);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [contextMenu]);
 
   // Sync active language when subtitles list or video path changes
   useEffect(() => {
@@ -267,6 +295,36 @@ export default function VideoPlayer({
       setTranslationError('Network error during translation.');
     } finally {
       setTranslating(false);
+    }
+  };
+
+  const handleReTranslate = async (targetLangCode) => {
+    const sourcePath = subtitles?.[activeLang];
+    if (!sourcePath) return;
+
+    setTranslating(true);
+    setTranslationError(null);
+
+    try {
+      const response = await fetch('/api/translate-subtitle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtitlePath: sourcePath, targetLang: targetLangCode })
+      });
+      const data = await response.json();
+      if (data.success) {
+        if (onSubtitlesUpdated) await onSubtitlesUpdated();
+        setActiveLang(targetLangCode);
+      } else {
+        setTranslationError(data.error || 'Failed to re-translate subtitles.');
+      }
+    } catch (err) {
+      console.error('Re-translation error', err);
+      setTranslationError('Network error during re-translation.');
+    } finally {
+      setTranslating(false);
+      setConfirmReTranslate(null);
+      setContextMenu(null);
     }
   };
 
@@ -534,6 +592,17 @@ export default function VideoPlayer({
             <button
               key={lang}
               onClick={() => setActiveLang(lang)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (translating) return;
+                // Don't re-translate the active language to itself
+                if (lang === activeLang) return;
+                // Match .context-menu min-width + padding from CSS
+                const menuWidth = 200;
+                const x = Math.min(e.clientX, window.innerWidth - menuWidth);
+                const y = Math.min(e.clientY, window.innerHeight - 40);
+                setContextMenu({ lang, x, y });
+              }}
               className={`video-overlay-btn ${activeLang === lang ? 'active' : ''}`}
             >
               {lang.toUpperCase()}
@@ -685,25 +754,77 @@ export default function VideoPlayer({
           <div className="autoplay-card">
             <span className="autoplay-badge">Up Next</span>
             <h2 className="autoplay-title">{nextLessonTitle}</h2>
-            
+
             {/* Smooth Shrinking Progress Bar */}
             <div className="autoplay-progress-bar">
-              <div 
-                className="autoplay-progress-fill" 
-                style={{ width: `${(countdown / 5) * 100}%` }} 
+              <div
+                className="autoplay-progress-fill"
+                style={{ width: `${(countdown / 5) * 100}%` }}
               />
             </div>
-            
+
             <p className="autoplay-countdown-text">
               Starting in <strong>{countdown}</strong> seconds...
             </p>
-            
+
             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
               <button onClick={handleCancelAutoplay} className="autoplay-btn-cancel">
                 Cancel
               </button>
               <button onClick={handlePlayNow} className="autoplay-btn-play">
                 Play Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Context menu for re-translate */}
+      {contextMenu && (() => {
+        const langName = getLangName(contextMenu.lang);
+        return (
+        <div
+          className="context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="context-menu-item"
+            disabled={translating}
+            onClick={() => {
+              setConfirmReTranslate({ lang: contextMenu.lang, langName });
+              setContextMenu(null);
+            }}
+          >
+            ↻ Re-translate to {langName}
+          </button>
+        </div>
+        );
+      })()}
+
+      {/* Confirmation dialog for re-translate */}
+      {confirmReTranslate && (
+        <div
+          className="confirm-overlay"
+          onClick={() => setConfirmReTranslate(null)}
+        >
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <p>
+              This will overwrite the existing <strong>{confirmReTranslate.langName}</strong> translation using the currently active language as the source. Continue?
+            </p>
+            <div className="confirm-dialog-buttons">
+              <button
+                className="confirm-btn-cancel"
+                onClick={() => setConfirmReTranslate(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="confirm-btn-confirm"
+                disabled={translating}
+                onClick={() => handleReTranslate(confirmReTranslate.lang)}
+              >
+                {translating ? 'Translating...' : 'Confirm'}
               </button>
             </div>
           </div>
