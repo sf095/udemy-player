@@ -1201,16 +1201,6 @@ video::cue(.secondary) {
   pointer-events: none;
 }
 
-.app-container.theater-mode .stage-tabs {
-  height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  overflow: hidden;
-  border-bottom-width: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* ─── Video Control Overlays & Cursor Hiding ─── */
 .video-container.controls-hidden {
   cursor: none;
