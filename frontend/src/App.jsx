@@ -728,7 +728,7 @@ export default function App() {
           onManageCourses={() => setShowCourseManager(true)}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="header-actions-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {sections.length > 0 && (
             <div className="course-progress-container">
               <span className="course-progress-text">
