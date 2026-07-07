@@ -1584,4 +1584,10 @@ video::cue(.secondary) {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* ─── Summary Language Selector ─── */
+.summary-lang-select option {
+  background: var(--select-option-bg);
+  color: var(--text-primary);
+}
+
 

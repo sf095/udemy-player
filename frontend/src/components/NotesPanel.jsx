@@ -53,10 +53,12 @@ export default function NotesPanel({
   onDeleteNote,
   onSeek,
   onPauseVideo,
-  
+
   // New props for Summarization & Chat
   activeLesson,
   activeLang,
+  summaryLang,
+  setSummaryLang,
   hasApiKey,
   onResizeStart,
   onResizeReset,
@@ -85,6 +87,25 @@ export default function NotesPanel({
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
 
+  // Compute effective summary language: user choice > active subtitle language
+  const effectiveSummaryLang = summaryLang || activeLang;
+
+  const SUMMARY_LANGUAGES = {
+    vi: 'Vietnamese',
+    ja: 'Japanese',
+    zh: 'Chinese',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    ko: 'Korean',
+    ru: 'Russian',
+    ar: 'Arabic',
+    pt: 'Portuguese',
+    en: 'English',
+    id: 'Indonesian',
+    it: 'Italian'
+  };
+
   useEffect(() => {
     if (activeTab === 'chat') {
       requestAnimationFrame(() => {
@@ -98,13 +119,15 @@ export default function NotesPanel({
     const subtitlePath = activeLesson?.subtitles?.[activeLang];
     if (!subtitlePath) return;
 
+    const langCode = effectiveSummaryLang || activeLang;
+
     setSummaryLoading(true);
     setSummaryError(null);
     try {
       const response = await fetch('/api/summarize-lesson', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtitlePath, langCode: activeLang, checkCacheOnly: true })
+        body: JSON.stringify({ subtitlePath, langCode, checkCacheOnly: true })
       });
       const data = await response.json();
       if (data.success && data.summary) {
@@ -115,7 +138,7 @@ export default function NotesPanel({
     } finally {
       setSummaryLoading(false);
     }
-  }, [activeLesson, activeLang]);
+  }, [activeLesson, activeLang, effectiveSummaryLang]);
 
   // Reset state when lesson or language changes
   useEffect(() => {
@@ -132,7 +155,7 @@ export default function NotesPanel({
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [activeLesson, activeLang, checkSummaryCache]);
+  }, [activeLesson, activeLang, summaryLang, checkSummaryCache]);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -173,13 +196,15 @@ export default function NotesPanel({
     const subtitlePath = activeLesson?.subtitles?.[activeLang];
     if (!subtitlePath) return;
 
+    const langCode = effectiveSummaryLang || activeLang;
+
     setSummaryLoading(true);
     setSummaryError(null);
     try {
       const response = await fetch('/api/summarize-lesson', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtitlePath, langCode: activeLang })
+        body: JSON.stringify({ subtitlePath, langCode })
       });
       const data = await response.json();
       if (data.success) {
@@ -199,12 +224,14 @@ export default function NotesPanel({
     const subtitlePath = activeLesson?.subtitles?.[activeLang];
     if (!subtitlePath) return;
 
+    const langCode = effectiveSummaryLang || activeLang;
+
     setSummaryLoading(true);
     try {
       const response = await fetch('/api/clear-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtitlePath, langCode: activeLang })
+        body: JSON.stringify({ subtitlePath, langCode })
       });
       const data = await response.json();
       if (data.success) {
@@ -429,6 +456,56 @@ export default function NotesPanel({
 
       {activeTab === 'summary' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px' }}>
+          {/* Language Selector — always visible when subtitles and API key are ready */}
+          {currentSubtitlePath && hasApiKey && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px',
+              paddingBottom: '10px',
+              borderBottom: '1px solid var(--border-color)'
+            }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                Summarize in:
+              </label>
+              <select
+                className="summary-lang-select"
+                value={summaryLang || activeLang}
+                onChange={(e) => setSummaryLang(e.target.value === activeLang ? '' : e.target.value)}
+                style={{
+                  flex: 1,
+                  background: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '6px 28px 6px 10px',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  transition: 'var(--transition-fast)',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 8px center',
+                  backgroundSize: '10px'
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
+              >
+                {/* Show "Same as subtitles" as the default option */}
+                <option value={activeLang}>
+                  Same as subtitles ({SUMMARY_LANGUAGES[activeLang?.toLowerCase()] || activeLang?.toUpperCase()})
+                </option>
+                {Object.entries(SUMMARY_LANGUAGES)
+                  .filter(([code]) => code !== activeLang?.toLowerCase())
+                  .map(([code, label]) => (
+                    <option key={code} value={code}>{label}</option>
+                  ))}
+              </select>
+            </div>
+          )}
           {!currentSubtitlePath ? (
             <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
               <AlertCircle size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
@@ -484,7 +561,7 @@ export default function NotesPanel({
               <FileText size={32} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
               <div className="empty-state-title">No Summary Generated</div>
               <div className="empty-state-desc">
-                Summarize this video lesson based on the active ({activeLang.toUpperCase()}) subtitle track.
+                Summarize this video lesson in {SUMMARY_LANGUAGES[effectiveSummaryLang?.toLowerCase()] || effectiveSummaryLang?.toUpperCase() || 'the selected language'}.
               </div>
               <button
                 className="btn-add-note"

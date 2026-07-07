@@ -36,6 +36,10 @@ export default function App() {
     const saved = localStorage.getItem('udemy-player-secondary-lang');
     return saved || '';
   });
+  const [summaryLang, setSummaryLang] = useState(() => {
+    const saved = localStorage.getItem('udemy-player-summary-lang');
+    return saved || '';
+  });
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'doc'
   const [activeResource, setActiveResource] = useState(null);
@@ -92,6 +96,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('udemy-player-secondary-lang', secondaryLang);
   }, [secondaryLang]);
+
+  useEffect(() => {
+    localStorage.setItem('udemy-player-summary-lang', summaryLang);
+  }, [summaryLang]);
 
   useEffect(() => {
     if (activeLang && activeLang === secondaryLang) {
@@ -1026,6 +1034,8 @@ export default function App() {
             onPauseVideo={handlePauseVideo}
             activeLesson={activeLesson}
             activeLang={activeLang}
+            summaryLang={summaryLang}
+            setSummaryLang={setSummaryLang}
             hasApiKey={
               settings.aiProvider === 'anthropic'
                 ? !!settings.anthropicApiKey
