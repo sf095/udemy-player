@@ -99,9 +99,6 @@ export default function App() {
     }
   }, [activeLang, secondaryLang]);
 
-
-
-
   const fetchUserData = async (shouldScanContent = true) => {
     try {
       const response = await fetch('/api/userdata');

@@ -1,36 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
-// Copied parseSubtitleCues from backend/server.js for unit testing
-function parseSubtitleCues(content) {
-  const normalized = content.replace(/\r\n/g, '\n').replace(/\uFEFF/g, '');
-  const lines = normalized.split('\n');
-  const cues = [];
-  let currentCue = [];
-
-  for (const line of lines) {
-    if (line.trim() === '') {
-      if (currentCue.length > 0) {
-        const cueStr = currentCue.join('\n');
-        if (cueStr.includes('-->')) {
-          cues.push(cueStr);
-        }
-        currentCue = [];
-      }
-    } else {
-      currentCue.push(line);
-    }
-  }
-
-  if (currentCue.length > 0) {
-    const cueStr = currentCue.join('\n');
-    if (cueStr.includes('-->')) {
-      cues.push(cueStr);
-    }
-  }
-
-  return cues;
-}
+const { parseSubtitleCues } = require('../lib/subtitle');
 
 // -------------------------------------------------------------
 // Test Case 1: SRT Parsing

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const { scanCourseFolder } = require('./scanner');
+const { parseSubtitleCues } = require('./lib/subtitle');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -289,35 +290,20 @@ function srtToVtt(srtContent) {
   return vtt;
 }
 
-// Parse subtitle content into cues/blocks separated by blank lines, filtering out metadata/headers/comments
-function parseSubtitleCues(content) {
-  const normalized = content.replace(/\r\n/g, '\n').replace(/\uFEFF/g, '');
-  const lines = normalized.split('\n');
-  const cues = [];
-  let currentCue = [];
-
-  for (const line of lines) {
-    if (line.trim() === '') {
-      if (currentCue.length > 0) {
-        const cueStr = currentCue.join('\n');
-        if (cueStr.includes('-->')) {
-          cues.push(cueStr);
-        }
-        currentCue = [];
-      }
-    } else {
-      currentCue.push(line);
-    }
+// Validate that a file path is within the active course directory (prevents path traversal)
+function validateSubtitlePath(filePath) {
+  const db = readDb();
+  const courseRoot = db.activeCoursePath;
+  if (!courseRoot) {
+    // No active course — allow only if path is under the backend directory (safe development default)
+    return true;
   }
-
-  if (currentCue.length > 0) {
-    const cueStr = currentCue.join('\n');
-    if (cueStr.includes('-->')) {
-      cues.push(cueStr);
-    }
+  const resolvedRoot = path.resolve(courseRoot);
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(resolvedRoot + path.sep) && resolvedPath !== resolvedRoot) {
+    return false;
   }
-
-  return cues;
+  return true;
 }
 
 // -- API ROUTES --
@@ -415,6 +401,10 @@ app.get('/api/subtitle', (req, res) => {
   const subtitlePath = req.query.path;
   if (!subtitlePath) {
     return res.status(400).send('Path parameter is required');
+  }
+
+  if (!validateSubtitlePath(subtitlePath)) {
+    return res.status(403).send('Access denied');
   }
 
   if (!fs.existsSync(subtitlePath)) {
@@ -633,6 +623,10 @@ app.post('/api/translate-subtitle', async (req, res) => {
     return res.status(400).json({ error: 'subtitlePath is required' });
   }
 
+  if (!validateSubtitlePath(subtitlePath)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
   const db = readDb();
   const config = getAiConfig(db, apiKey);
 
@@ -682,15 +676,15 @@ app.post('/api/translate-subtitle', async (req, res) => {
       return res.status(400).json({ error: 'No valid subtitle cues found in file.' });
     }
 
-    const CHUNK_SIZE = 100;
+    const SUBTITLE_CHUNK_SIZE = 100;
     const translatedChunks = [];
-    const totalChunks = Math.ceil(cues.length / CHUNK_SIZE);
+    const totalChunks = Math.ceil(cues.length / SUBTITLE_CHUNK_SIZE);
 
-    console.log(`Parsed subtitle: ${cues.length} cues. Chunk size: ${CHUNK_SIZE}. Total chunks: ${totalChunks}`);
+    console.log(`Parsed subtitle: ${cues.length} cues. Chunk size: ${SUBTITLE_CHUNK_SIZE}. Total chunks: ${totalChunks}`);
 
-    for (let i = 0; i < cues.length; i += CHUNK_SIZE) {
-      const chunkCues = cues.slice(i, i + CHUNK_SIZE);
-      const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
+    for (let i = 0; i < cues.length; i += SUBTITLE_CHUNK_SIZE) {
+      const chunkCues = cues.slice(i, i + SUBTITLE_CHUNK_SIZE);
+      const chunkIndex = Math.floor(i / SUBTITLE_CHUNK_SIZE) + 1;
       const chunkContent = chunkCues.join('\n\n');
 
       const prompt = `Translate the following ${sourceLanguageName} subtitle cues (part of a larger subtitle file) to ${targetLanguageName}.
@@ -702,8 +696,17 @@ Do not add any explanations, markdown code blocks, or introductory text. Return 
 [Subtitle Cues]:
 ${chunkContent}`;
 
-      console.log(`Calling ${config.providerName} API for chunk ${chunkIndex}/${totalChunks} (cues ${i + 1} to ${Math.min(i + CHUNK_SIZE, cues.length)})...`);
-      let chunkTranslatedText = await callAiProvider(config, prompt);
+      console.log(`Calling ${config.providerName} API for chunk ${chunkIndex}/${totalChunks} (cues ${i + 1} to ${Math.min(i + SUBTITLE_CHUNK_SIZE, cues.length)})...`);
+
+      let chunkTranslatedText;
+      try {
+        chunkTranslatedText = await callAiProvider(config, prompt);
+      } catch (err) {
+        console.error(`Chunk ${chunkIndex}/${totalChunks} failed:`, err.message);
+        return res.status(502).json({
+          error: `Translation failed at chunk ${chunkIndex}/${totalChunks} (cues ${i + 1}–${Math.min(i + SUBTITLE_CHUNK_SIZE, cues.length)}). ${err.message}`
+        });
+      }
 
       // Clean up markdown block if the model returned it
       chunkTranslatedText = chunkTranslatedText.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '');
@@ -711,7 +714,7 @@ ${chunkContent}`;
       translatedChunks.push(chunkTranslatedText.trim());
 
       // Respect rate limits with a brief delay between requests
-      if (i + CHUNK_SIZE < cues.length) {
+      if (i + SUBTITLE_CHUNK_SIZE < cues.length) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }

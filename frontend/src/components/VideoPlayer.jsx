@@ -17,7 +17,7 @@ const CURATED_LANGUAGES = [
 
 function parseTimestamp(timeStr) {
   if (!timeStr) return 0;
-  const cleanTimeStr = timeStr.trim().replace(',', '.');
+  const cleanTimeStr = timeStr.trim().replace(/,/g, '.');
   const parts = cleanTimeStr.split(':');
   
   const hours = parts.length === 3 ? (parseInt(parts[0], 10) || 0) : 0;
@@ -42,13 +42,7 @@ function formatTimestamp(totalSeconds) {
   const seconds = Math.floor(totalSeconds % 60);
   const ms = Math.round((totalSeconds % 1) * 1000);
 
-  const pad = (num, size) => {
-    let s = num.toString();
-    while (s.length < size) s = "0" + s;
-    return s;
-  };
-
-  return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(seconds, 2)}.${pad(ms, 3)}`;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 }
 
 function parseVttCues(vttText) {
@@ -131,6 +125,7 @@ function mergeVttCues(cuesA, cuesB) {
 }
 
 function generateVtt(cues) {
+  if (!cues || cues.length === 0) return null;
   let vtt = 'WEBVTT\n\n';
   cues.forEach((cue, index) => {
     vtt += `${index + 1}\n`;
@@ -264,6 +259,8 @@ export default function VideoPlayer({
     // If we have both activeLang and secondaryLang, merge them!
     if (activeLang && secondaryLang && primarySubtitlePath && secondarySubtitlePath) {
       let isCancelled = false;
+      const controller = new AbortController();
+
       Promise.resolve().then(() => {
         if (!isCancelled) {
           setLoadingMergedSubs(true);
@@ -273,8 +270,8 @@ export default function VideoPlayer({
       const fetchAndMerge = async () => {
         try {
           const [resA, resB] = await Promise.all([
-            fetch(`${backendOrigin}/api/subtitle?path=${encodeURIComponent(primarySubtitlePath)}`),
-            fetch(`${backendOrigin}/api/subtitle?path=${encodeURIComponent(secondarySubtitlePath)}`)
+            fetch(`${backendOrigin}/api/subtitle?path=${encodeURIComponent(primarySubtitlePath)}`, { signal: controller.signal }),
+            fetch(`${backendOrigin}/api/subtitle?path=${encodeURIComponent(secondarySubtitlePath)}`, { signal: controller.signal })
           ]);
 
           if (!resA.ok || !resB.ok) {
@@ -290,6 +287,13 @@ export default function VideoPlayer({
           const mergedCues = mergeVttCues(cuesA, cuesB);
           const mergedVtt = generateVtt(mergedCues);
 
+          if (!mergedVtt) {
+            // No cues in either source — fall back to single-track
+            setLoadingMergedSubs(false);
+            setMergedSubtitleUrl(null);
+            return;
+          }
+
           const blob = new Blob([mergedVtt], { type: 'text/vtt' });
           const url = URL.createObjectURL(blob);
 
@@ -304,6 +308,7 @@ export default function VideoPlayer({
             URL.revokeObjectURL(url);
           }
         } catch (err) {
+          if (err.name === 'AbortError') return; // expected on cleanup — no action needed
           console.error('Error fetching or merging subtitles:', err);
           if (!isCancelled) {
             setLoadingMergedSubs(false);
@@ -320,6 +325,7 @@ export default function VideoPlayer({
 
       return () => {
         isCancelled = true;
+        controller.abort();
       };
     } else {
       if (mergedUrlRef.current) {
