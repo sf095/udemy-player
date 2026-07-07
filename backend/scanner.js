@@ -114,7 +114,7 @@ function scanCourseFolder(coursePath) {
       const resources = [];
 
       for (const file of files) {
-        if (file.ext === '.mp4') {
+        if (file.ext === '.mp4' || file.ext === '.m4v') {
           videoFile = file;
         } else if (file.ext === '.srt' || file.ext === '.vtt') {
           const lang = getSubtitleLanguage(file.name);

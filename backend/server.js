@@ -372,7 +372,7 @@ app.get('/api/stream', (req, res) => {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
       'Content-Length': chunksize,
-      'Content-Type': 'video/mp4',
+      'Content-Type': 'video/mp4', // video/mp4 is compatible with both .mp4 and DRM-free .m4v files
     };
     
     res.writeHead(206, head);
@@ -392,7 +392,7 @@ app.get('/api/stream', (req, res) => {
   } else {
     const head = {
       'Content-Length': fileSize,
-      'Content-Type': 'video/mp4',
+      'Content-Type': 'video/mp4', // video/mp4 is compatible with both .mp4 and DRM-free .m4v files
     };
     res.writeHead(200, head);
     const file = fs.createReadStream(videoPath);
