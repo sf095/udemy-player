@@ -78,7 +78,7 @@ export default function CourseSelector({ currentPath, history, onSelectPath, onM
         ) : (
           <FolderOpen size={16} style={{ color: 'var(--text-secondary)' }} />
         )}
-        {isBrowsing ? 'Browsing...' : 'Browse...'}
+        <span className="btn-browse-text">{isBrowsing ? 'Browsing...' : 'Browse...'}</span>
       </button>
 
       {history && history.length > 1 && (
