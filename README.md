@@ -75,7 +75,7 @@ Compare how our local portal matches up against buying directly from Udemy:
 | **Updates** | Only while subscribed or active | **Lifetime updates included free** |
 | **Offline Access** | Limited mobile download only | **Full desktop and mobile offline access** |
 | **AI Features** | None | **Translation, summarization, and chat** |
-| **Subtitles** | English-only for most courses | **Auto-translate subtitles to any language** |
+| **Subtitles** | English-only for most courses | **Auto-translate + dual subtitle display** |
 | **Notes & Progress** | Basic bookmarks | **Timestamped notes + auto-save progress** |
 
 ---
@@ -88,12 +88,16 @@ This player is built to help you learn faster and retain more information:
 2. **Coordinated Tab View**: Study side-by-side. If a lesson contains both a video and companion resources (like PDFs or cheat sheets), the player shows them together in coordinated tabs.
 3. **Custom HTML5 Video Stage**:
    - Supports adjustable playback speeds (`1x`, `1.25x`, `1.5x`, `1.75x`, `2x`).
-   - Browser hotkeys: `Space` (play/pause), `Arrow Left/Right` (skip 5 seconds), `Arrow Up/Down` (volume), and `F` (fullscreen toggle).
+   - **Theater Mode** (`t`): collapses headers and sidebars with smooth animated transitions for a distraction-free viewing experience.
+   - **Auto-Hide Floating Controls**: overlay panels (subtitles, speed, autoplay, panel toggles) fade out after 2.5s of mouse inactivity while the video plays, keeping the focus on the content.
+   - **Subtitle Size Control**: fine-tune subtitle display from 50% to 160%.
+   - Browser hotkeys: `Space` (play/pause), `Arrow Left/Right` (skip 5 seconds), `Arrow Up/Down` (volume), `F` (fullscreen), `B` (sidebar), `N` (notes), and `T` (theater mode).
 4. **Interactive Notes Timeline**: Type notes as you watch. The player pauses the video automatically while you type, and links each note to a click-to-seek timestamp.
 5. **Auto-Completion & Auto-Save**: Lessons are marked complete at `90%` watch progress. Your playback position saves every 5 seconds so you can resume exactly where you left off.
 6. **AI Subtitle Translation**: Automatically translate English subtitle tracks to your native language using the built-in Gemini API.
-7. **Offline AI Summarization**: Generate structured, bulleted summaries of video lessons. The summaries cache locally, letting you review them instantly without internet access.
-8. **Transcript-Grounded AI Chat**: Ask questions about the lesson in the chat sidebar. The AI answers using the active subtitle transcript as context.
+7. **Dual Subtitle Display**: Watch with two subtitle tracks simultaneously (e.g., English + your native language). The player merges both WebVTT tracks in real time, showing the secondary language in a distinct style below the primary subtitles.
+8. **Offline AI Summarization**: Generate structured, bulleted summaries of video lessons. The summaries cache locally, letting you review them instantly without internet access.
+9. **Transcript-Grounded AI Chat**: Ask questions about the lesson in the chat sidebar. The AI answers using the active subtitle transcript as context.
 
 ---
 
