@@ -173,6 +173,46 @@ export default function VideoPlayer({
   const [loadingMergedSubs, setLoadingMergedSubs] = useState(false);
   const mergedUrlRef = useRef(null);
 
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+
+  // Auto-hide overlays and cursor on mouse inactivity when playing
+  useEffect(() => {
+    if (!isPlaying) {
+      setShowControls(true);
+      return;
+    }
+
+    let timeoutId;
+    const handleMouseMove = () => {
+      setShowControls(true);
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setShowControls(false);
+      }, 2500);
+    };
+
+    const container = playerRef.current?.closest('.video-container');
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove);
+      container.addEventListener('touchstart', handleMouseMove);
+    }
+
+    timeoutId = setTimeout(() => {
+      setShowControls(false);
+    }, 2500);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove);
+        container.removeEventListener('touchstart', handleMouseMove);
+      }
+    };
+    // playerRef is a stable ref object — no need to list it as a dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying]);
+
   useEffect(() => {
     localStorage.setItem('udemy-player-subtitle-size', subtitleSize);
   }, [subtitleSize]);
@@ -423,9 +463,14 @@ export default function VideoPlayer({
       }
     };
 
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
 
     // If video is already loaded or metadata is cached
     if (video.readyState >= 1 && !hasSeekedRef.current) {
@@ -439,6 +484,8 @@ export default function VideoPlayer({
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
     };
   }, [videoPath, initialTime, autoplayEnabled, hasNextLesson]);
 
@@ -447,7 +494,7 @@ export default function VideoPlayer({
 
   return (
     <div 
-      className="video-container" 
+      className={`video-container ${!showControls ? 'controls-hidden' : ''}`}
       style={{ 
         outline: 'none', 
         width: '100%', 
@@ -478,450 +525,184 @@ export default function VideoPlayer({
         )}
       </video>
 
-      {/* Subtitles & Translation Overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '16px',
-          left: '16px',
-          background: 'var(--overlay-chip-bg)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid var(--overlay-chip-border)',
-          borderRadius: '20px',
-          padding: '4px 8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          zIndex: 5
-        }}
-      >
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Subtitles:</span>
-        {availableLangs.map((lang) => (
+      {/* Symmetrical Floating Control Panels (Left & Right) inside absolute container */}
+      <div className="video-overlays-container">
+        {/* Subtitles & Translation Panel (Left) */}
+        <div className="video-overlay-left">
+          <span className="video-overlay-label">Subtitles:</span>
+          {availableLangs.map((lang) => (
+            <button
+              key={lang}
+              onClick={() => setActiveLang(lang)}
+              className={`video-overlay-btn ${activeLang === lang ? 'active' : ''}`}
+            >
+              {lang.toUpperCase()}
+            </button>
+          ))}
+          {activeLang && subtitles?.[activeLang] && translatableLangs.length > 0 && (
+            <select
+              value=""
+              disabled={translating}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) {
+                  handleStartTranslation(val);
+                }
+              }}
+              className="video-overlay-select translate-select"
+            >
+              <option value="" disabled style={{ background: 'var(--select-option-bg)', color: 'var(--text-secondary)' }}>
+                {translating ? 'Translating...' : 'Translate to...'}
+              </option>
+              {translatableLangs.map((lang) => (
+                <option key={lang.code} value={lang.code} style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>
+                  {lang.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {availableLangs.length > 1 && activeLang && (
+            <>
+              <div className="video-overlay-separator" />
+              <span className="video-overlay-label">2nd Sub:</span>
+              <select
+                value={secondaryLang}
+                disabled={loadingMergedSubs}
+                onChange={(e) => setSecondaryLang(e.target.value)}
+                className="video-overlay-select"
+              >
+                <option value="" style={{ background: 'var(--select-option-bg)', color: 'var(--text-secondary)' }}>
+                  {loadingMergedSubs ? 'Merging...' : 'None'}
+                </option>
+                {availableLangs
+                  .filter((lang) => lang !== activeLang)
+                  .map((lang) => (
+                    <option key={lang} value={lang} style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>
+                      {lang.toUpperCase()}
+                    </option>
+                  ))}
+              </select>
+            </>
+          )}
+          {availableLangs.length > 0 && (
+            <>
+              <div className="video-overlay-separator" />
+              <span className="video-overlay-label">Size:</span>
+              <select
+                value={subtitleSize}
+                onChange={(e) => setSubtitleSize(e.target.value)}
+                className="video-overlay-select"
+              >
+                <option value="50%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>50%</option>
+                <option value="75%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>75%</option>
+                <option value="100%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>100%</option>
+                <option value="130%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>130%</option>
+                <option value="160%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>160%</option>
+              </select>
+            </>
+          )}
+          {availableLangs.length === 0 && (
+            <span className="video-overlay-label" style={{ color: 'var(--text-muted)' }}>None</span>
+          )}
+        </div>
+
+        {/* Player Controls & Speed Panel (Right) */}
+        <div className="video-overlay-right">
+          {/* Toggle Sidebar/Menu Overlay */}
           <button
-            key={lang}
-            onClick={() => setActiveLang(lang)}
-            style={{
-              background: activeLang === lang ? 'var(--primary)' : 'transparent',
-              color: activeLang === lang ? 'white' : 'var(--text-secondary)',
-              border: 'none',
-              borderRadius: '16px',
-              padding: '4px 8px',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'var(--transition-fast)'
-            }}
+            onClick={onToggleSidebar}
+            title={sidebarCollapsed ? "Open Course Content (b)" : "Collapse Course Content (b)"}
+            className={`video-overlay-btn ${!sidebarCollapsed ? 'active' : ''}`}
+            style={{ borderRadius: '12px', padding: '4px 6px' }}
           >
-            {lang.toUpperCase()}
+            <Menu size={14} />
           </button>
-        ))}
-        {activeLang && subtitles?.[activeLang] && translatableLangs.length > 0 && (
-          <select
-            value=""
-            disabled={translating}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val) {
-                handleStartTranslation(val);
-              }
-            }}
-            style={{
-              background: 'var(--overlay-chip-bg)',
-              color: 'var(--primary)',
-              border: '1px dashed var(--primary)',
-              borderRadius: '16px',
-              padding: '3px 8px',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'var(--transition-fast)',
-              outline: 'none'
-            }}
+
+          {/* Toggle Notes Overlay */}
+          <button
+            onClick={onToggleNotes}
+            title={notesCollapsed ? "Open Notes Panel (n)" : "Collapse Notes Panel (n)"}
+            className={`video-overlay-btn ${!notesCollapsed ? 'active' : ''}`}
+            style={{ borderRadius: '12px', padding: '4px 6px' }}
           >
-            <option value="" disabled style={{ background: 'var(--select-option-bg)', color: 'var(--text-secondary)' }}>
-              {translating ? 'Translating...' : 'Translate to...'}
-            </option>
-            {translatableLangs.map((lang) => (
-              <option key={lang.code} value={lang.code} style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>
-                {lang.name}
-              </option>
-            ))}
+            <BookOpen size={14} />
+          </button>
+
+          {/* Theater Mode Toggle Overlay */}
+          <button
+            onClick={onToggleTheaterMode}
+            title={theaterMode ? "Exit Theater Mode (t)" : "Theater Mode (t)"}
+            className={`video-overlay-btn ${theaterMode ? 'active' : ''}`}
+            style={{ borderRadius: '12px', padding: '4px 6px' }}
+          >
+            {theaterMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+
+          <div className="video-overlay-separator" />
+
+          <span className="video-overlay-label">Autoplay:</span>
+          <button
+            onClick={onToggleAutoplay}
+            className={`video-overlay-btn ${autoplayEnabled ? 'active' : ''}`}
+            style={{ borderRadius: '12px' }}
+          >
+            {autoplayEnabled ? 'ON' : 'OFF'}
+          </button>
+
+          <div className="video-overlay-separator" />
+
+          <span className="video-overlay-label">Speed:</span>
+          <select
+            value={speed}
+            onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+            className="video-overlay-select"
+          >
+            <option value="1">1x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="1.75">1.75x</option>
+            <option value="2">2x</option>
           </select>
-        )}
-        {availableLangs.length > 1 && activeLang && (
-          <>
-            <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>2nd Sub:</span>
-            <select
-              value={secondaryLang}
-              disabled={loadingMergedSubs}
-              onChange={(e) => setSecondaryLang(e.target.value)}
-              style={{
-                background: 'var(--overlay-chip-bg)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--overlay-chip-border)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                outline: 'none',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                transition: 'var(--transition-fast)'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--text-muted)'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--overlay-chip-border)'}
-            >
-              <option value="" style={{ background: 'var(--select-option-bg)', color: 'var(--text-secondary)' }}>
-                {loadingMergedSubs ? 'Merging...' : 'None'}
-              </option>
-              {availableLangs
-                .filter((lang) => lang !== activeLang)
-                .map((lang) => (
-                  <option key={lang} value={lang} style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>
-                    {lang.toUpperCase()}
-                  </option>
-                ))}
-            </select>
-          </>
-        )}
-        {availableLangs.length > 0 && (
-          <>
-            <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Size:</span>
-            <select
-              value={subtitleSize}
-              onChange={(e) => setSubtitleSize(e.target.value)}
-              style={{
-                background: 'var(--overlay-chip-bg)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--overlay-chip-border)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                outline: 'none',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                transition: 'var(--transition-fast)'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--text-muted)'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--overlay-chip-border)'}
-            >
-              <option value="50%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>50%</option>
-              <option value="75%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>75%</option>
-              <option value="100%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>100%</option>
-              <option value="130%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>130%</option>
-              <option value="160%" style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>160%</option>
-            </select>
-          </>
-        )}
-        {availableLangs.length === 0 && (
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '0 4px' }}>None</span>
-        )}
+        </div>
       </div>
 
+      {/* Translation Error Toast */}
       {translationError && (
-        <div style={{
-          position: 'absolute',
-          top: '52px',
-          left: '16px',
-          background: '#7f1d1d',
-          border: '1px solid #f87171',
-          color: '#fca5a5',
-          padding: '6px 12px',
-          borderRadius: '8px',
-          fontSize: '0.75rem',
-          maxWidth: '320px',
-          zIndex: 6,
-          boxShadow: 'var(--shadow-md)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px'
-        }}>
+        <div className="video-translation-error">
           <span>{translationError}</span>
-          <button 
+          <button
             onClick={() => setTranslationError(null)}
-            style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', fontWeight: 'bold' }}
+            className="video-translation-error-close"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Top Right Controls Overlay Container */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '16px',
-          right: '16px',
-          display: 'flex',
-          gap: '8px',
-          zIndex: 5
-        }}
-      >
-        {/* Toggle Sidebar/Menu Overlay */}
-        <button
-          onClick={onToggleSidebar}
-          title={sidebarCollapsed ? "Open Course Content (b)" : "Collapse Course Content (b)"}
-          style={{
-            background: !sidebarCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid var(--overlay-chip-border)',
-            borderRadius: '20px',
-            padding: '4px 10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: !sidebarCollapsed ? 'white' : 'var(--text-secondary)',
-            cursor: 'pointer',
-            transition: 'var(--transition-fast)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = !sidebarCollapsed ? 'white' : 'var(--text-primary)';
-            e.currentTarget.style.borderColor = 'var(--text-muted)';
-            e.currentTarget.style.background = !sidebarCollapsed ? 'var(--primary-hover)' : 'var(--bg-hover-active)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = !sidebarCollapsed ? 'white' : 'var(--text-secondary)';
-            e.currentTarget.style.borderColor = 'var(--overlay-chip-border)';
-            e.currentTarget.style.background = !sidebarCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)';
-          }}
-        >
-          <Menu size={14} />
-        </button>
-
-        {/* Toggle Notes Overlay */}
-        <button
-          onClick={onToggleNotes}
-          title={notesCollapsed ? "Open Notes Panel (n)" : "Collapse Notes Panel (n)"}
-          style={{
-            background: !notesCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid var(--overlay-chip-border)',
-            borderRadius: '20px',
-            padding: '4px 10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: !notesCollapsed ? 'white' : 'var(--text-secondary)',
-            cursor: 'pointer',
-            transition: 'var(--transition-fast)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = !notesCollapsed ? 'white' : 'var(--text-primary)';
-            e.currentTarget.style.borderColor = 'var(--text-muted)';
-            e.currentTarget.style.background = !notesCollapsed ? 'var(--primary-hover)' : 'var(--bg-hover-active)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = !notesCollapsed ? 'white' : 'var(--text-secondary)';
-            e.currentTarget.style.borderColor = 'var(--overlay-chip-border)';
-            e.currentTarget.style.background = !notesCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)';
-          }}
-        >
-          <BookOpen size={14} />
-        </button>
-
-        {/* Theater Mode Toggle Overlay */}
-        <button
-          onClick={onToggleTheaterMode}
-          title={theaterMode ? "Exit Theater Mode (t)" : "Theater Mode (t)"}
-          style={{
-            background: 'var(--overlay-chip-bg)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid var(--overlay-chip-border)',
-            borderRadius: '20px',
-            padding: '4px 10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            transition: 'var(--transition-fast)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--text-primary)';
-            e.currentTarget.style.borderColor = 'var(--text-muted)';
-            e.currentTarget.style.background = 'var(--bg-hover-active)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--text-secondary)';
-            e.currentTarget.style.borderColor = 'var(--overlay-chip-border)';
-            e.currentTarget.style.background = 'var(--overlay-chip-bg)';
-          }}
-        >
-          {theaterMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-        </button>
-
-        {/* Autoplay Toggle Overlay */}
-        <div
-          style={{
-            background: 'var(--overlay-chip-bg)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid var(--overlay-chip-border)',
-            borderRadius: '20px',
-            padding: '4px 8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>Autoplay:</span>
-          <button
-            onClick={onToggleAutoplay}
-            style={{
-              background: autoplayEnabled ? 'var(--primary)' : 'transparent',
-              color: autoplayEnabled ? 'white' : 'var(--text-secondary)',
-              border: 'none',
-              borderRadius: '16px',
-              padding: '4px 8px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'var(--transition-fast)'
-            }}
-          >
-            {autoplayEnabled ? 'ON' : 'OFF'}
-          </button>
-        </div>
-
-        {/* Playback speed selector Overlay */}
-        <div
-          style={{
-            background: 'var(--overlay-chip-bg)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid var(--overlay-chip-border)',
-            borderRadius: '20px',
-            padding: '4px 8px',
-            display: 'flex',
-            gap: '4px'
-          }}
-        >
-          {[1, 1.25, 1.5, 1.75, 2].map((s) => (
-            <button
-              key={s}
-              onClick={() => onSpeedChange(s)}
-              style={{
-                background: speed === s ? 'var(--primary)' : 'transparent',
-                color: speed === s ? 'white' : 'var(--text-secondary)',
-                border: 'none',
-                borderRadius: '16px',
-                padding: '4px 8px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'var(--transition-fast)'
-              }}
-            >
-              {s}x
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Autoplay Countdown Overlay */}
       {showAutoplayOverlay && (
-        <div
-          className="autoplay-overlay"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(15, 23, 42, 0.9)',
-            backdropFilter: 'blur(12px)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10,
-            color: 'white',
-            textAlign: 'center',
-            padding: '24px',
-            animation: 'fade-in 0.3s ease'
-          }}
-        >
-          <div style={{ maxWidth: '480px', width: '100%' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              Up Next
-            </span>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginTop: '8px', marginBottom: '24px', color: '#ffffff', lineHeight: 1.3 }}>
-              {nextLessonTitle}
-            </h2>
+        <div className="autoplay-overlay">
+          <div className="autoplay-card">
+            <span className="autoplay-badge">Up Next</span>
+            <h2 className="autoplay-title">{nextLessonTitle}</h2>
             
             {/* Smooth Shrinking Progress Bar */}
-            <div style={{
-              width: '100%',
-              height: '4px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '2px',
-              marginBottom: '20px',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                height: '100%',
-                background: 'var(--primary)',
-                width: `${(countdown / 5) * 100}%`,
-                transition: 'width 1s linear',
-                borderRadius: '2px'
-              }} />
+            <div className="autoplay-progress-bar">
+              <div 
+                className="autoplay-progress-fill" 
+                style={{ width: `${(countdown / 5) * 100}%` }} 
+              />
             </div>
             
-            <p style={{ fontSize: '0.95rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '32px' }}>
-              Starting in <strong style={{ color: 'white', fontSize: '1.15rem' }}>{countdown}</strong> seconds...
+            <p className="autoplay-countdown-text">
+              Starting in <strong>{countdown}</strong> seconds...
             </p>
             
             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-              <button
-                onClick={handleCancelAutoplay}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  color: 'white',
-                  padding: '10px 24px',
-                  borderRadius: '24px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  outline: 'none'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                  e.currentTarget.style.borderColor = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                }}
-              >
+              <button onClick={handleCancelAutoplay} className="autoplay-btn-cancel">
                 Cancel
               </button>
-              
-              <button
-                onClick={handlePlayNow}
-                style={{
-                  background: 'var(--primary)',
-                  border: 'none',
-                  color: 'white',
-                  padding: '10px 24px',
-                  borderRadius: '24px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  outline: 'none',
-                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--primary-hover)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--primary)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
+              <button onClick={handlePlayNow} className="autoplay-btn-play">
                 Play Now
               </button>
             </div>
