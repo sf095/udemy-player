@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File, HelpCircle, Paperclip } from 'lucide-react';
 
 export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete, onResizeStart, onResizeReset }) {
@@ -10,6 +10,24 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
       [secId]: !prev[secId]
     }));
   };
+
+  // Auto-expand section containing the active lesson when it changes
+  useEffect(() => {
+    if (activeLesson && sections.length > 0) {
+      const activeSection = sections.find((sec) =>
+        sec.lessons.some((l) => l.id === activeLesson.id)
+      );
+      if (activeSection) {
+        setExpandedSections((prev) => {
+          if (prev[activeSection.id]) return prev;
+          return {
+            ...prev,
+            [activeSection.id]: true
+          };
+        });
+      }
+    }
+  }, [activeLesson, sections]);
 
   // Helper to count completed lessons in a section
   const getSectionStats = (lessons) => {
@@ -58,15 +76,23 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
           sections.map((sec) => {
             const isExpanded = !!expandedSections[sec.id];
             const stats = getSectionStats(sec.lessons);
+            const containsActive = activeLesson && sec.lessons.some(l => l.id === activeLesson.id);
 
             return (
-              <div key={sec.id} className={`section-accordion ${isExpanded ? 'expanded' : ''}`}>
+              <div key={sec.id} className={`section-accordion ${isExpanded ? 'expanded' : ''} ${containsActive ? 'has-active' : ''}`}>
                 <button className="section-trigger" onClick={() => toggleSection(sec.id)}>
                   <div className="section-title-container">
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {sec.title}
                     </span>
-                    <span className="section-meta">{stats}</span>
+                    {containsActive && !isExpanded ? (
+                      <span className="section-meta playing">
+                        <Play size={10} style={{ fill: 'currentColor' }} />
+                        Playing: {activeLesson.title}
+                      </span>
+                    ) : (
+                      <span className="section-meta">{stats}</span>
+                    )}
                   </div>
                   {isExpanded ? <ChevronDown size={16} style={{ minWidth: '16px' }} /> : <ChevronRight size={16} style={{ minWidth: '16px' }} />}
                 </button>

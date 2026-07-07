@@ -486,6 +486,10 @@ export default function App() {
   const { total, completed, percent } = getCourseStats();
   const activeLessonNotes = activeLesson ? (notes[activeLesson.id] || []) : [];
   const activeLessonProgress = activeLesson ? (progress[activeLesson.id] || {}) : {};
+  const activeSection = useMemo(() => {
+    if (!activeLesson || !sections) return null;
+    return sections.find(sec => sec.lessons.some(l => l.id === activeLesson.id));
+  }, [activeLesson, sections]);
 
   // --- Keyboard Shortcuts Infrastructure ---
   const SPEED_STEPS = [1, 1.25, 1.5, 1.75, 2];
@@ -815,6 +819,22 @@ export default function App() {
           ) : activeLesson ? (
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
               
+              {/* Stage Header Banner */}
+              <div className="stage-header-banner">
+                <div className="stage-header-breadcrumbs">
+                  <span className="stage-header-section" title={activeSection?.title}>
+                    {activeSection?.title || 'Section'}
+                  </span>
+                  <span className="stage-header-separator">&gt;</span>
+                  <span className="stage-header-lesson" title={activeLesson.title}>
+                    {activeLesson.title}
+                  </span>
+                </div>
+                <div className={`stage-header-badge ${activeLesson.type || 'video'}`}>
+                  {activeLesson.type === 'video' ? 'Video' : activeLesson.type === 'pdf' ? 'PDF' : activeLesson.type === 'html' ? 'HTML' : activeLesson.type === 'quiz' ? 'Quiz' : 'Lesson'}
+                </div>
+              </div>
+
               {/* Tab Selector (only shown if a lesson has multiple assets, e.g. video and companion PDF sheet) */}
               {hasMultipleTabs && (
                 <div className="stage-tabs">
