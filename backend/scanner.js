@@ -122,7 +122,7 @@ function scanCourseFolder(coursePath) {
           if (!subtitles[lang]) {
             subtitles[lang] = file.fullPath;
           }
-        } else if (!(file.ext === '.txt' && file.name.includes('.summary.')) && file.name.toLowerCase() !== '.ds_store') {
+        } else if (!(file.ext === '.txt' && file.name.toLowerCase().includes('.summary.')) && file.name.toLowerCase() !== '.ds_store') {
           // Process as a lesson resource/document
           let resourceType = 'file';
           let resourcePath = file.fullPath;

@@ -1240,7 +1240,7 @@ video::cue(.secondary) {
 }
 
 /* Floating tab button */
-.stage-tabs-floating .tab-btn-floating {
+.stage-tabs-floating > .tab-btn-floating {
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -1257,22 +1257,31 @@ video::cue(.secondary) {
   white-space: nowrap;
 }
 
-.stage-tabs-floating .tab-btn-floating:hover {
+.stage-tabs-floating > .tab-btn-floating:hover {
   color: var(--text-primary);
   background: var(--bg-hover);
 }
 
-.stage-tabs-floating .tab-btn-floating.active {
+.stage-tabs-floating > .tab-btn-floating:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.stage-tabs-floating > .tab-btn-floating.active {
   background: var(--primary);
   color: white;
 }
 
-.stage-tabs-floating .tab-btn-floating.active:hover {
+.stage-tabs-floating > .tab-btn-floating.active:hover {
   background: var(--primary-hover);
 }
 
+.stage-tabs-floating > .tab-btn-floating.active:focus-visible {
+  outline-color: white;
+}
+
 /* Floating tab separator */
-.stage-tabs-floating .tab-separator {
+.stage-tabs-floating > .tab-separator {
   width: 1px;
   height: 16px;
   background: var(--border-color);
@@ -1280,7 +1289,7 @@ video::cue(.secondary) {
 }
 
 /* Theater exit button inside floating tabs */
-.stage-tabs-floating .theater-exit-btn {
+.stage-tabs-floating > .theater-exit-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -1293,9 +1302,14 @@ video::cue(.secondary) {
   transition: var(--transition-fast);
 }
 
-.stage-tabs-floating .theater-exit-btn:hover {
+.stage-tabs-floating > .theater-exit-btn:hover {
   color: var(--text-primary);
   background: var(--bg-hover);
+}
+
+.stage-tabs-floating > .theater-exit-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ─── Video Control Overlays & Cursor Hiding ─── */
@@ -1585,6 +1599,29 @@ video::cue(.secondary) {
 }
 
 /* ─── Summary Language Selector ─── */
+.summary-lang-select {
+  flex: 1;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 28px 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: var(--transition-fast);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px;
+}
+
+.summary-lang-select:focus {
+  border-color: var(--primary);
+}
+
 .summary-lang-select option {
   background: var(--select-option-bg);
   color: var(--text-primary);

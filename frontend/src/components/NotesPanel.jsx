@@ -87,7 +87,11 @@ export default function NotesPanel({
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
 
-  // Compute effective summary language: user choice > active subtitle language
+  // Compute effective summary language: user choice > active subtitle language.
+  // This variable feeds into the dependency chain:
+  //   effectiveSummaryLang → checkSummaryCache (useCallback) → reset useEffect
+  // When summaryLang changes, effectiveSummaryLang recalculates, checkSummaryCache
+  // recreates with the new langCode, and the reset effect calls the fresh callback.
   const effectiveSummaryLang = summaryLang || activeLang;
 
   const SUMMARY_LANGUAGES = {
@@ -473,26 +477,6 @@ export default function NotesPanel({
                 className="summary-lang-select"
                 value={summaryLang || activeLang}
                 onChange={(e) => setSummaryLang(e.target.value === activeLang ? '' : e.target.value)}
-                style={{
-                  flex: 1,
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '6px 28px 6px 10px',
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  outline: 'none',
-                  transition: 'var(--transition-fast)',
-                  appearance: 'none',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 8px center',
-                  backgroundSize: '10px'
-                }}
-                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
               >
                 {/* Show "Same as subtitles" as the default option */}
                 <option value={activeLang}>

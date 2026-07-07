@@ -21,6 +21,22 @@ const DEFAULT_SETTINGS = {
   autoplayNext: false
 };
 
+const SUPPORTED_SUMMARY_LANGUAGES = {
+  vi: 'Vietnamese',
+  ja: 'Japanese',
+  zh: 'Chinese',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  ko: 'Korean',
+  ru: 'Russian',
+  ar: 'Arabic',
+  pt: 'Portuguese',
+  en: 'English',
+  id: 'Indonesian',
+  it: 'Italian'
+};
+
 const DEFAULT_DB = {
   activeCoursePath: '',
   history: [],
@@ -751,6 +767,16 @@ app.post('/api/summarize-lesson', async (req, res) => {
     return res.status(400).json({ error: 'subtitlePath and langCode are required' });
   }
 
+  // Validate language code against supported whitelist to prevent path traversal
+  const langLower = langCode.toLowerCase();
+  if (!SUPPORTED_SUMMARY_LANGUAGES[langLower]) {
+    return res.status(400).json({ error: `Unsupported summary language: ${langCode}` });
+  }
+
+  if (!validateSubtitlePath(subtitlePath)) {
+    return res.status(403).json({ error: 'Path traversal denied' });
+  }
+
   const db = readDb();
   const config = getAiConfig(db);
 
@@ -786,20 +812,7 @@ app.post('/api/summarize-lesson', async (req, res) => {
     return res.json({ success: true, summary: null, cached: false });
   }
 
-  const SUPPORTED_LANGUAGES = {
-    vi: 'Vietnamese',
-    ja: 'Japanese',
-    zh: 'Chinese',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-    ko: 'Korean',
-    ru: 'Russian',
-    ar: 'Arabic',
-    pt: 'Portuguese',
-    en: 'English'
-  };
-  const targetLanguageName = SUPPORTED_LANGUAGES[langCode.toLowerCase()] || langCode.toUpperCase();
+  const targetLanguageName = SUPPORTED_SUMMARY_LANGUAGES[langLower];
 
   try {
     const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
@@ -839,12 +852,22 @@ app.post('/api/clear-summary', (req, res) => {
     return res.status(400).json({ error: 'subtitlePath and langCode are required' });
   }
 
+  // Validate language code against supported whitelist to prevent path traversal
+  const langLower = langCode.toLowerCase();
+  if (!SUPPORTED_SUMMARY_LANGUAGES[langLower]) {
+    return res.status(400).json({ error: `Unsupported summary language: ${langCode}` });
+  }
+
+  if (!validateSubtitlePath(subtitlePath)) {
+    return res.status(403).json({ error: 'Path traversal denied' });
+  }
+
   try {
     const dir = path.dirname(subtitlePath);
     const ext = path.extname(subtitlePath);
     let base = path.basename(subtitlePath, ext);
     base = base.replace(/\.[a-z]{2}(?:_[a-z]{2,4})?$/i, '');
-    const outPath = path.join(dir, `${base}.summary.${langCode.toLowerCase()}.txt`);
+    const outPath = path.join(dir, `${base}.summary.${langLower}.txt`);
 
     if (fs.existsSync(outPath)) {
       fs.unlinkSync(outPath);
