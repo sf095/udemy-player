@@ -32,6 +32,10 @@ export default function App() {
   
   const [activeLesson, setActiveLesson] = useState(null);
   const [activeLang, setActiveLang] = useState('');
+  const [secondaryLang, setSecondaryLang] = useState(() => {
+    const saved = localStorage.getItem('udemy-player-secondary-lang');
+    return saved || '';
+  });
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'doc'
   const [activeResource, setActiveResource] = useState(null);
@@ -83,6 +87,17 @@ export default function App() {
     }
     localStorage.setItem('udemy-player-theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('udemy-player-secondary-lang', secondaryLang);
+  }, [secondaryLang]);
+
+  useEffect(() => {
+    if (activeLang && activeLang === secondaryLang) {
+      setSecondaryLang('');
+    }
+  }, [activeLang, secondaryLang]);
+
 
   const fetchUserData = async (shouldScanContent = true) => {
     try {
@@ -871,6 +886,8 @@ export default function App() {
                     onSubtitlesUpdated={handleSubtitlesUpdated}
                     activeLang={activeLang}
                     setActiveLang={setActiveLang}
+                    secondaryLang={secondaryLang}
+                    setSecondaryLang={setSecondaryLang}
                     speed={speed}
                     onSpeedChange={handleSpeedChange}
                     toastMessage={toast.message}

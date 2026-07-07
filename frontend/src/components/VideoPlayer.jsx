@@ -14,6 +14,131 @@ const CURATED_LANGUAGES = [
   { code: 'pt', name: 'Portuguese' }
 ];
 
+function parseTimestamp(timeStr) {
+  if (!timeStr) return 0;
+  const cleanTimeStr = timeStr.trim().replace(',', '.');
+  const parts = cleanTimeStr.split(':');
+  
+  const hours = parts.length === 3 ? (parseInt(parts[0], 10) || 0) : 0;
+  const minutes = parts.length === 3 
+    ? (parseInt(parts[1], 10) || 0) 
+    : (parts.length === 2 ? (parseInt(parts[0], 10) || 0) : 0);
+  
+  const secondsWithMs = parts.length === 3 
+    ? parts[2] 
+    : (parts.length === 2 ? parts[1] : parts[0]);
+
+  const secondsParts = secondsWithMs.split('.');
+  const seconds = parseInt(secondsParts[0], 10) || 0;
+  const ms = parseInt(secondsParts[1], 10) || 0;
+
+  return hours * 3600 + minutes * 60 + seconds + ms / 1000;
+}
+
+function formatTimestamp(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const ms = Math.round((totalSeconds % 1) * 1000);
+
+  const pad = (num, size) => {
+    let s = num.toString();
+    while (s.length < size) s = "0" + s;
+    return s;
+  };
+
+  return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(seconds, 2)}.${pad(ms, 3)}`;
+}
+
+function parseVttCues(vttText) {
+  const cues = [];
+  if (!vttText) return cues;
+  
+  const normalized = vttText.replace(/\r\n/g, '\n').replace(/\uFEFF/g, '');
+  const blocks = normalized.split(/\n\n+/);
+  
+  for (const block of blocks) {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    
+    if (lines[0].startsWith('WEBVTT') || lines[0].startsWith('NOTE')) {
+      continue;
+    }
+    
+    const timeLineIndex = lines.findIndex(l => l.includes('-->'));
+    if (timeLineIndex === -1) continue;
+    
+    const timeLine = lines[timeLineIndex];
+    const parts = timeLine.split('-->');
+    if (parts.length < 2) continue;
+    
+    const start = parseTimestamp(parts[0].trim());
+    const end = parseTimestamp(parts[1].trim());
+    
+    const textLines = lines.slice(timeLineIndex + 1);
+    if (textLines.length === 0) continue;
+    
+    const text = textLines.join('\n');
+    cues.push({ start, end, text });
+  }
+  
+  cues.sort((a, b) => a.start - b.start);
+  return cues;
+}
+
+function mergeVttCues(cuesA, cuesB) {
+  const merged = [];
+  const usedB = new Set();
+  
+  for (const a of cuesA) {
+    const overlaps = cuesB.filter((b, index) => {
+      const isOverlap = b.start < a.end && b.end > a.start;
+      if (isOverlap) {
+        usedB.add(index);
+      }
+      return isOverlap;
+    });
+    
+    if (overlaps.length > 0) {
+      const secondaryText = overlaps.map(o => o.text).join(' ');
+      merged.push({
+        start: a.start,
+        end: a.end,
+        text: `${a.text}\n<c.secondary>${secondaryText}</c>`
+      });
+    } else {
+      merged.push({
+        start: a.start,
+        end: a.end,
+        text: a.text
+      });
+    }
+  }
+  
+  cuesB.forEach((b, index) => {
+    if (!usedB.has(index)) {
+      merged.push({
+        start: b.start,
+        end: b.end,
+        text: `<c.secondary>${b.text}</c>`
+      });
+    }
+  });
+  
+  merged.sort((a, b) => a.start - b.start);
+  return merged;
+}
+
+function generateVtt(cues) {
+  let vtt = 'WEBVTT\n\n';
+  cues.forEach((cue, index) => {
+    vtt += `${index + 1}\n`;
+    vtt += `${formatTimestamp(cue.start)} --> ${formatTimestamp(cue.end)}\n`;
+    vtt += `${cue.text}\n\n`;
+  });
+  return vtt;
+}
+
 export default function VideoPlayer({
   videoPath,
   subtitles = {},
@@ -23,6 +148,8 @@ export default function VideoPlayer({
   onSubtitlesUpdated,
   activeLang,
   setActiveLang,
+  secondaryLang = '',
+  setSecondaryLang,
   speed,
   onSpeedChange,
   toastMessage,
@@ -40,6 +167,9 @@ export default function VideoPlayer({
   });
   const [countdown, setCountdown] = useState(5);
   const [showAutoplayOverlay, setShowAutoplayOverlay] = useState(false);
+  const [mergedSubtitleUrl, setMergedSubtitleUrl] = useState(null);
+  const [loadingMergedSubs, setLoadingMergedSubs] = useState(false);
+  const mergedUrlRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem('udemy-player-subtitle-size', subtitleSize);
@@ -110,10 +240,96 @@ export default function VideoPlayer({
     return window.location.origin;
   };
 
+  // Clean up Blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (mergedUrlRef.current) {
+        URL.revokeObjectURL(mergedUrlRef.current);
+      }
+    };
+  }, []);
+
   const backendOrigin = getBackendOrigin();
+  const primarySubtitlePath = subtitles?.[activeLang];
+  const secondarySubtitlePath = secondaryLang ? subtitles?.[secondaryLang] : null;
+
+  useEffect(() => {
+    // If we have both activeLang and secondaryLang, merge them!
+    if (activeLang && secondaryLang && primarySubtitlePath && secondarySubtitlePath) {
+      let isCancelled = false;
+      Promise.resolve().then(() => {
+        if (!isCancelled) {
+          setLoadingMergedSubs(true);
+        }
+      });
+
+      const fetchAndMerge = async () => {
+        try {
+          const [resA, resB] = await Promise.all([
+            fetch(`${backendOrigin}/api/subtitle?path=${encodeURIComponent(primarySubtitlePath)}`),
+            fetch(`${backendOrigin}/api/subtitle?path=${encodeURIComponent(secondarySubtitlePath)}`)
+          ]);
+
+          if (!resA.ok || !resB.ok) {
+            throw new Error('Failed to fetch subtitle files');
+          }
+
+          const [textA, textB] = await Promise.all([resA.text(), resB.text()]);
+
+          if (isCancelled) return;
+
+          const cuesA = parseVttCues(textA);
+          const cuesB = parseVttCues(textB);
+          const mergedCues = mergeVttCues(cuesA, cuesB);
+          const mergedVtt = generateVtt(mergedCues);
+
+          const blob = new Blob([mergedVtt], { type: 'text/vtt' });
+          const url = URL.createObjectURL(blob);
+
+          if (!isCancelled) {
+            if (mergedUrlRef.current) {
+              URL.revokeObjectURL(mergedUrlRef.current);
+            }
+            mergedUrlRef.current = url;
+            setMergedSubtitleUrl(url);
+            setLoadingMergedSubs(false);
+          } else {
+            URL.revokeObjectURL(url);
+          }
+        } catch (err) {
+          console.error('Error fetching or merging subtitles:', err);
+          if (!isCancelled) {
+            setLoadingMergedSubs(false);
+            if (mergedUrlRef.current) {
+              URL.revokeObjectURL(mergedUrlRef.current);
+              mergedUrlRef.current = null;
+            }
+            setMergedSubtitleUrl(null);
+          }
+        }
+      };
+
+      fetchAndMerge();
+
+      return () => {
+        isCancelled = true;
+      };
+    } else {
+      if (mergedUrlRef.current) {
+        URL.revokeObjectURL(mergedUrlRef.current);
+        mergedUrlRef.current = null;
+      }
+      Promise.resolve().then(() => {
+        setMergedSubtitleUrl(null);
+        setLoadingMergedSubs(false);
+      });
+    }
+  }, [videoPath, activeLang, secondaryLang, primarySubtitlePath, secondarySubtitlePath, backendOrigin]);
+
   const videoSrc = `${backendOrigin}/api/stream?path=${encodeURIComponent(videoPath)}`;
-  const subtitlePath = subtitles?.[activeLang];
-  const subtitleSrc = subtitlePath ? `${backendOrigin}/api/subtitle?path=${encodeURIComponent(subtitlePath)}` : null;
+  const subtitleSrc = mergedSubtitleUrl
+    ? mergedSubtitleUrl
+    : (primarySubtitlePath ? `${backendOrigin}/api/subtitle?path=${encodeURIComponent(primarySubtitlePath)}` : null);
 
   const hasSeekedRef = React.useRef(false);
 
@@ -239,7 +455,7 @@ export default function VideoPlayer({
       >
         {subtitleSrc && (
           <track
-            key={activeLang}
+            key={mergedSubtitleUrl ? `merged-${activeLang}-${secondaryLang}` : `single-${activeLang}`}
             kind="subtitles"
             src={subtitleSrc}
             srcLang={activeLang}
@@ -318,6 +534,42 @@ export default function VideoPlayer({
               </option>
             ))}
           </select>
+        )}
+        {availableLangs.length > 1 && activeLang && (
+          <>
+            <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>2nd Sub:</span>
+            <select
+              value={secondaryLang}
+              disabled={loadingMergedSubs}
+              onChange={(e) => setSecondaryLang(e.target.value)}
+              style={{
+                background: 'var(--overlay-chip-bg)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--overlay-chip-border)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                transition: 'var(--transition-fast)'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--text-muted)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--overlay-chip-border)'}
+            >
+              <option value="" style={{ background: 'var(--select-option-bg)', color: 'var(--text-secondary)' }}>
+                {loadingMergedSubs ? 'Merging...' : 'None'}
+              </option>
+              {availableLangs
+                .filter((lang) => lang !== activeLang)
+                .map((lang) => (
+                  <option key={lang} value={lang} style={{ background: 'var(--select-option-bg)', color: 'var(--text-primary)' }}>
+                    {lang.toUpperCase()}
+                  </option>
+                ))}
+            </select>
+          </>
         )}
         {availableLangs.length > 0 && (
           <>

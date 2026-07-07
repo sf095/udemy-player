@@ -628,6 +628,11 @@ video::cue {
   font-family: var(--font-sans) !important;
 }
 
+video::cue(.secondary) {
+  color: #ffd200 !important;
+  font-size: 0.85em !important;
+}
+
 /* Tabs for secondary document assets (PDF/HTML sheets inside a lesson) */
 .stage-tabs {
   display: flex;
