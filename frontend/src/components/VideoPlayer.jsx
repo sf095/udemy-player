@@ -194,10 +194,16 @@ export default function VideoPlayer({
       }, 2500);
     };
 
+    const handleMouseLeave = () => {
+      setShowControls(false);
+      clearTimeout(timeoutId);
+    };
+
     const container = playerRef.current?.closest('.video-container');
     if (container) {
       container.addEventListener('mousemove', handleMouseMove);
       container.addEventListener('touchstart', handleMouseMove);
+      container.addEventListener('mouseleave', handleMouseLeave);
     }
 
     timeoutId = setTimeout(() => {
@@ -209,6 +215,7 @@ export default function VideoPlayer({
       if (container) {
         container.removeEventListener('mousemove', handleMouseMove);
         container.removeEventListener('touchstart', handleMouseMove);
+        container.removeEventListener('mouseleave', handleMouseLeave);
       }
     };
     // playerRef is a stable ref object — no need to list it as a dependency
