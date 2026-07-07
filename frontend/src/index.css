@@ -1175,3 +1175,23 @@ video::cue(.secondary) {
   background-color: var(--primary);
   box-shadow: 0 0 8px var(--primary);
 }
+
+/* ─── Theater Mode ─── */
+.app-container.theater-mode {
+  grid-template-rows: 0px 1fr;
+}
+
+.app-container.theater-mode .app-header {
+  display: none !important;
+}
+
+.app-container.theater-mode .stage-header-banner {
+  display: none !important;
+}
+
+.app-container.theater-mode .stage-tabs {
+  display: none !important;
+}
+
+
+

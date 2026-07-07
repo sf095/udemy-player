@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Maximize2, Minimize2, Menu, BookOpen } from 'lucide-react';
 import ShortcutToast from './ShortcutToast';
 
 const CURATED_LANGUAGES = [
@@ -158,7 +159,13 @@ export default function VideoPlayer({
   onToggleAutoplay,
   hasNextLesson = false,
   nextLessonTitle = '',
-  onPlayNextLesson
+  onPlayNextLesson,
+  theaterMode = false,
+  onToggleTheaterMode,
+  sidebarCollapsed = false,
+  onToggleSidebar,
+  notesCollapsed = false,
+  onToggleNotes
 }) {
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
@@ -646,6 +653,99 @@ export default function VideoPlayer({
           zIndex: 5
         }}
       >
+        {/* Toggle Sidebar/Menu Overlay */}
+        <button
+          onClick={onToggleSidebar}
+          title={sidebarCollapsed ? "Open Course Content (b)" : "Collapse Course Content (b)"}
+          style={{
+            background: !sidebarCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--overlay-chip-border)',
+            borderRadius: '20px',
+            padding: '4px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: !sidebarCollapsed ? 'white' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'var(--transition-fast)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = !sidebarCollapsed ? 'white' : 'var(--text-primary)';
+            e.currentTarget.style.borderColor = 'var(--text-muted)';
+            e.currentTarget.style.background = !sidebarCollapsed ? 'var(--primary-hover)' : 'var(--bg-hover-active)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = !sidebarCollapsed ? 'white' : 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--overlay-chip-border)';
+            e.currentTarget.style.background = !sidebarCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)';
+          }}
+        >
+          <Menu size={14} />
+        </button>
+
+        {/* Toggle Notes Overlay */}
+        <button
+          onClick={onToggleNotes}
+          title={notesCollapsed ? "Open Notes Panel (n)" : "Collapse Notes Panel (n)"}
+          style={{
+            background: !notesCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--overlay-chip-border)',
+            borderRadius: '20px',
+            padding: '4px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: !notesCollapsed ? 'white' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'var(--transition-fast)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = !notesCollapsed ? 'white' : 'var(--text-primary)';
+            e.currentTarget.style.borderColor = 'var(--text-muted)';
+            e.currentTarget.style.background = !notesCollapsed ? 'var(--primary-hover)' : 'var(--bg-hover-active)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = !notesCollapsed ? 'white' : 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--overlay-chip-border)';
+            e.currentTarget.style.background = !notesCollapsed ? 'var(--primary)' : 'var(--overlay-chip-bg)';
+          }}
+        >
+          <BookOpen size={14} />
+        </button>
+
+        {/* Theater Mode Toggle Overlay */}
+        <button
+          onClick={onToggleTheaterMode}
+          title={theaterMode ? "Exit Theater Mode (t)" : "Theater Mode (t)"}
+          style={{
+            background: 'var(--overlay-chip-bg)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--overlay-chip-border)',
+            borderRadius: '20px',
+            padding: '4px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'var(--transition-fast)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.borderColor = 'var(--text-muted)';
+            e.currentTarget.style.background = 'var(--bg-hover-active)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--overlay-chip-border)';
+            e.currentTarget.style.background = 'var(--overlay-chip-bg)';
+          }}
+        >
+          {theaterMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+
         {/* Autoplay Toggle Overlay */}
         <div
           style={{

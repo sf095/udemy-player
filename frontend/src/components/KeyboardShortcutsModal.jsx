@@ -13,6 +13,7 @@ const SHORTCUT_GROUPS = [
       { keys: ['↓'], description: 'Volume down 10%' },
       { keys: ['M'], description: 'Toggle mute' },
       { keys: ['F'], description: 'Toggle fullscreen' },
+      { keys: ['T'], description: 'Toggle theater mode' },
       { keys: ['['], description: 'Decrease speed' },
       { keys: [']'], description: 'Increase speed' },
       { keys: ['0-9'], description: 'Seek to 0%–90%' },

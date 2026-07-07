@@ -42,6 +42,7 @@ export default function App() {
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [theaterMode, setTheaterMode] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('udemy-player:sidebar-width');
     return saved ? parseInt(saved, 10) : 320;
@@ -97,6 +98,8 @@ export default function App() {
       setSecondaryLang('');
     }
   }, [activeLang, secondaryLang]);
+
+
 
 
   const fetchUserData = async (shouldScanContent = true) => {
@@ -199,6 +202,7 @@ export default function App() {
       setCoursePath(data.activeCoursePath);
       setHistory(data.history);
       setActiveLesson(null);
+      setTheaterMode(false);
       await fetchCourseContent(data.activeCoursePath);
     } catch (err) {
       console.error('Failed to change course path', err);
@@ -477,6 +481,7 @@ export default function App() {
       setActiveTab('video');
     } else {
       setActiveTab('doc');
+      setTheaterMode(false);
     }
   };
 
@@ -583,6 +588,14 @@ export default function App() {
     showToast(`⏱ ${newSpeed}x`);
   };
 
+  const handleToggleTheaterMode = () => {
+    setTheaterMode(t => {
+      const next = !t;
+      showToast(next ? '🎬 Theater Mode ON' : '📺 Theater Mode OFF');
+      return next;
+    });
+  };
+
   const isVideoActive = () => !!activeLesson?.video && activeTab === 'video';
   const hasLesson = () => !!activeLesson;
 
@@ -656,10 +669,12 @@ export default function App() {
     { key: 'n', action: () => {
       if (activeLesson?.type === 'video') setNotesCollapsed(c => !c);
     }},
+    { key: 't', action: handleToggleTheaterMode, when: isVideoActive },
     { key: 'Escape', action: () => {
       if (showShortcutsModal) setShowShortcutsModal(false);
       else if (showSettingsModal) setShowSettingsModal(false);
       else if (showCourseManager) setShowCourseManager(false);
+      else if (theaterMode) setTheaterMode(false);
     }},
     // --- App-Level ---
     { key: '?', modifiers: ['shift'], action: () => setShowShortcutsModal(s => !s) },
@@ -671,7 +686,7 @@ export default function App() {
   const hasMultipleTabs = activeLesson && activeLesson.video && lessonResources.length > 0;
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${theaterMode ? 'theater-mode' : ''}`}>
       <header className="app-header">
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
@@ -861,7 +876,7 @@ export default function App() {
                   </button>
                   <button
                     className={`tab-btn ${activeTab === 'doc' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('doc')}
+                    onClick={() => { setActiveTab('doc'); setTheaterMode(false); }}
                   >
                     <BookOpen size={14} /> Companion Resources
                   </button>
@@ -897,6 +912,12 @@ export default function App() {
                     hasNextLesson={!!nextLesson}
                     nextLessonTitle={nextLesson?.title || ''}
                     onPlayNextLesson={goToNextLesson}
+                    theaterMode={theaterMode}
+                    onToggleTheaterMode={handleToggleTheaterMode}
+                    sidebarCollapsed={sidebarCollapsed}
+                    onToggleSidebar={() => setSidebarCollapsed(c => !c)}
+                    notesCollapsed={notesCollapsed}
+                    onToggleNotes={() => setNotesCollapsed(c => !c)}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>
