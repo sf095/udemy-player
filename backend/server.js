@@ -925,6 +925,213 @@ Keep your response concise, clear, and direct. Use the same language as the stud
   }
 });
 
+// Parse timestamp to seconds helper
+function parseTimestampToSeconds(timeStr) {
+  if (!timeStr) return 0;
+  const cleanTimeStr = timeStr.trim().replace(/,/g, '.');
+  const parts = cleanTimeStr.split(':');
+  
+  const hours = parts.length === 3 ? (parseInt(parts[0], 10) || 0) : 0;
+  const minutes = parts.length === 3 
+    ? (parseInt(parts[1], 10) || 0) 
+    : (parts.length === 2 ? (parseInt(parts[0], 10) || 0) : 0);
+  
+  const secondsWithMs = parts.length === 3 
+    ? parts[2] 
+    : (parts.length === 2 ? parts[1] : parts[0]);
+
+  const secondsParts = secondsWithMs.split('.');
+  const seconds = parseInt(secondsParts[0], 10) || 0;
+  const ms = parseInt(secondsParts[1], 10) || 0;
+
+  return hours * 3600 + minutes * 60 + seconds + ms / 1000;
+}
+
+// Parse subtitle content into simple cues
+function parseSubtitleContentToCues(content) {
+  const cues = [];
+  const blocks = content.replace(/\r\n/g, '\n').replace(/\uFEFF/g, '').split(/\n\n+/);
+  for (const block of blocks) {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    if (lines[0].startsWith('WEBVTT') || lines[0].startsWith('NOTE')) continue;
+    
+    const timeLineIndex = lines.findIndex(l => l.includes('-->'));
+    if (timeLineIndex === -1) continue;
+    
+    const timeLine = lines[timeLineIndex];
+    const parts = timeLine.split('-->');
+    if (parts.length < 2) continue;
+    
+    const start = parseTimestampToSeconds(parts[0].trim());
+    const textLines = lines.slice(timeLineIndex + 1);
+    if (textLines.length === 0) continue;
+    
+    const text = textLines.join(' ').replace(/<[^>]*>/g, '');
+    cues.push({ start, text });
+  }
+  cues.sort((a, b) => a.start - b.start);
+  return cues;
+}
+
+// GET Chapters
+app.get('/api/chapters', async (req, res) => {
+  const { videoPath, subtitlePath } = req.query;
+  if (!videoPath) {
+    return res.status(400).json({ error: 'videoPath parameter is required' });
+  }
+
+  if (!validateSubtitlePath(videoPath) || (subtitlePath && !validateSubtitlePath(subtitlePath))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const dir = path.dirname(videoPath);
+  const ext = path.extname(videoPath);
+  const base = path.basename(videoPath, ext);
+  const chaptersPath = path.join(dir, `${base}.chapters.json`);
+
+  // Check if cached chapters exist
+  if (fs.existsSync(chaptersPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(chaptersPath, 'utf8'));
+      return res.json({ success: true, chapters: data, cached: true });
+    } catch (err) {
+      console.error('Failed to parse cached chapters JSON:', err);
+    }
+  }
+
+  // If no subtitles path, we can't generate chapters
+  if (!subtitlePath || !fs.existsSync(subtitlePath)) {
+    return res.json({ success: true, chapters: [], cached: false });
+  }
+
+  try {
+    const chapters = await generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath);
+    res.json({ success: true, chapters, cached: false });
+  } catch (err) {
+    console.error('Failed to generate chapters:', err);
+    res.json({ success: true, chapters: [], error: err.message, cached: false });
+  }
+});
+
+// POST chapters regenerate
+app.post('/api/chapters/regenerate', async (req, res) => {
+  const { videoPath, subtitlePath } = req.body;
+  if (!videoPath) {
+    return res.status(400).json({ error: 'videoPath is required' });
+  }
+
+  if (!validateSubtitlePath(videoPath) || (subtitlePath && !validateSubtitlePath(subtitlePath))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (!subtitlePath || !fs.existsSync(subtitlePath)) {
+    return res.status(400).json({ error: 'subtitlePath is required and must exist to generate chapters' });
+  }
+
+  const dir = path.dirname(videoPath);
+  const ext = path.extname(videoPath);
+  const base = path.basename(videoPath, ext);
+  const chaptersPath = path.join(dir, `${base}.chapters.json`);
+
+  try {
+    const chapters = await generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath);
+    res.json({ success: true, chapters });
+  } catch (err) {
+    console.error('Failed to regenerate chapters:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper function to generate chapters using Gemini
+async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath) {
+  const db = readDb();
+  const config = getAiConfig(db);
+
+  if (!config.apiKey) {
+    throw new Error('AI API Key is missing. Please configure it in Settings.');
+  }
+
+  const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
+  const cues = parseSubtitleContentToCues(subtitleContent);
+
+  if (cues.length === 0) {
+    throw new Error('No subtitle cues found.');
+  }
+
+  // Create simplified transcript list
+  const simpleTranscript = cues
+    .map(c => {
+      const minutes = Math.floor(c.start / 60);
+      const seconds = Math.floor(c.start % 60);
+      const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      return `[${timeStr}] ${c.text}`;
+    })
+    .join('\n');
+
+  const systemInstruction = 'You are a video editing assistant. You always output a valid, raw JSON array of chapter markers matching the requested schema, with no markdown code fences or explanation text. The first chapter MUST start at 0 seconds.';
+  
+  const prompt = `Analyze the following video transcript to divide the video into logical chapters/topics (usually 3 to 8 chapters depending on video length and density of content).
+For each chapter, provide the starting timestamp in seconds (integer) and a brief, descriptive title (maximum 40 characters).
+The first chapter MUST start at 0 seconds.
+
+Return a JSON array of objects with the exact schema:
+[
+  { "time": 0, "title": "Introduction" },
+  { "time": 90, "title": "Setting up the Project" }
+]
+
+Do not include any other text, markdown blocks, or formatting. Just output the raw JSON array.
+
+Transcript:
+${simpleTranscript}`;
+
+  console.log(`Calling ${config.providerName} API for chapter generation...`);
+  let reply = await callAiProvider(config, prompt, {
+    systemInstruction,
+    maxTokens: 2048
+  });
+
+  reply = reply.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '').trim();
+  
+  let chapters;
+  try {
+    chapters = JSON.parse(reply);
+  } catch (e) {
+    console.error('Failed to parse AI chapters JSON:', reply);
+    throw new Error('AI returned invalid JSON: ' + e.message);
+  }
+
+  if (!Array.isArray(chapters)) {
+    throw new Error('AI response is not an array.');
+  }
+
+  // Validate and clean chapters
+  chapters = chapters.map(ch => {
+    let t = parseInt(ch.time, 10);
+    if (isNaN(t) || t < 0) t = 0;
+    return {
+      time: t,
+      title: (ch.title || 'Untitled Chapter').substring(0, 50).trim()
+    };
+  });
+
+  // Sort ascending by time
+  chapters.sort((a, b) => a.time - b.time);
+
+  // Ensure first chapter is at 0
+  if (chapters.length === 0) {
+    chapters.push({ time: 0, title: 'Introduction' });
+  } else if (chapters[0].time !== 0) {
+    chapters[0].time = 0;
+  }
+
+  // Write to disk
+  fs.writeFileSync(chaptersPath, JSON.stringify(chapters, null, 2), 'utf8');
+
+  return chapters;
+}
+
 // 15. Native Folder Dialog Browser
 app.post('/api/browse-folder', (req, res) => {
   if (process.platform === 'darwin') {

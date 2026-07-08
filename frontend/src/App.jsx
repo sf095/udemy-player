@@ -647,8 +647,10 @@ export default function App() {
     { key: 'f', action: () => {
       const video = playerRef.current;
       if (!video) return;
+      const container = video.closest('.video-container');
+      if (!container) return;
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-      else video.requestFullscreen().catch(() => {});
+      else container.requestFullscreen().catch(() => {});
     }, when: isVideoActive },
     { key: '[', action: () => changeSpeedStep('down'), when: isVideoActive },
     { key: ']', action: () => changeSpeedStep('up'), when: isVideoActive },

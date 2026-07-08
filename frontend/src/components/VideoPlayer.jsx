@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Maximize2, Minimize2, Menu, BookOpen } from 'lucide-react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List } from 'lucide-react';
 import ShortcutToast from './ShortcutToast';
 
 const CURATED_LANGUAGES = [
@@ -178,6 +178,39 @@ export default function VideoPlayer({
   const [contextMenu, setContextMenu] = useState(null);
   const [confirmReTranslate, setConfirmReTranslate] = useState(null);
 
+  const [localCurrentTime, setLocalCurrentTime] = useState(0);
+  const [localDuration, setLocalDuration] = useState(0);
+  const [volume, setVolume] = useState(() => {
+    const saved = localStorage.getItem('udemy-player-volume');
+    return saved ? parseFloat(saved) : 1;
+  });
+  const [isMuted, setIsMuted] = useState(() => {
+    const saved = localStorage.getItem('udemy-player-muted');
+    return saved === 'true';
+  });
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [chapters, setChapters] = useState([]);
+  const [loadingChapters, setLoadingChapters] = useState(false);
+  const [chaptersError, setChaptersError] = useState(null);
+  const [hoverInfo, setHoverInfo] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTime, setDragTime] = useState(null);
+  const [showChaptersList, setShowChaptersList] = useState(false);
+
+  const timelineContainerRef = useRef(null);
+
+  const getBackendOrigin = () => {
+    if (window.location.port === '3002') {
+      return 'http://127.0.0.1:3003';
+    }
+    return window.location.origin;
+  };
+
+  const backendOrigin = getBackendOrigin();
+  const primarySubtitlePath = subtitles?.[activeLang];
+  const secondarySubtitlePath = secondaryLang ? subtitles?.[secondaryLang] : null;
+
+
   // Auto-hide overlays and cursor on mouse inactivity when playing
   useEffect(() => {
     if (!isPlaying) {
@@ -340,11 +373,251 @@ export default function VideoPlayer({
     return found ? found.name : code.toUpperCase();
   };
 
-  const getBackendOrigin = () => {
-    if (window.location.port === '3002') {
-      return 'http://127.0.0.1:3003';
+  // Sync volume state changes to the actual video element
+  useEffect(() => {
+    const video = playerRef.current;
+    if (video) {
+      video.volume = volume;
+      video.muted = isMuted;
     }
-    return window.location.origin;
+    localStorage.setItem('udemy-player-volume', volume);
+    localStorage.setItem('udemy-player-muted', isMuted ? 'true' : 'false');
+  }, [volume, isMuted]);
+
+  // Sync fullscreen change state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const container = playerRef.current?.closest('.video-container');
+      setIsFullscreen(document.fullscreenElement === container);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Fetch chapters when video or subtitles change
+  useEffect(() => {
+    if (!videoPath) {
+      setChapters([]);
+      return;
+    }
+    
+    let isCancelled = false;
+    setLoadingChapters(true);
+    setChaptersError(null);
+    
+    const fetchChapters = async () => {
+      try {
+        const subtitlePath = primarySubtitlePath || '';
+        const response = await fetch(`${backendOrigin}/api/chapters?videoPath=${encodeURIComponent(videoPath)}&subtitlePath=${encodeURIComponent(subtitlePath)}`);
+        const data = await response.json();
+        if (isCancelled) return;
+        if (data.success) {
+          setChapters(data.chapters || []);
+        } else {
+          setChaptersError(data.error);
+          setChapters([]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch chapters', err);
+        if (!isCancelled) {
+          setChapters([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingChapters(false);
+        }
+      }
+    };
+    
+    fetchChapters();
+    
+    return () => {
+      isCancelled = true;
+    };
+  }, [videoPath, primarySubtitlePath, backendOrigin]);
+
+  // Calculate timeline time from scrubber drag events
+  const calculateTimeFromEvent = (e) => {
+    if (!timelineContainerRef.current || !localDuration) return 0;
+    const rect = timelineContainerRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    const ratio = Math.max(0, Math.min(1, clickX / width));
+    return ratio * localDuration;
+  };
+
+  // Timeline dragging scrubbing logic
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const newTime = calculateTimeFromEvent(e);
+      setDragTime(newTime);
+      if (playerRef.current) {
+        playerRef.current.currentTime = newTime;
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setDragTime(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, localDuration]);
+
+  // Timeline drag start
+  const handleTimelineMouseDown = (e) => {
+    if (!localDuration) return;
+    setIsDragging(true);
+    const newTime = calculateTimeFromEvent(e);
+    setDragTime(newTime);
+    if (playerRef.current) {
+      playerRef.current.currentTime = newTime;
+    }
+  };
+
+  // Timeline mouse hover tracker
+  const handleTimelineMouseMove = (e) => {
+    if (!localDuration || !timelineContainerRef.current) return;
+    const rect = timelineContainerRef.current.getBoundingClientRect();
+    const hoverX = e.clientX - rect.left;
+    const width = rect.width;
+    const ratio = Math.max(0, Math.min(1, hoverX / width));
+    const targetTime = ratio * localDuration;
+    
+    let matchedChapterTitle = 'Video';
+    if (chapters && chapters.length > 0) {
+      for (let i = chapters.length - 1; i >= 0; i--) {
+        if (targetTime >= chapters[i].time) {
+          matchedChapterTitle = chapters[i].title;
+          break;
+        }
+      }
+    }
+    
+    setHoverInfo({
+      time: targetTime,
+      chapterTitle: matchedChapterTitle,
+      left: hoverX
+    });
+  };
+
+  const handleTimelineMouseLeave = () => {
+    setHoverInfo(null);
+  };
+
+  // Trigger AI chapter generation manually
+  const handleGenerateChapters = async () => {
+    if (!videoPath || loadingChapters) return;
+    setLoadingChapters(true);
+    setChaptersError(null);
+    try {
+      const subtitlePath = subtitles?.[activeLang] || '';
+      const response = await fetch(`${backendOrigin}/api/chapters/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoPath, subtitlePath })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setChapters(data.chapters || []);
+      } else {
+        setChaptersError(data.error || 'Failed to generate chapters.');
+      }
+    } catch (err) {
+      console.error('Failed to generate chapters:', err);
+      setChaptersError('Network error generating chapters.');
+    } finally {
+      setLoadingChapters(false);
+    }
+  };
+
+  const handleTogglePlay = () => {
+    const video = playerRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  };
+
+  const handleToggleFullscreen = () => {
+    const container = playerRef.current?.closest('.video-container');
+    if (!container) return;
+    
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => console.error(err));
+    } else {
+      container.requestFullscreen().catch(err => console.error(err));
+    }
+  };
+
+  const formatTime = (totalSeconds) => {
+    if (isNaN(totalSeconds) || totalSeconds === null) return '00:00';
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  // Computed chapter segments
+  const segments = useMemo(() => {
+    if (!localDuration) return [];
+    if (!chapters || chapters.length === 0) {
+      return [{
+        start: 0,
+        end: localDuration,
+        title: 'Video'
+      }];
+    }
+    
+    const result = [];
+    for (let i = 0; i < chapters.length; i++) {
+      const start = chapters[i].time;
+      const end = (i === chapters.length - 1) ? localDuration : chapters[i + 1].time;
+      const clampedEnd = Math.min(localDuration, Math.max(start, end));
+      result.push({
+        start,
+        end: clampedEnd,
+        title: chapters[i].title
+      });
+    }
+    return result;
+  }, [chapters, localDuration]);
+
+  const activeTime = isDragging && dragTime !== null ? dragTime : localCurrentTime;
+
+  const getActiveChapterIndex = () => {
+    if (!chapters || chapters.length === 0) return -1;
+    for (let i = chapters.length - 1; i >= 0; i--) {
+      if (activeTime >= chapters[i].time) {
+        return i;
+      }
+    }
+    return 0;
+  };
+  const activeChapterIdx = getActiveChapterIndex();
+
+
+  const getSegmentFillRatio = (segment) => {
+    if (activeTime >= segment.end) return 1;
+    if (activeTime <= segment.start) return 0;
+    const segmentDuration = segment.end - segment.start;
+    if (segmentDuration <= 0) return 0;
+    return (activeTime - segment.start) / segmentDuration;
   };
 
   // Clean up Blob URL on unmount
@@ -355,10 +628,6 @@ export default function VideoPlayer({
       }
     };
   }, []);
-
-  const backendOrigin = getBackendOrigin();
-  const primarySubtitlePath = subtitles?.[activeLang];
-  const secondarySubtitlePath = secondaryLang ? subtitles?.[secondaryLang] : null;
 
   useEffect(() => {
     // If we have both activeLang and secondaryLang, merge them!
@@ -456,6 +725,7 @@ export default function VideoPlayer({
     hasSeekedRef.current = false;
     setShowAutoplayOverlay(false);
     setCountdown(5);
+    setShowChaptersList(false);
   }, [videoPath]);
 
   // Stable ref for the play-next callback to avoid effect re-runs
@@ -506,18 +776,26 @@ export default function VideoPlayer({
 
     // Keep speed constant across source changes
     video.playbackRate = speed;
+    video.volume = volume;
+    video.muted = isMuted;
 
     const handleLoadedMetadata = () => {
       video.playbackRate = speed;
+      video.volume = volume;
+      video.muted = isMuted;
+      setLocalDuration(video.duration || 0);
       if (!hasSeekedRef.current) {
         hasSeekedRef.current = true;
         if (initialTime && initialTime > 0) {
           video.currentTime = initialTime;
+          setLocalCurrentTime(initialTime);
         }
       }
     };
 
     const handleTimeUpdate = () => {
+      setLocalCurrentTime(video.currentTime);
+      setLocalDuration(video.duration || 0);
       onTimeUpdate(video.currentTime, video.duration);
     };
 
@@ -530,18 +808,24 @@ export default function VideoPlayer({
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    const handleVolumeChange = () => {
+      setVolume(video.volume);
+      setIsMuted(video.muted);
+    };
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('volumechange', handleVolumeChange);
 
     // If video is already loaded or metadata is cached
     if (video.readyState >= 1 && !hasSeekedRef.current) {
       hasSeekedRef.current = true;
       if (initialTime && initialTime > 0) {
         video.currentTime = initialTime;
+        setLocalCurrentTime(initialTime);
       }
     }
 
@@ -551,8 +835,9 @@ export default function VideoPlayer({
       video.removeEventListener('ended', handleEnded);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
+      video.removeEventListener('volumechange', handleVolumeChange);
     };
-  }, [videoPath, initialTime, autoplayEnabled, hasNextLesson]);
+  }, [videoPath, initialTime, autoplayEnabled, hasNextLesson, speed]);
 
   const availableLangs = Object.keys(subtitles || {});
   const translatableLangs = CURATED_LANGUAGES.filter(lang => !availableLangs.includes(lang.code));
@@ -573,10 +858,12 @@ export default function VideoPlayer({
         src={videoSrc}
         crossOrigin="anonymous"
         className="custom-video"
-        controls
+        controls={false}
         autoPlay
         playsInline
         style={{ width: '100%', height: '100%' }}
+        onClick={handleTogglePlay}
+        onDoubleClick={handleToggleFullscreen}
       >
         {subtitleSrc && (
           <track
@@ -838,8 +1125,229 @@ export default function VideoPlayer({
         </div>
       )}
 
+      {/* Custom Video Controls Bar */}
+      <div className="video-control-bar">
+        {/* Timeline (Progress Bar) */}
+        <div 
+          ref={timelineContainerRef}
+          className={`custom-timeline-container ${isDragging ? 'scrubbing' : ''}`}
+          onMouseDown={handleTimelineMouseDown}
+          onMouseMove={handleTimelineMouseMove}
+          onMouseLeave={handleTimelineMouseLeave}
+        >
+          <div className="custom-timeline-track">
+            {segments.map((segment, idx) => {
+              const startRatio = segment.start / localDuration;
+              const endRatio = segment.end / localDuration;
+              const segmentWidth = (endRatio - startRatio) * 100;
+              const fillRatio = getSegmentFillRatio(segment);
+
+              return (
+                <div 
+                  key={idx}
+                  className="timeline-segment"
+                  style={{ width: `${segmentWidth}%` }}
+                  title={`${segment.title} (${formatTime(segment.start)} - ${formatTime(segment.end)})`}
+                >
+                  <div className="timeline-segment-rail" />
+                  <div 
+                    className="timeline-segment-fill" 
+                    style={{ width: `${fillRatio * 100}%` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Hover cursor line */}
+          {hoverInfo && !isDragging && (
+            <div 
+              className="timeline-hover-line"
+              style={{ left: `${hoverInfo.left}px` }}
+            />
+          )}
+
+          {/* Scrubber Handle */}
+          <div 
+            className="timeline-scrubber-handle"
+            style={{ left: `${localDuration ? (activeTime / localDuration) * 100 : 0}%` }}
+          />
+
+          {/* Hover Tooltip */}
+          {hoverInfo && (
+            <div 
+              className="timeline-tooltip"
+              style={{ left: `${hoverInfo.left}px` }}
+            >
+              <span className="timeline-tooltip-chapter">{hoverInfo.chapterTitle}</span>
+              <span className="timeline-tooltip-time">{formatTime(hoverInfo.time)}</span>
+            </div>
+          )}
+        </div>
+
+
+        {/* Buttons Row */}
+        <div className="video-controls-row">
+          <div className="video-controls-left">
+            {/* Play / Pause */}
+            <button 
+              onClick={handleTogglePlay}
+              className="video-control-btn"
+              title={isPlaying ? "Pause (Space)" : "Play (Space)"}
+            >
+              {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+            </button>
+
+            {/* Volume Control */}
+            <div className="volume-control-group">
+              <button 
+                onClick={() => setIsMuted(m => !m)}
+                className="video-control-btn"
+                title={isMuted ? "Unmute (m)" : "Mute (m)"}
+              >
+                {isMuted || volume === 0 ? <VolumeX size={16} /> : (volume < 0.5 ? <Volume1 size={16} /> : <Volume2 size={16} />)}
+              </button>
+              <input 
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => {
+                  setVolume(parseFloat(e.target.value));
+                  if (isMuted) setIsMuted(false);
+                }}
+                className="volume-slider"
+              />
+            </div>
+
+            {/* Time display */}
+            <div className="video-time-display">
+              {formatTime(activeTime)} / {formatTime(localDuration)}
+            </div>
+
+            {/* Current Chapter Badge */}
+            {chapters && chapters.length > 0 && activeChapterIdx >= 0 && activeChapterIdx < chapters.length && (
+              <>
+                <span style={{ color: 'var(--text-muted)', userSelect: 'none', marginLeft: '6px', marginRight: '6px' }}>•</span>
+                <button
+                  onClick={() => setShowChaptersList(s => !s)}
+                  className="video-chapter-badge"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--primary-light, #818cf8)',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '180px',
+                    transition: 'var(--transition-fast)'
+                  }}
+                  title="Click to toggle chapters panel"
+                >
+                  {chapters[activeChapterIdx].title}
+                </button>
+              </>
+            )}
+
+
+            {/* AI Chapters Status Indicator */}
+            {loadingChapters ? (
+              <div className="chapters-loader" style={{ marginLeft: '12px' }}>
+                <div className="chapters-loader-spinner" />
+                <span>AI Chapters...</span>
+              </div>
+            ) : (
+              (!chapters || chapters.length === 0) && subtitleSrc && (
+                <button 
+                  onClick={handleGenerateChapters}
+                  className="video-overlay-btn"
+                  style={{ fontSize: '0.65rem', border: '1px dashed var(--primary)', borderRadius: '12px', marginLeft: '12px' }}
+                  title="Generate chapters using Gemini AI"
+                >
+                  ✨ Generate Chapters
+                </button>
+              )
+            )}
+            {chaptersError && (
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-danger)', marginLeft: '12px' }} title={chaptersError}>
+                ⚠️ Chapters generation failed
+              </span>
+            )}
+          </div>
+
+          <div className="video-controls-right">
+            {/* Chapters List Toggle */}
+            {chapters && chapters.length > 0 && (
+              <button 
+                onClick={() => setShowChaptersList(s => !s)}
+                className={`video-control-btn ${showChaptersList ? 'active' : ''}`}
+                style={{ color: showChaptersList ? 'var(--primary)' : 'var(--text-secondary)' }}
+                title="Chapters List"
+              >
+                <List size={16} />
+              </button>
+            )}
+
+            {/* Fullscreen Button */}
+            <button 
+              onClick={handleToggleFullscreen}
+              className="video-control-btn"
+              title={isFullscreen ? "Exit Fullscreen (f)" : "Fullscreen (f)"}
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Chapters List Sidebar Panel */}
+      <div className={`video-chapters-panel ${showChaptersList ? 'open' : ''}`}>
+        <div className="video-chapters-header">
+          <div className="video-chapters-title">
+            <List size={16} />
+            <span>Chapters</span>
+          </div>
+          <button 
+            onClick={() => setShowChaptersList(false)}
+            className="video-chapters-close-btn"
+            title="Close panel"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="video-chapters-list">
+          {chapters.map((chapter, idx) => {
+            const isActive = activeChapterIdx === idx;
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  if (playerRef.current) {
+                    playerRef.current.currentTime = chapter.time;
+                    setLocalCurrentTime(chapter.time);
+                  }
+                }}
+                className={`video-chapter-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="video-chapter-item-title">{chapter.title}</span>
+                <span className="video-chapter-item-time">{formatTime(chapter.time)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Keyboard shortcut toast */}
       <ShortcutToast message={toastMessage} id={toastId} />
     </div>
+
+
   );
 }

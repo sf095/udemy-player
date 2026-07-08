@@ -53,6 +53,9 @@
   --overlay-chip-bg: rgba(15, 23, 42, 0.75);
   --overlay-chip-border: rgba(255, 255, 255, 0.08);
   --select-option-bg: #1e293b;
+  --timeline-rail: rgba(255, 255, 255, 0.2);
+  --timeline-bg: rgba(255, 255, 255, 0.1);
+
 
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -104,7 +107,10 @@
   --overlay-chip-bg: rgba(241, 245, 249, 0.85);
   --overlay-chip-border: rgba(15, 23, 42, 0.1);
   --select-option-bg: #f1f5f9;
+  --timeline-rail: rgba(15, 23, 42, 0.15);
+  --timeline-bg: rgba(15, 23, 42, 0.08);
 }
+
 
 * {
   box-sizing: border-box;
@@ -1594,6 +1600,407 @@ body.resizing video {
   height: 16px;
   background: var(--border-color);
   margin: 0 4px;
+}
+
+/* ─── Custom Video Controls ─── */
+.video-control-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: var(--overlay-chip-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--overlay-chip-border);
+  border-radius: 20px;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 5;
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.2s ease;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Hide controls */
+.video-container.controls-hidden .video-control-bar {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.video-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.video-controls-left,
+.video-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-control-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.video-control-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* Time display */
+.video-time-display {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Volume Slider Group */
+.volume-control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.volume-slider {
+  width: 0;
+  opacity: 0;
+  transition: width 0.2s ease, opacity 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-control-group:hover .volume-slider,
+.volume-slider:active,
+.volume-slider:focus {
+  width: 60px;
+  opacity: 1;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: var(--overlay-chip-border);
+  border-radius: 2px;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -3px;
+}
+
+/* ─── Segmented Timeline ─── */
+.custom-timeline-container {
+  width: 100%;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+
+.custom-timeline-track {
+  width: 100%;
+  height: 4px;
+  display: flex;
+  gap: 2px; /* Gaps between segments like YouTube */
+  align-items: center;
+  transition: height 0.1s ease;
+}
+
+.custom-timeline-container:hover .custom-timeline-track,
+.custom-timeline-container.scrubbing .custom-timeline-track {
+  height: 8px;
+}
+
+.timeline-segment {
+  height: 100%;
+  position: relative;
+  background: var(--timeline-bg);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-grow: 1;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s;
+}
+
+.custom-timeline-container:not(.scrubbing) .timeline-segment:hover {
+  transform: scaleY(1.35);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.light-theme .custom-timeline-container:not(.scrubbing) .timeline-segment:hover {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.timeline-segment-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--timeline-rail);
+}
+
+.timeline-segment-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: var(--primary); /* Red/Indigo fill */
+  width: 0%;
+  transition: background-color 0.1s;
+}
+
+/* Timeline Hover Line Indicator */
+.timeline-hover-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  z-index: 8;
+}
+
+.light-theme .timeline-hover-line {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+/* Timeline Handle / Scrubber */
+.timeline-scrubber-handle {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.custom-timeline-container:hover .timeline-scrubber-handle,
+.custom-timeline-container.scrubbing .timeline-scrubber-handle {
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.custom-timeline-container.scrubbing .timeline-scrubber-handle {
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: 0 0 10px var(--primary);
+}
+
+/* Interactive Chapter Badge Hover */
+.video-chapter-badge:hover {
+  background: var(--bg-hover) !important;
+  color: var(--primary) !important;
+  text-decoration: underline;
+}
+
+
+/* Tooltip */
+.timeline-tooltip {
+  position: absolute;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: var(--toast-bg);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--toast-border);
+  color: var(--toast-color);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+
+.timeline-tooltip-chapter {
+  color: var(--primary-light, #818cf8);
+  font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-tooltip-time {
+  color: var(--text-secondary);
+}
+
+/* Chapters generation status banner inside player */
+.chapters-loader {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chapters-loader-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--text-muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: chapters-spin 0.8s linear infinite;
+}
+
+@keyframes chapters-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Chapters List Panel ─── */
+.video-chapters-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--bg-sidebar);
+  backdrop-filter: blur(12px);
+  border-left: 1px solid var(--border-color);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.video-chapters-panel.open {
+  transform: translateX(0);
+}
+
+.video-chapters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.video-chapters-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+.video-chapters-close-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition-fast);
+}
+
+.video-chapters-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.video-chapters-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.video-chapter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  width: 100%;
+}
+
+.video-chapter-item:hover {
+  background: var(--bg-hover);
+}
+
+.video-chapter-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-left: 3px solid var(--primary);
+  padding-left: 9px; /* offset the border */
+}
+
+.video-chapter-item-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.video-chapter-item.active .video-chapter-item-title {
+  color: var(--primary-light, #818cf8);
+  font-weight: 600;
+}
+
+.video-chapter-item-time {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-hover-active);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
 }
 
 /* ─── Autoplay Countdown Overlay ─── */
