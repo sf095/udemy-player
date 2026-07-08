@@ -84,20 +84,21 @@ Compare how our local portal matches up against buying directly from Udemy:
 
 This player is built to help you learn faster and retain more information:
 
-1. **Intelligent Course Scanner**: Point the player at your downloaded course folder. It automatically organizes lessons, chapters, and companion files into a clean sidebar menu.
+1. **Intelligent Course Scanner**: Point the player at your downloaded course folder. It automatically organizes lessons, chapters, and companion files into a clean sidebar menu. (Auto-generated `.chapters.json` and `.summary.*.txt` files are automatically filtered out to keep your companion resources list clean and uncluttered.)
 2. **Coordinated Tab View**: Study side-by-side. If a lesson contains both a video and companion resources (like PDFs or cheat sheets), the player shows them together in coordinated tabs.
 3. **Custom HTML5 Video Stage**:
    - Supports adjustable playback speeds (`1x`, `1.25x`, `1.5x`, `1.75x`, `2x`).
    - **Theater Mode** (`t`): collapses headers and sidebars with smooth animated transitions for a distraction-free viewing experience. A floating tab bar overlays the video area, letting you switch between video and companion resources or exit theater mode without leaving full focus.
    - **Auto-Hide Floating Controls**: overlay panels (subtitles, speed, autoplay, panel toggles) fade out after 2.5s of mouse inactivity while the video plays, keeping the focus on the content.
    - **Subtitle Size Control**: fine-tune subtitle display from 50% to 160%.
-   - Browser hotkeys: `Space` (play/pause), `Arrow Left/Right` (skip 5 seconds), `Arrow Up/Down` (volume), `F` (fullscreen), `B` (sidebar), `N` (notes), and `T` (theater mode).
+   - Browser hotkeys: `Space` (play/pause), `Arrow Left/Right` (skip 5 seconds), `Arrow Up/Down` (volume), `F` (fullscreen), `B` (sidebar), `N` (notes), `C` (toggle chapters panel), and `T` (theater mode).
 4. **Interactive Notes Timeline**: Type notes as you watch. The player pauses the video automatically while you type, and links each note to a click-to-seek timestamp.
 5. **Auto-Completion & Auto-Save**: Lessons are marked complete at `90%` watch progress. Your playback position saves every 5 seconds so you can resume exactly where you left off.
 6. **AI Subtitle Translation**: Automatically translate English subtitle tracks to your native language using the built-in Gemini API.
 7. **Dual Subtitle Display**: Watch with two subtitle tracks simultaneously (e.g., English + your native language). The player merges both WebVTT tracks in real time, showing the secondary language in a distinct style below the primary subtitles.
 8. **Offline AI Summarization**: Generate structured, bulleted summaries of video lessons in any supported language — independent of the active subtitle track. Choose your preferred output language via the dropdown selector. Summaries cache locally, letting you review them instantly without internet access.
 9. **Transcript-Grounded AI Chat**: Ask questions about the lesson in the chat sidebar. The AI answers using the active subtitle transcript as context.
+10. **Auto-Generated Timeline Chapters**: The player automatically analyzes lesson subtitle transcripts via the Gemini API to generate structured video chapters on the playback timeline, allowing you to easily browse and jump to different sections of the video.
 
 ---
 
@@ -181,6 +182,8 @@ To package and run the application as a standalone desktop app on macOS:
 * **`POST /api/summarize-lesson`**: Generates and caches lesson summaries.
 * **`POST /api/chat-lesson`**: Chat assistant grounded in the subtitles transcript.
 * **`POST /api/browse-folder`**: Launches native OS folder dialog window.
+* **`GET /api/chapters?videoPath=<path>&subtitlePath=<path>`**: Loads cached timeline chapters or generates them from subtitles via Gemini.
+* **`POST /api/chapters/regenerate`**: Forces regeneration of timeline chapters using subtitles and overwrites the local cache.
 
 ---
 

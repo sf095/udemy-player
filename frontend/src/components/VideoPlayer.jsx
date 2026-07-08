@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List } from 'lucide-react';
 import ShortcutToast from './ShortcutToast';
+import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 
 const CURATED_LANGUAGES = [
   { code: 'vi', name: 'Vietnamese' },
@@ -210,6 +211,17 @@ export default function VideoPlayer({
   const primarySubtitlePath = subtitles?.[activeLang];
   const secondarySubtitlePath = secondaryLang ? subtitles?.[secondaryLang] : null;
 
+  useKeyboardShortcuts([
+    {
+      key: 'c',
+      action: () => {
+        if (chapters && chapters.length > 0) {
+          setShowChaptersList(s => !s);
+        }
+      },
+      when: () => !!videoPath && chapters && chapters.length > 0
+    }
+  ]);
 
   // Auto-hide overlays and cursor on mouse inactivity when playing
   useEffect(() => {

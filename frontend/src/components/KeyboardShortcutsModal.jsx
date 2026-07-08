@@ -32,6 +32,7 @@ const SHORTCUT_GROUPS = [
     shortcuts: [
       { keys: ['B'], description: 'Toggle sidebar' },
       { keys: ['N'], description: 'Toggle notes panel' },
+      { keys: ['C'], description: 'Toggle chapters panel' },
       { keys: ['Esc'], description: 'Close modal' },
     ]
   },
