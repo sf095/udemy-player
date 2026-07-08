@@ -197,6 +197,9 @@ export default function VideoPlayer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(null);
   const [showChaptersList, setShowChaptersList] = useState(false);
+  const [selectedChapterLang, setSelectedChapterLang] = useState(() => {
+    return localStorage.getItem('udemy-player-chapter-lang') || 'English';
+  });
 
   const timelineContainerRef = useRef(null);
 
@@ -527,7 +530,7 @@ export default function VideoPlayer({
   };
 
   // Trigger AI chapter generation manually
-  const handleGenerateChapters = async () => {
+  const handleGenerateChapters = async (lang = selectedChapterLang) => {
     if (!videoPath || loadingChapters) return;
     setLoadingChapters(true);
     setChaptersError(null);
@@ -536,11 +539,12 @@ export default function VideoPlayer({
       const response = await fetch(`${backendOrigin}/api/chapters/regenerate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoPath, subtitlePath })
+        body: JSON.stringify({ videoPath, subtitlePath, language: lang })
       });
       const data = await response.json();
       if (data.success) {
         setChapters(data.chapters || []);
+        localStorage.setItem('udemy-player-chapter-lang', lang);
       } else {
         setChaptersError(data.error || 'Failed to generate chapters.');
       }
@@ -1261,14 +1265,35 @@ export default function VideoPlayer({
               </div>
             ) : (
               (!chapters || chapters.length === 0) && subtitleSrc && (
-                <button 
-                  onClick={handleGenerateChapters}
-                  className="video-overlay-btn"
-                  style={{ fontSize: '0.65rem', border: '1px dashed var(--primary)', borderRadius: '12px', marginLeft: '12px' }}
-                  title="Generate chapters using Gemini AI"
-                >
-                  ✨ Generate Chapters
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
+                  <select
+                    value={selectedChapterLang}
+                    disabled={loadingChapters}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedChapterLang(val);
+                      localStorage.setItem('udemy-player-chapter-lang', val);
+                    }}
+                    className="video-overlay-select"
+                    style={{ fontSize: '0.65rem', padding: '2px 6px', height: '22px' }}
+                  >
+                    <option value="English">English</option>
+                    {CURATED_LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.name}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button 
+                    onClick={() => handleGenerateChapters(selectedChapterLang)}
+                    disabled={loadingChapters}
+                    className="video-overlay-btn"
+                    style={{ fontSize: '0.65rem', border: '1px dashed var(--primary)', borderRadius: '12px', padding: '2px 8px', height: '22px' }}
+                    title="Generate chapters using Gemini AI"
+                  >
+                    ✨ Generate Chapters
+                  </button>
+                </div>
               )
             )}
             {chaptersError && (
@@ -1319,6 +1344,50 @@ export default function VideoPlayer({
             ✕
           </button>
         </div>
+
+        {chapters && chapters.length > 0 && subtitleSrc && (
+          <div className="video-chapters-actions" style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Re-generate:</span>
+              {loadingChapters && (
+                <div className="chapters-loader" style={{ fontSize: '0.7rem' }}>
+                  <div className="chapters-loader-spinner" style={{ width: '10px', height: '10px' }} />
+                  <span>Loading...</span>
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <select
+                value={selectedChapterLang}
+                disabled={loadingChapters}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedChapterLang(val);
+                  localStorage.setItem('udemy-player-chapter-lang', val);
+                }}
+                className="video-overlay-select"
+                style={{ flex: 1, fontSize: '0.75rem', height: '26px', padding: '0 8px' }}
+              >
+                <option value="English">English</option>
+                {CURATED_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.name}>
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => handleGenerateChapters(selectedChapterLang)}
+                disabled={loadingChapters}
+                className="video-overlay-btn"
+                style={{ fontSize: '0.75rem', height: '26px', padding: '0 12px', flexShrink: 0 }}
+                title="Re-generate chapters in the selected language"
+              >
+                ✨ Refresh
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="video-chapters-list">
           {chapters.map((chapter, idx) => {
             const isActive = activeChapterIdx === idx;

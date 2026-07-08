@@ -1008,29 +1008,19 @@ app.get('/api/chapters', async (req, res) => {
   if (fs.existsSync(chaptersPath)) {
     try {
       const data = JSON.parse(fs.readFileSync(chaptersPath, 'utf8'));
-      return res.json({ success: true, chapters: data, cached: true });
+      return res.json({ success: true, chapters: data, cached: true, exists: true });
     } catch (err) {
       console.error('Failed to parse cached chapters JSON:', err);
     }
   }
 
-  // If no subtitles path, we can't generate chapters
-  if (!subtitlePath || !fs.existsSync(subtitlePath)) {
-    return res.json({ success: true, chapters: [], cached: false });
-  }
-
-  try {
-    const chapters = await generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath);
-    res.json({ success: true, chapters, cached: false });
-  } catch (err) {
-    console.error('Failed to generate chapters:', err);
-    res.json({ success: true, chapters: [], error: err.message, cached: false });
-  }
+  // Do not automatically generate chapters. Just return exists: false
+  return res.json({ success: true, chapters: [], cached: false, exists: false });
 });
 
 // POST chapters regenerate
 app.post('/api/chapters/regenerate', async (req, res) => {
-  const { videoPath, subtitlePath } = req.body;
+  const { videoPath, subtitlePath, language } = req.body;
   if (!videoPath) {
     return res.status(400).json({ error: 'videoPath is required' });
   }
@@ -1049,7 +1039,7 @@ app.post('/api/chapters/regenerate', async (req, res) => {
   const chaptersPath = path.join(dir, `${base}.chapters.json`);
 
   try {
-    const chapters = await generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath);
+    const chapters = await generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, language);
     res.json({ success: true, chapters });
   } catch (err) {
     console.error('Failed to regenerate chapters:', err);
@@ -1058,7 +1048,7 @@ app.post('/api/chapters/regenerate', async (req, res) => {
 });
 
 // Helper function to generate chapters using Gemini
-async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath) {
+async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, language) {
   const db = readDb();
   const config = getAiConfig(db);
 
@@ -1101,8 +1091,9 @@ async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath) {
 
   const systemInstruction = 'You are a video editing assistant. You always output a valid, raw JSON array of chapter markers matching the requested schema, with no markdown code fences or explanation text. The first chapter MUST start at 0 seconds.';
   
+  const targetLanguage = language || 'English';
   const prompt = `Analyze the following video transcript to divide the video into logical chapters/topics (usually 3 to 8 chapters depending on video length and density of content).
-For each chapter, provide the starting timestamp in seconds (integer) and a brief, descriptive title (maximum 40 characters).
+For each chapter, provide the starting timestamp in seconds (integer) and a brief, descriptive title (maximum 80 characters) written in ${targetLanguage}.
 The first chapter MUST start at 0 seconds.
 
 Return a JSON array of objects with the exact schema:
@@ -1142,7 +1133,7 @@ ${simpleTranscript}`;
     if (isNaN(t) || t < 0) t = 0;
     return {
       time: t,
-      title: (ch.title || 'Untitled Chapter').substring(0, 50).trim()
+      title: (ch.title || 'Untitled Chapter').substring(0, 100).trim()
     };
   });
 

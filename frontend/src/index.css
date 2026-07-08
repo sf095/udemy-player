@@ -1833,7 +1833,7 @@ body.resizing video {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 180px;
+  max-width: 360px;
   transition: var(--transition-fast);
 }
 
@@ -1871,7 +1871,7 @@ body.resizing video {
 .timeline-tooltip-chapter {
   color: var(--primary-light, #818cf8);
   font-weight: 600;
-  max-width: 180px;
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1998,10 +1998,9 @@ body.resizing video {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex: 1;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .video-chapter-item.active .video-chapter-item-title {
