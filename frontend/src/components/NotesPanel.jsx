@@ -294,6 +294,15 @@ export default function NotesPanel({
     }
   };
 
+  const handleNewChat = () => {
+    setChatMessages([]);
+    setChatInput('');
+    setChatError(null);
+    requestAnimationFrame(() => {
+      chatInputRef.current?.focus();
+    });
+  };
+
   const currentSubtitlePath = activeLesson?.subtitles?.[activeLang];
 
   return (
@@ -584,6 +593,37 @@ export default function NotesPanel({
             </div>
           ) : (
             <>
+              {/* Chat sub-header bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={12} style={{ color: 'var(--accent-green)' }} /> Grounded in Transcript
+                </span>
+                <button
+                  onClick={handleNewChat}
+                  disabled={chatLoading}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: chatLoading ? 'var(--text-muted)' : 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    cursor: chatLoading ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    opacity: chatLoading ? 0.5 : 1,
+                    transition: 'var(--transition-fast)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!chatLoading) e.currentTarget.style.color = 'var(--text-primary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!chatLoading) e.currentTarget.style.color = 'var(--text-secondary)';
+                  }}
+                >
+                  <Trash2 size={12} /> New Chat
+                </button>
+              </div>
+
               {/* Chat Log */}
               <div style={{ flex: 1, overflowY: 'auto', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
                 {chatMessages.length === 0 ? (
