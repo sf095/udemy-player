@@ -925,48 +925,62 @@ Keep your response concise, clear, and direct. Use the same language as the stud
   }
 });
 
-// Parse timestamp to seconds helper
+// Parse timestamp to seconds helper (supports HH:MM:SS.mmm, MM:SS.mmm, SS.mmm)
+// Returns NaN for unparseable input so callers can filter bad cues.
 function parseTimestampToSeconds(timeStr) {
-  if (!timeStr) return 0;
+  if (!timeStr || typeof timeStr !== 'string') return NaN;
   const cleanTimeStr = timeStr.trim().replace(/,/g, '.');
   const parts = cleanTimeStr.split(':');
-  
-  const hours = parts.length === 3 ? (parseInt(parts[0], 10) || 0) : 0;
-  const minutes = parts.length === 3 
-    ? (parseInt(parts[1], 10) || 0) 
-    : (parts.length === 2 ? (parseInt(parts[0], 10) || 0) : 0);
-  
-  const secondsWithMs = parts.length === 3 
-    ? parts[2] 
-    : (parts.length === 2 ? parts[1] : parts[0]);
+
+  if (parts.length < 1 || parts.length > 3) return NaN;
+
+  const hours = parts.length === 3 ? parseInt(parts[0], 10) : 0;
+  const minutes = parts.length >= 2 ? parseInt(parts[parts.length - 2], 10) : 0;
+  const secondsWithMs = parts[parts.length - 1];
 
   const secondsParts = secondsWithMs.split('.');
-  const seconds = parseInt(secondsParts[0], 10) || 0;
-  const ms = parseInt(secondsParts[1], 10) || 0;
+  const seconds = parseInt(secondsParts[0], 10);
+  const ms = secondsParts.length > 1 ? parseInt(secondsParts[1].padEnd(3, '0'), 10) : 0;
+
+  if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) || isNaN(ms)) return NaN;
 
   return hours * 3600 + minutes * 60 + seconds + ms / 1000;
 }
 
-// Parse subtitle content into simple cues
+// Parse subtitle content into simple cues (supports VTT and SRT)
 function parseSubtitleContentToCues(content) {
   const cues = [];
   const blocks = content.replace(/\r\n/g, '\n').replace(/\uFEFF/g, '').split(/\n\n+/);
   for (const block of blocks) {
     const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) continue;
-    if (lines[0].startsWith('WEBVTT') || lines[0].startsWith('NOTE')) continue;
-    
+    // Skip VTT headers, NOTE lines, and SRT numeric cue identifiers
+    if (lines[0].startsWith('WEBVTT') || lines[0].startsWith('NOTE') || /^\d+$/.test(lines[0])) {
+      // For SRT blocks, the first line is a numeric cue ID \u2014 remove it and retry
+      if (/^\d+$/.test(lines[0])) {
+        lines.shift();
+        if (lines.length === 0) continue;
+      } else {
+        continue;
+      }
+    }
+
     const timeLineIndex = lines.findIndex(l => l.includes('-->'));
     if (timeLineIndex === -1) continue;
-    
+
     const timeLine = lines[timeLineIndex];
     const parts = timeLine.split('-->');
     if (parts.length < 2) continue;
-    
+
     const start = parseTimestampToSeconds(parts[0].trim());
+    if (isNaN(start)) {
+      console.warn(`Skipping subtitle block with unparseable timestamp: "${parts[0]?.trim()}"`);
+      continue;
+    }
+
     const textLines = lines.slice(timeLineIndex + 1);
     if (textLines.length === 0) continue;
-    
+
     const text = textLines.join(' ').replace(/<[^>]*>/g, '');
     cues.push({ start, text });
   }
@@ -1060,7 +1074,7 @@ async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath) {
   }
 
   // Create simplified transcript list
-  const simpleTranscript = cues
+  let simpleTranscript = cues
     .map(c => {
       const minutes = Math.floor(c.start / 60);
       const seconds = Math.floor(c.start % 60);
@@ -1068,6 +1082,22 @@ async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath) {
       return `[${timeStr}] ${c.text}`;
     })
     .join('\n');
+
+  // Guard against overly large transcripts that exceed AI context windows
+  // Rough estimate: ~4 chars per token for English text; aim for < 100K tokens
+  const MAX_TRANSCRIPT_CHARS = 400000;
+  if (simpleTranscript.length > MAX_TRANSCRIPT_CHARS) {
+    console.warn(`Transcript is ${simpleTranscript.length} chars (~${Math.round(simpleTranscript.length / 4)} tokens), truncating to ~100K tokens`);
+    const maxCues = Math.floor(cues.length * (MAX_TRANSCRIPT_CHARS / simpleTranscript.length));
+    simpleTranscript = cues.slice(0, maxCues)
+      .map(c => {
+        const minutes = Math.floor(c.start / 60);
+        const seconds = Math.floor(c.start % 60);
+        const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        return `[${timeStr}] ${c.text}`;
+      })
+      .join('\n');
+  }
 
   const systemInstruction = 'You are a video editing assistant. You always output a valid, raw JSON array of chapter markers matching the requested schema, with no markdown code fences or explanation text. The first chapter MUST start at 0 seconds.';
   
@@ -1123,11 +1153,12 @@ ${simpleTranscript}`;
   if (chapters.length === 0) {
     chapters.push({ time: 0, title: 'Introduction' });
   } else if (chapters[0].time !== 0) {
+    console.warn(`AI returned first chapter at ${chapters[0].time}s, forcing to 0. Title: "${chapters[0].title}"`);
     chapters[0].time = 0;
   }
 
   // Write to disk
-  fs.writeFileSync(chaptersPath, JSON.stringify(chapters, null, 2), 'utf8');
+  await fs.promises.writeFile(chaptersPath, JSON.stringify(chapters, null, 2), 'utf8');
 
   return chapters;
 }

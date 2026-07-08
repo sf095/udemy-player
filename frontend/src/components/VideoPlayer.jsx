@@ -520,7 +520,7 @@ export default function VideoPlayer({
     setLoadingChapters(true);
     setChaptersError(null);
     try {
-      const subtitlePath = subtitles?.[activeLang] || '';
+      const subtitlePath = primarySubtitlePath || '';
       const response = await fetch(`${backendOrigin}/api/chapters/regenerate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -600,7 +600,7 @@ export default function VideoPlayer({
 
   const activeTime = isDragging && dragTime !== null ? dragTime : localCurrentTime;
 
-  const getActiveChapterIndex = () => {
+  const activeChapterIdx = useMemo(() => {
     if (!chapters || chapters.length === 0) return -1;
     for (let i = chapters.length - 1; i >= 0; i--) {
       if (activeTime >= chapters[i].time) {
@@ -608,8 +608,7 @@ export default function VideoPlayer({
       }
     }
     return 0;
-  };
-  const activeChapterIdx = getActiveChapterIndex();
+  }, [chapters, activeTime]);
 
 
   const getSegmentFillRatio = (segment) => {
@@ -795,7 +794,6 @@ export default function VideoPlayer({
 
     const handleTimeUpdate = () => {
       setLocalCurrentTime(video.currentTime);
-      setLocalDuration(video.duration || 0);
       onTimeUpdate(video.currentTime, video.duration);
     };
 
@@ -823,6 +821,7 @@ export default function VideoPlayer({
     // If video is already loaded or metadata is cached
     if (video.readyState >= 1 && !hasSeekedRef.current) {
       hasSeekedRef.current = true;
+      setLocalDuration(video.duration || 0);
       if (initialTime && initialTime > 0) {
         video.currentTime = initialTime;
         setLocalCurrentTime(initialTime);
@@ -1212,10 +1211,11 @@ export default function VideoPlayer({
                 min="0"
                 max="1"
                 step="0.05"
-                value={isMuted ? 0 : volume}
+                value={volume}
                 onChange={(e) => {
-                  setVolume(parseFloat(e.target.value));
-                  if (isMuted) setIsMuted(false);
+                  const newVol = parseFloat(e.target.value);
+                  setVolume(newVol);
+                  if (isMuted && newVol > 0) setIsMuted(false);
                 }}
                 className="volume-slider"
               />
@@ -1233,21 +1233,6 @@ export default function VideoPlayer({
                 <button
                   onClick={() => setShowChaptersList(s => !s)}
                   className="video-chapter-badge"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--primary-light, #818cf8)',
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    maxWidth: '180px',
-                    transition: 'var(--transition-fast)'
-                  }}
                   title="Click to toggle chapters panel"
                 >
                   {chapters[activeChapterIdx].title}
@@ -1332,6 +1317,7 @@ export default function VideoPlayer({
                   if (playerRef.current) {
                     playerRef.current.currentTime = chapter.time;
                     setLocalCurrentTime(chapter.time);
+                    setShowChaptersList(false);
                   }
                 }}
                 className={`video-chapter-item ${isActive ? 'active' : ''}`}
