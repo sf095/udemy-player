@@ -785,6 +785,17 @@ video::cue(.secondary) {
   font-size: 0.85em !important;
 }
 
+/* Shift subtitles container when controls are visible */
+.video-container:not(.controls-hidden) video::-webkit-media-text-track-container {
+  transform: translateY(-80px) !important;
+}
+
+/* Ensure smooth transition when moving subtitles container */
+video::-webkit-media-text-track-container {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+
 /* Tabs for secondary document assets (PDF/HTML sheets inside a lesson) */
 .stage-tabs {
   display: flex;
