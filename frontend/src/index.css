@@ -1876,8 +1876,34 @@ body.resizing video {
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  opacity: 1;
+  visibility: visible;
 }
 
+.timeline-tooltip--hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.timeline-tooltip-thumbnail-wrapper {
+  width: 160px;
+  height: 90px;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+  border: 1px solid var(--toast-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeline-tooltip-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 
 .timeline-tooltip-chapter {
   color: var(--primary-light, #818cf8);

@@ -202,6 +202,7 @@ export default function VideoPlayer({
   });
 
   const timelineContainerRef = useRef(null);
+  const thumbnailVideoRef = useRef(null);
 
   const getBackendOrigin = () => {
     if (window.location.port === '3002') {
@@ -211,8 +212,35 @@ export default function VideoPlayer({
   };
 
   const backendOrigin = getBackendOrigin();
+  const videoSrc = `${backendOrigin}/api/stream?path=${encodeURIComponent(videoPath)}`;
   const primarySubtitlePath = subtitles?.[activeLang];
   const secondarySubtitlePath = secondaryLang ? subtitles?.[secondaryLang] : null;
+
+  // Debounced/throttled update of the thumbnail preview currentTime
+  useEffect(() => {
+    if (!hoverInfo || !thumbnailVideoRef.current) return;
+
+    const targetTime = hoverInfo.time;
+    const videoEl = thumbnailVideoRef.current;
+
+    const timeoutId = setTimeout(() => {
+      if (videoEl) {
+        try {
+          if (Math.abs(videoEl.currentTime - targetTime) > 0.1) {
+            videoEl.currentTime = targetTime;
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Thumbnail seek failed:', err);
+          }
+        }
+      }
+    }, 50);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [hoverInfo?.time, videoSrc]);
 
   useKeyboardShortcuts([
     {
@@ -728,7 +756,6 @@ export default function VideoPlayer({
     }
   }, [videoPath, activeLang, secondaryLang, primarySubtitlePath, secondarySubtitlePath, backendOrigin]);
 
-  const videoSrc = `${backendOrigin}/api/stream?path=${encodeURIComponent(videoPath)}`;
   const subtitleSrc = mergedSubtitleUrl
     ? mergedSubtitleUrl
     : (primarySubtitlePath ? `${backendOrigin}/api/subtitle?path=${encodeURIComponent(primarySubtitlePath)}` : null);
@@ -1188,16 +1215,26 @@ export default function VideoPlayer({
             style={{ left: `${localDuration ? (activeTime / localDuration) * 100 : 0}%` }}
           />
 
-          {/* Hover Tooltip */}
-          {hoverInfo && (
-            <div 
-              className="timeline-tooltip"
-              style={{ left: `${hoverInfo.left}px` }}
-            >
-              <span className="timeline-tooltip-chapter">{hoverInfo.chapterTitle}</span>
-              <span className="timeline-tooltip-time">{formatTime(hoverInfo.time)}</span>
+          {/* Hover Tooltip — persisted in DOM so the thumbnail <video> keeps its loaded state
+              across show/hide cycles; key={videoPath} forces remount when the source video changes */}
+          <div
+            className={`timeline-tooltip${hoverInfo ? '' : ' timeline-tooltip--hidden'}`}
+            style={{ left: `${hoverInfo ? hoverInfo.left : 0}px` }}
+          >
+            <div className="timeline-tooltip-thumbnail-wrapper">
+              <video
+                key={videoPath}
+                ref={thumbnailVideoRef}
+                src={videoSrc}
+                className="timeline-tooltip-thumbnail"
+                muted
+                playsInline
+                preload="metadata"
+              />
             </div>
-          )}
+            <span className="timeline-tooltip-chapter">{hoverInfo ? hoverInfo.chapterTitle : ''}</span>
+            <span className="timeline-tooltip-time">{hoverInfo ? formatTime(hoverInfo.time) : ''}</span>
+          </div>
         </div>
 
 
