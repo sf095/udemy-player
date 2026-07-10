@@ -19,6 +19,10 @@ function getMp4Duration(filePath) {
       const size = buf.readUInt32BE(0);
       const type = buf.toString('ascii', 4, 8);
 
+      // A valid MP4 box header is always at least 8 bytes.
+      // Sizes 2–7 indicate a corrupt or non-MP4 file.
+      if (size > 0 && size < 8) break;
+
       let headerSize = 8;
       let actualSize = size;
       if (size === 1) {

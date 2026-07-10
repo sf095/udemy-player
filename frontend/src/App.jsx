@@ -580,6 +580,9 @@ export default function App() {
     }
   }, [allLessonsFlat, activeLesson]);
 
+  const handleVideoPlay = useCallback(() => setIsVideoPlaying(true), []);
+  const handleVideoPause = useCallback(() => setIsVideoPlaying(false), []);
+
   const nextLesson = useMemo(() => {
     if (!activeLesson) return null;
     const idx = allLessonsFlat.findIndex(l => l.id === activeLesson.id);
@@ -958,8 +961,8 @@ export default function App() {
                     onToggleSidebar={() => setSidebarCollapsed(c => !c)}
                     notesCollapsed={notesCollapsed}
                     onToggleNotes={() => setNotesCollapsed(c => !c)}
-                    onPlay={() => setIsVideoPlaying(true)}
-                    onPause={() => setIsVideoPlaying(false)}
+                    onPlay={handleVideoPlay}
+                    onPause={handleVideoPause}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>

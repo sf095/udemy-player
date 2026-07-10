@@ -1,5 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File, HelpCircle, Paperclip } from 'lucide-react';
+
+// Helper to format duration in MM:SS or H:MM:SS
+function formatDuration(seconds) {
+  if (!seconds) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.round(seconds % 60);
+
+  const pad = (num) => String(num).padStart(2, '0');
+
+  if (h > 0) {
+    return `${h}:${pad(m)}:${pad(s)}`;
+  }
+  return `${m}:${pad(s)}`;
+}
+
+// Helper to format friendly duration for sections/course (e.g. 42m 15s or 1h 15m)
+function formatFriendlyDuration(totalSeconds) {
+  const secs = Math.round(totalSeconds);
+  if (secs < 60) {
+    return `${secs}s`;
+  }
+  const minutes = Math.floor(secs / 60);
+  if (minutes < 60) {
+    const seconds = secs % 60;
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
 
 export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete, onResizeStart, onResizeReset }) {
   const [expandedSections, setExpandedSections] = useState({});
@@ -29,45 +60,15 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
     }
   }, [activeLesson, sections]);
 
-  // Helper to format duration in MM:SS or H:MM:SS
-  const formatDuration = (seconds) => {
-    if (!seconds) return '';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.round(seconds % 60);
-    
-    const pad = (num) => String(num).padStart(2, '0');
-    
-    if (h > 0) {
-      return `${h}:${pad(m)}:${pad(s)}`;
-    }
-    return `${m}:${pad(s)}`;
-  };
-
-  // Helper to format friendly duration for sections/course (e.g. 42m 15s or 1h 15m)
-  const formatFriendlyDuration = (totalSeconds) => {
-    if (totalSeconds < 60) {
-      return `${totalSeconds}s`;
-    }
-    const minutes = Math.floor(totalSeconds / 60);
-    if (minutes < 60) {
-      const seconds = totalSeconds % 60;
-      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-  };
-
   // Helper to count completed lessons in a section
   const getSectionStats = (lessons) => {
     const total = lessons.length;
     const completed = lessons.filter(l => progress[l.id]?.completed).length;
-    
+
     // Sum video durations in this section
     const totalSeconds = lessons.reduce((sum, l) => sum + (l.duration || 0), 0);
     const durationStr = totalSeconds > 0 ? ` • ${formatFriendlyDuration(totalSeconds)}` : '';
-    
+
     return `${completed}/${total} completed${durationStr}`;
   };
 
@@ -97,19 +98,21 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
     }
   };
 
-  // Calculate total course duration
-  const totalCourseSeconds = sections.reduce((sumSec, sec) => {
-    return sumSec + sec.lessons.reduce((sumLes, l) => sumLes + (l.duration || 0), 0);
-  }, 0);
-  
+  // Calculate total course duration — memoized since it loops over all sections/lessons
+  const totalCourseSeconds = useMemo(() => {
+    return sections.reduce((sumSec, sec) => {
+      return sumSec + sec.lessons.reduce((sumLes, l) => sumLes + (l.duration || 0), 0);
+    }, 0);
+  }, [sections]);
+
   const courseDurationStr = totalCourseSeconds > 0 ? formatFriendlyDuration(totalCourseSeconds) : '';
 
   return (
     <div className="sidebar-panel">
-      <div className="sidebar-header" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <h3 className="sidebar-title" style={{ margin: 0 }}>Course Content</h3>
+      <div className="sidebar-header">
+        <h3 className="sidebar-title">Course Content</h3>
         {courseDurationStr && (
-          <span className="sidebar-subtitle" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+          <span className="sidebar-subtitle">
             Total Duration: {courseDurationStr}
           </span>
         )}
@@ -143,13 +146,13 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
                   </div>
                   {isExpanded ? <ChevronDown size={16} style={{ minWidth: '16px' }} /> : <ChevronRight size={16} style={{ minWidth: '16px' }} />}
                 </button>
-                
+
                 {isExpanded && (
                   <div className="section-lessons">
                     {sec.lessons.map((lesson) => {
                       const isCompleted = !!progress[lesson.id]?.completed;
                       const isActive = activeLesson?.id === lesson.id;
-                      
+
                       // Calculate progress percent
                       const lessonProg = progress[lesson.id];
                       const progressPercent = lessonProg && lessonProg.duration > 0
@@ -177,11 +180,11 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
                           </div>
                           {getLessonIcon(lesson.type)}
                           <div className="lesson-details">
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+                            <div className="lesson-title-row">
                               <span className="lesson-title-text" title={lesson.title}>
                                 {lesson.title}
                               </span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginTop: '2px' }}>
+                              <div className="lesson-badges">
                                 {lesson.duration > 0 && (
                                   <span className="lesson-duration-badge" title={`Duration: ${formatDuration(lesson.duration)}`}>
                                     {formatDuration(lesson.duration)}
@@ -214,10 +217,10 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
           })
         )}
       </div>
-      <div 
-        className="resize-handle right-handle" 
-        onPointerDown={onResizeStart} 
-        onDoubleClick={onResizeReset} 
+      <div
+        className="resize-handle right-handle"
+        onPointerDown={onResizeStart}
+        onDoubleClick={onResizeReset}
       />
     </div>
   );

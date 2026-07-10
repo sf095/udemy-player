@@ -430,6 +430,9 @@ body {
 }
 
 .sidebar-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 16px;
   border-bottom: 1px solid var(--border-color);
 }
@@ -440,6 +443,29 @@ body {
   letter-spacing: 0.05em;
   color: var(--text-secondary);
   font-weight: 600;
+  margin: 0;
+}
+
+.sidebar-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.lesson-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.lesson-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .sidebar-scrollable {
