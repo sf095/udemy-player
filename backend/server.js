@@ -3,6 +3,8 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { exec, execFileSync } = require('child_process');
+
+require('./lib/path-env');
 const crypto = require('crypto');
 const os = require('os');
 const { scanCourseFolder } = require('./scanner');

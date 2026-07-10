@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const net = require('net');
 
+require('../backend/lib/path-env');
+
 // Helper to find a free port recursively starting from startPort
 function findFreePort(startPort) {
   return new Promise((resolve) => {
