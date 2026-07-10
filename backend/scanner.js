@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 /**
  * Extract duration (in seconds) from an MP4/M4V file by parsing the mvhd box header
@@ -71,6 +72,45 @@ function getMp4Duration(filePath) {
         fs.closeSync(fd);
       } catch (e) {}
     }
+  }
+  return null;
+}
+
+/**
+ * Extract duration (in seconds) from an MKV file using ffprobe
+ */
+function getMkvDuration(filePath) {
+  try {
+    const output = execFileSync('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filePath
+    ], { encoding: 'utf8' }).trim();
+    if (!output) {
+      console.error(`ffprobe returned empty output for ${filePath}`);
+      return null;
+    }
+    const duration = parseFloat(output);
+    if (!isNaN(duration)) {
+      return Math.round(duration);
+    }
+  } catch (err) {
+    console.error(`Error reading MKV duration via ffprobe for ${filePath}:`, err);
+  }
+  return null;
+}
+
+/**
+ * Get video duration based on file extension
+ */
+function getVideoDuration(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.mp4' || ext === '.m4v') {
+    return getMp4Duration(filePath);
+  }
+  if (ext === '.mkv') {
+    return getMkvDuration(filePath);
   }
   return null;
 }
@@ -189,7 +229,7 @@ function scanCourseFolder(coursePath) {
       const resources = [];
 
       for (const file of files) {
-        if (file.ext === '.mp4' || file.ext === '.m4v') {
+        if (file.ext === '.mp4' || file.ext === '.m4v' || file.ext === '.mkv') {
           videoFile = file;
         } else if (file.ext === '.srt' || file.ext === '.vtt') {
           const lang = getSubtitleLanguage(file.name);
@@ -274,7 +314,7 @@ function scanCourseFolder(coursePath) {
         index: prefix === 'un-numbered' ? null : parseInt(prefix, 10),
         title: title || 'Untitled Lesson',
         video: videoFile ? videoFile.fullPath : null,
-        duration: videoFile ? getMp4Duration(videoFile.fullPath) : null,
+        duration: videoFile ? getVideoDuration(videoFile.fullPath) : null,
         subtitle: subtitles['en'] || Object.values(subtitles)[0] || null,
         subtitles: subtitles,
         pdf: firstPdf ? firstPdf.path : null,

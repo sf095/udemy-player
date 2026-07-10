@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, execFileSync } = require('child_process');
+const crypto = require('crypto');
+const os = require('os');
 const { scanCourseFolder } = require('./scanner');
 const { parseSubtitleCues } = require('./lib/subtitle');
 
@@ -341,16 +343,230 @@ app.get('/api/course-content', (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+/**
+ * Set of MKV paths currently being converted.
+ * execFileSync blocks the event loop, so concurrent access is naturally
+ * serialized for synchronous requests. This guard documents intent and
+ * protects against races if operations are refactored to async in the future.
+ */
+const inFlightConversions = new Set();
+
+// --- Cache metadata helpers ---
+
+const CACHE_META_FILE = path.join(os.tmpdir(), 'udemy-player-cache.json');
+
+function readCacheMeta() {
+  try {
+    if (fs.existsSync(CACHE_META_FILE)) {
+      return JSON.parse(fs.readFileSync(CACHE_META_FILE, 'utf8'));
+    }
+  } catch (e) {
+    console.error('Error reading cache metadata:', e);
+  }
+  return {};
+}
+
+function writeCacheMeta(meta) {
+  try {
+    fs.writeFileSync(CACHE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error writing cache metadata:', e);
+  }
+}
+
+function registerCacheEntry(sourcePath, cachePath) {
+  const meta = readCacheMeta();
+  meta[sourcePath] = cachePath;
+  writeCacheMeta(meta);
+}
+
+/**
+ * Remove orphaned cache files whose source MKV no longer exists on disk.
+ * Called once at startup.
+ */
+function cleanupOrphanedCache() {
+  const meta = readCacheMeta();
+  let cleaned = 0;
+  for (const [sourcePath, cachePath] of Object.entries(meta)) {
+    if (!fs.existsSync(sourcePath)) {
+      try { fs.unlinkSync(cachePath); } catch (_) {}
+      delete meta[sourcePath];
+      cleaned++;
+      console.log(`Cleaned orphaned cache: ${cachePath}`);
+    }
+  }
+  if (cleaned > 0) {
+    writeCacheMeta(meta);
+    console.log(`Cleaned up ${cleaned} orphaned cache file(s)`);
+  }
+}
+
+/**
+ * Remove all cached MP4s whose source MKV lives under the given course directory.
+ * Called when the user switches away from or deletes a course.
+ */
+function cleanupCourseCache(coursePath) {
+  if (!coursePath) return;
+  const meta = readCacheMeta();
+  let cleaned = 0;
+  for (const [sourcePath, cachePath] of Object.entries(meta)) {
+    const resolvedSource = path.resolve(sourcePath);
+    const resolvedCourse = path.resolve(coursePath);
+    if (resolvedSource === resolvedCourse || resolvedSource.startsWith(resolvedCourse + path.sep)) {
+      try { fs.unlinkSync(cachePath); } catch (_) {}
+      delete meta[sourcePath];
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    writeCacheMeta(meta);
+    console.log(`Cleaned up ${cleaned} cached file(s) from course: ${coursePath}`);
+  }
+}
+
+/**
+ * Ensure an MKV file is remuxed/transcoded to a playable MP4 file in the OS temp directory.
+ */
+/**
+ * Probe video and audio codec names from a media file using ffprobe JSON output.
+ * Returns { videoCodec, audioCodec } or null on failure.
+ */
+function probeCodecs(filePath) {
+  try {
+    const output = execFileSync('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'stream=codec_name,codec_type',
+      '-of', 'json',
+      filePath
+    ], { encoding: 'utf8' });
+    const probeData = JSON.parse(output);
+    const streams = probeData.streams || [];
+    const videoStream = streams.find(s => s.codec_type === 'video');
+    const audioStream = streams.find(s => s.codec_type === 'audio');
+    const videoCodec = (videoStream?.codec_name || '').toLowerCase();
+    const audioCodec = (audioStream?.codec_name || '').toLowerCase();
+    if (!videoCodec && !audioCodec) {
+      console.error(`ffprobe returned no recognized streams for ${filePath}`);
+      return null;
+    }
+    return { videoCodec, audioCodec };
+  } catch (err) {
+    console.error(`Failed to probe codecs via ffprobe for ${filePath}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Run ffmpeg with the given arguments, writing output to destPath.
+ * Always passes -y to overwrite existing files.
+ */
+function runFfmpeg(inputPath, args, destPath) {
+  execFileSync('ffmpeg', ['-y', '-i', inputPath, ...args, destPath], { stdio: 'inherit' });
+}
+
+function ensureMp4Cached(mkvPath) {
+  const hash = crypto.createHash('md5').update(mkvPath).digest('hex');
+  const tempDir = os.tmpdir();
+  const cachePath = path.join(tempDir, `udemy-player-${hash}.mp4`);
+  const tempCachePath = path.join(tempDir, `udemy-player-${hash}.tmp.mp4`);
+
+  // Check if cached file already exists and is valid
+  if (fs.existsSync(cachePath)) {
+    const mkvStat = fs.statSync(mkvPath);
+    const mp4Stat = fs.statSync(cachePath);
+    if (mp4Stat.mtimeMs >= mkvStat.mtimeMs && mp4Stat.size > 0) {
+      console.log(`Using cached video: ${cachePath}`);
+      return cachePath;
+    }
+  }
+
+  // Guard against concurrent conversions of the same file
+  if (inFlightConversions.has(mkvPath)) {
+    console.warn(`Conversion already in flight for: ${mkvPath}; waiting for it to complete...`);
+    // Since execFileSync blocks the event loop, by the time we reach here
+    // the prior conversion should be done. Check cache one more time.
+    if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 0) {
+      console.log(`Using cached video (post-wait): ${cachePath}`);
+      return cachePath;
+    }
+  }
+
+  console.log(`Cache miss or stale cache for: ${mkvPath}`);
+  console.log(`Starting remux/transcode of ${mkvPath}...`);
+
+  inFlightConversions.add(mkvPath);
+
+  try {
+    // Query codecs using a single ffprobe call (JSON output)
+    const codecs = probeCodecs(mkvPath);
+    let isH264 = false;
+    let isAacOrMp3 = false;
+
+    if (codecs) {
+      const { videoCodec, audioCodec } = codecs;
+      console.log(`Source video codec: ${videoCodec}, audio codec: ${audioCodec}`);
+      isH264 = (videoCodec === 'h264');
+      isAacOrMp3 = (audioCodec === 'aac' || audioCodec === 'mp3');
+    } else {
+      console.error(`Codec probe failed for ${mkvPath}, defaulting to full transcode`);
+    }
+
+    if (isH264) {
+      if (isAacOrMp3) {
+        console.log('Performing direct stream copy (copy video, copy audio)...');
+        runFfmpeg(mkvPath, ['-c:v', 'copy', '-c:a', 'copy'], tempCachePath);
+      } else {
+        console.log('Copying video stream, transcoding audio to AAC...');
+        runFfmpeg(mkvPath, ['-c:v', 'copy', '-c:a', 'aac'], tempCachePath);
+      }
+    } else {
+      console.log('Performing full transcode to H.264/AAC...');
+      runFfmpeg(mkvPath, ['-c:v', 'libx264', '-c:a', 'aac', '-preset', 'fast', '-crf', '23'], tempCachePath);
+    }
+
+    if (fs.existsSync(tempCachePath)) {
+      fs.renameSync(tempCachePath, cachePath);
+      registerCacheEntry(mkvPath, cachePath);
+      console.log(`Successfully cached transcoded file at: ${cachePath}`);
+      return cachePath;
+    } else {
+      throw new Error(`FFmpeg ran but temporary file was not created: ${tempCachePath}`);
+    }
+  } catch (err) {
+    console.error(`Failed to remux/transcode video ${mkvPath}:`, err);
+    if (fs.existsSync(tempCachePath)) {
+      try { fs.unlinkSync(tempCachePath); } catch (_) {}
+    }
+    throw err;
+  } finally {
+    inFlightConversions.delete(mkvPath);
+  }
+}
 
 // 2. Stream video file (supports HTTP Byte-Range requests)
 app.get('/api/stream', (req, res) => {
-  const videoPath = req.query.path;
+  let videoPath = req.query.path;
   if (!videoPath) {
     return res.status(400).send('Path parameter is required');
   }
 
+  // Validate that the requested path is within the active course directory
+  if (!validateSubtitlePath(videoPath)) {
+    return res.status(403).send('Access denied');
+  }
+
   if (!fs.existsSync(videoPath)) {
     return res.status(404).send('Video file not found');
+  }
+
+  // If this is an MKV file, remux/transcode it to MP4 and serve the cached version
+  const isMkv = path.extname(videoPath).toLowerCase() === '.mkv';
+  if (isMkv) {
+    try {
+      videoPath = ensureMp4Cached(videoPath);
+    } catch (err) {
+      return res.status(500).send(`Failed to process MKV video: ${err.message}`);
+    }
   }
 
   const stat = fs.statSync(videoPath);
@@ -495,11 +711,18 @@ app.post('/api/userdata/course', (req, res) => {
   }
 
   const db = readDb();
+  const oldPath = db.activeCoursePath;
   db.activeCoursePath = coursePath;
   if (!db.history.includes(coursePath)) {
     db.history.push(coursePath);
   }
   writeDb(db);
+
+  // Clear cached MKV conversions for the previous course
+  if (oldPath && oldPath !== coursePath) {
+    cleanupCourseCache(oldPath);
+  }
+
   res.json(db);
 });
 
@@ -516,6 +739,10 @@ app.delete('/api/userdata/course', (req, res) => {
     db.activeCoursePath = '';
   }
   writeDb(db);
+
+  // Clear cached MKV conversions for the deleted course
+  cleanupCourseCache(coursePath);
+
   res.json(db);
 });
 
@@ -1201,6 +1428,9 @@ if (process.env.NODE_ENV === 'production' || process.env.PACKAGED === 'true') {
     }
   });
 }
+
+// Clean up orphaned cache files from previous sessions
+cleanupOrphanedCache();
 
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Backend server running on http://127.0.0.1:${PORT}`);
