@@ -1,82 +1,10 @@
 # 🎓 Udemy Offline Player
 
-Your Premium Local Learning Portal — Stream, Study & Master Any Course Offline
-
-[![](https://img.shields.io/badge/Price-Super%20Cheap-brightgreen?style=for-the-badge&logo=cashapp&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
-[![](https://img.shields.io/badge/Updates-Lifetime%20Free-blue?style=for-the-badge&logo=infinity&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
-[![](https://img.shields.io/badge/Courses-10%2C000%2B%20Available-orange?style=for-the-badge&logo=udemy&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
-[![](https://img.shields.io/badge/AI%20Powered-Gemini-purple?style=for-the-badge&logo=google&logoColor=white)](#-buy-premium-udemy-courses--unbelievably-cheap)
+A local learning portal for Udemy courses — stream, study, and master any course offline.
 
 <p align="center">
   <img src="./public-site/screenshot.png" alt="Udemy Offline Player Screenshot" width="800px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
 </p>
-
----
-
-## 🎬 See How It Works
-
-Watch our quick walkthrough to see how easy it is to set up your local study portal.
-
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=U0gidDeZN0I">
-    <img src="https://img.youtube.com/vi/U0gidDeZN0I/maxresdefault.jpg" alt="Udemy Offline Player — Video Guide" width="700px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
-  </a>
-</p>
-
-<p align="center">
-  ▶️ <a href="https://www.youtube.com/watch?v=U0gidDeZN0I"><strong>Watch the guide on YouTube</strong></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;
-  📥 <a href="https://github.com/sf095/udemy-player/releases"><strong>Download Free Demo Pack (ZIP)</strong></a>
-</p>
-
----
-
-## 🔥 Buy Premium Udemy Courses — Unbelievably Cheap
-
-Why pay $50 to $200 per course when you can get the exact same content for a fraction of the price?
-
-We provide access to **thousands of top-rated Udemy courses** at the lowest prices available (see our [course catalog](./catalog.md) for listings). Every purchase includes:
-
-| What You Get | Details |
-|---|---|
-| 💰 **Rock-Bottom Prices** | Courses starting from just **$3 to $5** — save up to **95%** off retail |
-| ♾️ **Lifetime Updates** | If the instructor updates the course, you get the updates for free, forever |
-| 📥 **Full Offline Access** | Download the course once and learn anywhere — no internet required |
-| 🎬 **Complete Content** | All videos, high-quality subtitles, resources, and project attachments included |
-| 🤖 **AI-Powered Player** | Built-in AI translation, structured summarization, and chat assistant |
-| ⚡ **Instant Delivery** | Get your download link within minutes of placing an order |
-| 🛡️ **100% Safe** | Clean, secure files with no malware and no subscription lock-ins |
-
-### 📲 Ready to Order? Contact Us Now!
-
-<p align="center">
-  <a href="https://t.me/nhp2024">
-    <img src="./public-site/telegram.jpg" alt="Telegram Contact — Scan to Order" width="280px" style="border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.4);" />
-  </a>
-</p>
-
-<p align="center">
-  Scan the QR code or click the image to message us on <strong>Telegram</strong>. Browse our [course catalog](./catalog.md) and place your order.
-  <br/>
-  <em>Special offer: First-time buyers get a special discount. Ask about our bundle deals.</em>
-  <br/>
-  <em>Want to test first? Download our <a href="https://github.com/sf095/udemy-player/releases"><strong>Free Demo Pack</strong></a> to try the offline player immediately.</em>
-</p>
-
----
-
-## 💎 Why Choose Us Over Buying Directly?
-
-Compare how our local portal matches up against buying directly from Udemy:
-
-| Feature | Buying from Udemy | Learning with Us |
-|---|---|---|
-| **Price** | $50 to $200 per course | **$3 to $5 per course** |
-| **Updates** | Only while subscribed or active | **Lifetime updates included free** |
-| **Offline Access** | Limited mobile download only | **Full desktop and mobile offline access** |
-| **AI Features** | None | **Translation, summarization, and chat** |
-| **Subtitles** | English-only for most courses | **Auto-translate + dual subtitle display** |
-| **Notes & Progress** | Basic bookmarks | **Timestamped notes + auto-save progress** |
 
 ---
 
@@ -99,12 +27,12 @@ This player is built to help you learn faster and retain more information:
 8. **Offline AI Summarization**: Generate structured, bulleted summaries of video lessons in any supported language — independent of the active subtitle track. Choose your preferred output language via the dropdown selector. Summaries cache locally, letting you review them instantly without internet access.
 9. **Transcript-Grounded AI Chat**: Ask questions about the lesson in the chat sidebar. The AI answers using the active subtitle transcript as context.
 10. **Auto-Generated Timeline Chapters**: The player automatically analyzes lesson subtitle transcripts via the Gemini API to generate structured video chapters on the playback timeline, allowing you to easily browse and jump to different sections of the video.
+11. **Video Duration Display**: The sidebar shows individual lesson durations, section totals, and overall course duration, helping you plan your study sessions.
+12. **Dynamic Window Title**: The window/document title updates to show the currently playing lesson and its playback status (▶ playing / ⏸ paused).
 
 ---
 
 ## 🛠️ Developer Setup & Project Run
-
-If you want to run the project locally, build it, or modify the code, follow these technical instructions.
 
 ### Project Structure
 
@@ -125,7 +53,6 @@ udemy-player/
 │   ├── vite.config.js     # Dev server proxy configuration
 │   └── package.json       # Client dependencies
 ├── package.json           # Root runner scripts (starts concurrently)
-├── telegram.jpg           # Telegram contact image/QR code
 └── README.md              # Project documentation
 ```
 
@@ -158,7 +85,7 @@ To package and run the application as a standalone desktop app on macOS:
    ```bash
    # Remove the quarantine attribute
    xattr -cr /Applications/Udemy\ Offline\ Player.app
-   
+
    # Self-sign the application
    codesign --force --deep --sign - /Applications/Udemy\ Offline\ Player.app
    ```
@@ -184,14 +111,3 @@ To package and run the application as a standalone desktop app on macOS:
 * **`POST /api/browse-folder`**: Launches native OS folder dialog window.
 * **`GET /api/chapters?videoPath=<path>&subtitlePath=<path>`**: Loads cached timeline chapters or generates them from subtitles via Gemini.
 * **`POST /api/chapters/regenerate`**: Forces regeneration of timeline chapters using subtitles and overwrites the local cache.
-
----
-
-<p align="center">
-  <strong>Join learners who saved 95% on premium Udemy courses.</strong><br/>
-  💬 Message us on <strong>Telegram</strong> today — tell us what you want to learn, and we'll get it for you!
-</p>
-
-<p align="center">
-  <em>© 2026 Udemy Offline Player — Learn Smart, Pay Less ❤️</em>
-</p>
