@@ -12,7 +12,7 @@ A local learning portal for Udemy courses — stream, study, and master any cour
 
 This player is built to help you learn faster and retain more information:
 
-1. **Intelligent Course Scanner**: Point the player at your downloaded course folder. It automatically organizes lessons, chapters, and companion files into a clean sidebar menu. (Auto-generated `.chapters.json` and `.summary.*.txt` files are automatically filtered out to keep your companion resources list clean and uncluttered.)
+1. **Intelligent Course Scanner**: Point the player at your downloaded course folder. It automatically organizes lessons, chapters, and companion files into a clean sidebar menu. Supports `.mp4`, `.m4v`, and `.mkv` video files. (Auto-generated `.chapters.json` and `.summary.*.txt` files are automatically filtered out to keep your companion resources list clean and uncluttered.)
 2. **Coordinated Tab View**: Study side-by-side. If a lesson contains both a video and companion resources (like PDFs or cheat sheets), the player shows them together in coordinated tabs.
 3. **Custom HTML5 Video Stage**:
    - Supports adjustable playback speeds (`1x`, `1.25x`, `1.5x`, `1.75x`, `2x`).
@@ -39,8 +39,8 @@ This player is built to help you learn faster and retain more information:
 ```
 udemy-player/
 ├── backend/
-│   ├── server.js          # Express server with range-streaming, VTT conversion, & persistence APIs
-│   ├── scanner.js         # File grouping and section sorting scanner
+│   ├── server.js          # Express server with range-streaming, VTT conversion, MKV remux/cache, & persistence APIs
+│   ├── scanner.js         # File grouping and section sorting scanner (.mp4, .m4v, .mkv)
 │   ├── progress_db.json   # Local user notes and completion database (JSON)
 │   └── package.json       # Backend server dependencies
 ├── docs/                  # Technical specifications, implementation plans, and task lists
@@ -58,6 +58,7 @@ udemy-player/
 
 ### Prerequisites
 * [Node.js](https://nodejs.org/) (v16+)
+* [FFmpeg](https://ffmpeg.org/) (v5+) including `ffprobe` — required for `.mkv` video playback
 
 ### 1. Install Dependencies
 Install all root, client, and server dependencies in one command:
@@ -96,7 +97,7 @@ To package and run the application as a standalone desktop app on macOS:
 ## 🔒 API Endpoints
 
 * **`GET /api/course-content?path=<absolute-path>`**: Scans the folder and returns grouped chapters and lesson resources.
-* **`GET /api/stream?path=<video-file-path>`**: Streams local video assets supporting Byte-Range header requests.
+* **`GET /api/stream?path=<video-file-path>`**: Streams local video assets supporting Byte-Range header requests. `.mkv` files are auto-remuxed to MP4 and cached in the OS temp directory for subsequent instant playback.
 * **`GET /api/subtitle?path=<subtitle-file-path>`**: Feeds SubRip (`.srt`) contents converted to WebVTT format on-the-fly.
 * **`GET /api/resource?path=<document-file-path>`**: Serves PDFs and HTML checkpoints securely.
 * **`GET /api/userdata`**: Returns completion logs, note timelines, and active paths.
