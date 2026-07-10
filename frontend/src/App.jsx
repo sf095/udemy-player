@@ -19,7 +19,11 @@ const DEFAULT_SETTINGS = {
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
-  autoplayNext: false
+  autoplayNext: false,
+  autoCreateTimeline: false,
+  autoCreateTimelineLang: 'en',
+  autoCreateSummary: false,
+  autoCreateSummaryLang: 'en'
 };
 
 export default function App() {
@@ -29,6 +33,12 @@ export default function App() {
   const [progress, setProgress] = useState({});
   const [notes, setNotes] = useState({});
   const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
+  const hasApiKey = useMemo(() =>
+    settings.aiProvider === 'anthropic'
+      ? !!settings.anthropicApiKey
+      : !!settings.geminiApiKey,
+    [settings.aiProvider, settings.anthropicApiKey, settings.geminiApiKey]
+  );
   
   const [activeLesson, setActiveLesson] = useState(null);
   const [activeLang, setActiveLang] = useState('');
@@ -963,6 +973,9 @@ export default function App() {
                     onToggleNotes={() => setNotesCollapsed(c => !c)}
                     onPlay={handleVideoPlay}
                     onPause={handleVideoPause}
+                    autoCreateTimeline={settings.autoCreateTimeline}
+                    autoCreateTimelineLang={settings.autoCreateTimelineLang}
+                    hasApiKey={hasApiKey}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>
@@ -1076,14 +1089,12 @@ export default function App() {
             activeLang={activeLang}
             summaryLang={summaryLang}
             setSummaryLang={setSummaryLang}
-            hasApiKey={
-              settings.aiProvider === 'anthropic'
-                ? !!settings.anthropicApiKey
-                : !!settings.geminiApiKey
-            }
+            hasApiKey={hasApiKey}
             aiProvider={settings.aiProvider || 'gemini'}
             onResizeStart={handleNotesResizeStart}
             onResizeReset={handleNotesResizeReset}
+            autoCreateSummary={settings.autoCreateSummary}
+            autoCreateSummaryLang={settings.autoCreateSummaryLang}
           />
         )}
       </main>

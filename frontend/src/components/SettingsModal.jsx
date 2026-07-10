@@ -7,8 +7,28 @@ const DEFAULT_SETTINGS = {
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
-  autoplayNext: false
+  autoplayNext: false,
+  autoCreateTimeline: false,
+  autoCreateTimelineLang: 'en',
+  autoCreateSummary: false,
+  autoCreateSummaryLang: 'en'
 };
+
+const LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'it', name: 'Italian' }
+];
 
 export default function SettingsModal({ settings, onSave, onClose }) {
   const merged = { ...DEFAULT_SETTINGS, ...settings };
@@ -18,6 +38,10 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const [anthropicModel, setAnthropicModel] = useState(merged.anthropicModel);
   const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(merged.anthropicBaseUrl);
   const [autoplayNext, setAutoplayNext] = useState(merged.autoplayNext);
+  const [autoCreateTimeline, setAutoCreateTimeline] = useState(merged.autoCreateTimeline);
+  const [autoCreateTimelineLang, setAutoCreateTimelineLang] = useState(merged.autoCreateTimelineLang);
+  const [autoCreateSummary, setAutoCreateSummary] = useState(merged.autoCreateSummary);
+  const [autoCreateSummaryLang, setAutoCreateSummaryLang] = useState(merged.autoCreateSummaryLang);
 
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
@@ -34,7 +58,11 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       anthropicApiKey: anthropicApiKey.trim(),
       anthropicModel: anthropicModel.trim() || 'claude-3-5-sonnet-latest',
       anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com',
-      autoplayNext
+      autoplayNext,
+      autoCreateTimeline,
+      autoCreateTimelineLang,
+      autoCreateSummary,
+      autoCreateSummaryLang
     });
     setSaving(false);
     if (result) {
@@ -382,6 +410,137 @@ export default function SettingsModal({ settings, onSave, onClose }) {
             >
               Automatically start playing the next lesson video when the current video ends.
             </p>
+          </div>
+
+          {/* AI Auto-generation Settings */}
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginBottom: '20px' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>AI Auto-generation</h4>
+            
+            {/* Automatically Create Timeline */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <label 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={autoCreateTimeline}
+                    onChange={(e) => setAutoCreateTimeline(e.target.checked)}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      accentColor: 'var(--primary)',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span>Automatically Create Timeline Chapters</span>
+                </label>
+                  <select
+                    disabled={!autoCreateTimeline}
+                    value={autoCreateTimelineLang}
+                    onChange={(e) => setAutoCreateTimelineLang(e.target.value)}
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                      cursor: autoCreateTimeline ? 'pointer' : 'not-allowed',
+                      opacity: autoCreateTimeline ? 1 : 0.5
+                    }}
+                  >
+                    {LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+              </div>
+              <p 
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  marginTop: '6px',
+                  marginLeft: '28px',
+                  lineHeight: 1.4
+                }}
+              >
+                Generate video chapters on the playback timeline using subtitles and AI when a video is loaded (if not cached).
+              </p>
+            </div>
+
+            {/* Automatically Create Summary */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <label 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={autoCreateSummary}
+                    onChange={(e) => setAutoCreateSummary(e.target.checked)}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      accentColor: 'var(--primary)',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span>Automatically Create Lesson Summary</span>
+                </label>
+                  <select
+                    disabled={!autoCreateSummary}
+                    value={autoCreateSummaryLang}
+                    onChange={(e) => setAutoCreateSummaryLang(e.target.value)}
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                      cursor: autoCreateSummary ? 'pointer' : 'not-allowed',
+                      opacity: autoCreateSummary ? 1 : 0.5
+                    }}
+                  >
+                    {LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+              </div>
+              <p 
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  marginTop: '6px',
+                  marginLeft: '28px',
+                  lineHeight: 1.4
+                }}
+              >
+                Generate lesson summaries using subtitles and AI when a lesson is loaded (if not cached).
+              </p>
+            </div>
           </div>
 
           {/* Alert check */}

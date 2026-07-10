@@ -163,7 +163,10 @@ export default function VideoPlayer({
   notesCollapsed = false,
   onToggleNotes,
   onPlay,
-  onPause
+  onPause,
+  autoCreateTimeline = false,
+  autoCreateTimelineLang = 'en',
+  hasApiKey = false
 }) {
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
@@ -200,7 +203,13 @@ export default function VideoPlayer({
   const [dragTime, setDragTime] = useState(null);
   const [showChaptersList, setShowChaptersList] = useState(false);
   const [selectedChapterLang, setSelectedChapterLang] = useState(() => {
-    return localStorage.getItem('udemy-player-chapter-lang') || 'English';
+    const stored = localStorage.getItem('udemy-player-chapter-lang');
+    if (!stored) return 'en';
+    // Migrate old name-based values (e.g., 'English') to codes (e.g., 'en')
+    if (stored.length === 2) return stored; // already a code
+    const match = CURATED_LANGUAGES.find(l => l.name === stored);
+    if (match) return match.code;
+    return stored === 'English' ? 'en' : stored; // handle hardcoded English option
   });
 
   const timelineContainerRef = useRef(null);
@@ -459,7 +468,32 @@ export default function VideoPlayer({
         const data = await response.json();
         if (isCancelled) return;
         if (data.success) {
-          setChapters(data.chapters || []);
+          if (!data.exists && autoCreateTimeline && subtitlePath && hasApiKey) {
+            // Auto generate chapters in background
+            try {
+              const regenResponse = await fetch(`${backendOrigin}/api/chapters/regenerate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ videoPath, subtitlePath, language: autoCreateTimelineLang || selectedChapterLang })
+              });
+              const regenData = await regenResponse.json();
+              if (isCancelled) return;
+              if (regenData.success) {
+                setChapters(regenData.chapters || []);
+              } else {
+                setChaptersError(regenData.error || 'Failed to auto-generate chapters.');
+                setChapters([]);
+              }
+            } catch (regenErr) {
+              console.error('Failed to auto-generate chapters:', regenErr);
+              if (!isCancelled) {
+                setChaptersError('Network error auto-generating chapters.');
+                setChapters([]);
+              }
+            }
+          } else {
+            setChapters(data.chapters || []);
+          }
         } else {
           setChaptersError(data.error);
           setChapters([]);
@@ -481,7 +515,7 @@ export default function VideoPlayer({
     return () => {
       isCancelled = true;
     };
-  }, [videoPath, primarySubtitlePath, backendOrigin]);
+  }, [videoPath, primarySubtitlePath, backendOrigin, autoCreateTimeline, autoCreateTimelineLang, hasApiKey, selectedChapterLang]);
 
   // Calculate timeline time from scrubber drag events
   const calculateTimeFromEvent = (e) => {
@@ -1322,9 +1356,9 @@ export default function VideoPlayer({
                     className="video-overlay-select"
                     style={{ fontSize: '0.65rem', padding: '2px 6px', height: '22px' }}
                   >
-                    <option value="English">English</option>
+                    <option value="en">English</option>
                     {CURATED_LANGUAGES.map((lang) => (
-                      <option key={lang.code} value={lang.name}>
+                      <option key={lang.code} value={lang.code}>
                         {lang.name}
                       </option>
                     ))}
@@ -1413,9 +1447,9 @@ export default function VideoPlayer({
                 className="video-overlay-select"
                 style={{ flex: 1, fontSize: '0.75rem', height: '26px', padding: '0 8px' }}
               >
-                <option value="English">English</option>
+                <option value="en">English</option>
                 {CURATED_LANGUAGES.map((lang) => (
-                  <option key={lang.code} value={lang.name}>
+                  <option key={lang.code} value={lang.code}>
                     {lang.name}
                   </option>
                 ))}

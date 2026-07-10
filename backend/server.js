@@ -23,7 +23,11 @@ const DEFAULT_SETTINGS = {
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
-  autoplayNext: false
+  autoplayNext: false,
+  autoCreateTimeline: false,
+  autoCreateTimelineLang: 'en',
+  autoCreateSummary: false,
+  autoCreateSummaryLang: 'en'
 };
 
 const SUPPORTED_SUMMARY_LANGUAGES = {
@@ -847,7 +851,7 @@ app.delete('/api/userdata/notes', (req, res) => {
 
 // 10. Update Settings
 app.post('/api/userdata/settings', (req, res) => {
-  const { aiProvider, geminiApiKey, anthropicApiKey, anthropicModel, anthropicBaseUrl, autoplayNext } = req.body;
+  const { aiProvider, geminiApiKey, anthropicApiKey, anthropicModel, anthropicBaseUrl, autoplayNext, autoCreateTimeline, autoCreateTimelineLang, autoCreateSummary, autoCreateSummaryLang } = req.body;
   const db = readDb();
   if (!db.settings) {
     db.settings = {};
@@ -858,6 +862,12 @@ app.post('/api/userdata/settings', (req, res) => {
   db.settings.anthropicModel = anthropicModel || DEFAULT_SETTINGS.anthropicModel;
   db.settings.anthropicBaseUrl = anthropicBaseUrl || DEFAULT_SETTINGS.anthropicBaseUrl;
   db.settings.autoplayNext = typeof autoplayNext === 'boolean' ? autoplayNext : DEFAULT_SETTINGS.autoplayNext;
+  db.settings.autoCreateTimeline = typeof autoCreateTimeline === 'boolean' ? autoCreateTimeline : DEFAULT_SETTINGS.autoCreateTimeline;
+  db.settings.autoCreateTimelineLang = (autoCreateTimelineLang && SUPPORTED_SUMMARY_LANGUAGES[autoCreateTimelineLang.toLowerCase()])
+    ? autoCreateTimelineLang.toLowerCase() : DEFAULT_SETTINGS.autoCreateTimelineLang;
+  db.settings.autoCreateSummary = typeof autoCreateSummary === 'boolean' ? autoCreateSummary : DEFAULT_SETTINGS.autoCreateSummary;
+  db.settings.autoCreateSummaryLang = (autoCreateSummaryLang && SUPPORTED_SUMMARY_LANGUAGES[autoCreateSummaryLang.toLowerCase()])
+    ? autoCreateSummaryLang.toLowerCase() : DEFAULT_SETTINGS.autoCreateSummaryLang;
   writeDb(db);
   res.json(db);
 });
@@ -1321,7 +1331,8 @@ async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, lan
 
   const systemInstruction = 'You are a video editing assistant. You always output a valid, raw JSON array of chapter markers matching the requested schema, with no markdown code fences or explanation text. The first chapter MUST start at 0 seconds.';
   
-  const targetLanguage = language || 'English';
+  // Resolve language code to name (e.g., 'en' → 'English'), fall back to raw value for backward compat
+  const targetLanguage = (language && SUPPORTED_SUMMARY_LANGUAGES[language.toLowerCase()]) || language || 'English';
   const prompt = `Analyze the following video transcript to divide the video into logical chapters/topics (usually 3 to 8 chapters depending on video length and density of content).
 For each chapter, provide the starting timestamp in seconds (integer) and a brief, descriptive title (maximum 80 characters) written in ${targetLanguage}.
 The first chapter MUST start at 0 seconds.

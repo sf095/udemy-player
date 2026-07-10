@@ -62,7 +62,9 @@ export default function NotesPanel({
   hasApiKey,
   onResizeStart,
   onResizeReset,
-  aiProvider = 'gemini'
+  aiProvider = 'gemini',
+  autoCreateSummary = false,
+  autoCreateSummaryLang = 'en'
 }) {
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' | 'summary' | 'chat'
   const providerName = aiProvider === 'anthropic' ? 'Anthropic' : 'Gemini';
@@ -118,7 +120,45 @@ export default function NotesPanel({
     }
   }, [activeTab]);
 
+  // Guard against stale async calls when lesson/lang changes mid-request
+  const summaryGenIdRef = useRef(0);
+
   // Summary action handlers
+  const generateSummary = useCallback(async (lang = (autoCreateSummaryLang || effectiveSummaryLang || activeLang)) => {
+    const subtitlePath = activeLesson?.subtitles?.[activeLang];
+    if (!subtitlePath) return;
+
+    const genId = ++summaryGenIdRef.current;
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const response = await fetch('/api/summarize-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtitlePath, langCode: lang })
+      });
+      const data = await response.json();
+      if (genId !== summaryGenIdRef.current) return; // stale request
+      if (data.success) {
+        setSummary(data.summary);
+      } else {
+        setSummaryError(data.error || 'Failed to generate summary.');
+      }
+    } catch (e) {
+      if (genId !== summaryGenIdRef.current) return; // stale request
+      console.error('Error generating summary:', e);
+      setSummaryError('Network error while generating summary.');
+    } finally {
+      if (genId === summaryGenIdRef.current) {
+        setSummaryLoading(false);
+      }
+    }
+  }, [activeLesson, activeLang, effectiveSummaryLang, autoCreateSummaryLang]);
+
+  // Keep a ref to the latest generateSummary to break the dep chain with checkSummaryCache
+  const generateSummaryRef = useRef(generateSummary);
+  generateSummaryRef.current = generateSummary;
+
   const checkSummaryCache = useCallback(async () => {
     const subtitlePath = activeLesson?.subtitles?.[activeLang];
     if (!subtitlePath) return;
@@ -134,15 +174,20 @@ export default function NotesPanel({
         body: JSON.stringify({ subtitlePath, langCode, checkCacheOnly: true })
       });
       const data = await response.json();
-      if (data.success && data.summary) {
-        setSummary(data.summary);
+      if (data.success) {
+        if (data.summary) {
+          setSummary(data.summary);
+        } else if (autoCreateSummary && hasApiKey) {
+          generateSummaryRef.current(autoCreateSummaryLang);
+        }
       }
     } catch (e) {
       console.error('Error checking summary cache:', e);
     } finally {
       setSummaryLoading(false);
     }
-  }, [activeLesson, activeLang, effectiveSummaryLang]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLesson, activeLang, effectiveSummaryLang, autoCreateSummary, autoCreateSummaryLang, hasApiKey]);
 
   // Reset state when lesson or language changes
   useEffect(() => {
@@ -196,33 +241,7 @@ export default function NotesPanel({
     setEditingNoteText('');
   };
 
-  const generateSummary = async () => {
-    const subtitlePath = activeLesson?.subtitles?.[activeLang];
-    if (!subtitlePath) return;
 
-    const langCode = effectiveSummaryLang || activeLang;
-
-    setSummaryLoading(true);
-    setSummaryError(null);
-    try {
-      const response = await fetch('/api/summarize-lesson', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtitlePath, langCode })
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSummary(data.summary);
-      } else {
-        setSummaryError(data.error || 'Failed to generate summary.');
-      }
-    } catch (e) {
-      console.error('Error generating summary:', e);
-      setSummaryError('Network error while generating summary.');
-    } finally {
-      setSummaryLoading(false);
-    }
-  };
 
   const clearSummaryCache = async () => {
     const subtitlePath = activeLesson?.subtitles?.[activeLang];
@@ -559,7 +578,7 @@ export default function NotesPanel({
               <button
                 className="btn-add-note"
                 style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                onClick={generateSummary}
+                onClick={() => generateSummary()}
               >
                 <RefreshCw size={14} /> Generate Summary
               </button>
