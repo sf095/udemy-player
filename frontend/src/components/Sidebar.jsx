@@ -29,11 +29,46 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
     }
   }, [activeLesson, sections]);
 
+  // Helper to format duration in MM:SS or H:MM:SS
+  const formatDuration = (seconds) => {
+    if (!seconds) return '';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.round(seconds % 60);
+    
+    const pad = (num) => String(num).padStart(2, '0');
+    
+    if (h > 0) {
+      return `${h}:${pad(m)}:${pad(s)}`;
+    }
+    return `${m}:${pad(s)}`;
+  };
+
+  // Helper to format friendly duration for sections/course (e.g. 42m 15s or 1h 15m)
+  const formatFriendlyDuration = (totalSeconds) => {
+    if (totalSeconds < 60) {
+      return `${totalSeconds}s`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    if (minutes < 60) {
+      const seconds = totalSeconds % 60;
+      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  };
+
   // Helper to count completed lessons in a section
   const getSectionStats = (lessons) => {
     const total = lessons.length;
     const completed = lessons.filter(l => progress[l.id]?.completed).length;
-    return `${completed}/${total} completed`;
+    
+    // Sum video durations in this section
+    const totalSeconds = lessons.reduce((sum, l) => sum + (l.duration || 0), 0);
+    const durationStr = totalSeconds > 0 ? ` • ${formatFriendlyDuration(totalSeconds)}` : '';
+    
+    return `${completed}/${total} completed${durationStr}`;
   };
 
   // Helper to count companion resources for a lesson
@@ -62,10 +97,22 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
     }
   };
 
+  // Calculate total course duration
+  const totalCourseSeconds = sections.reduce((sumSec, sec) => {
+    return sumSec + sec.lessons.reduce((sumLes, l) => sumLes + (l.duration || 0), 0);
+  }, 0);
+  
+  const courseDurationStr = totalCourseSeconds > 0 ? formatFriendlyDuration(totalCourseSeconds) : '';
+
   return (
     <div className="sidebar-panel">
-      <div className="sidebar-header">
-        <h3 className="sidebar-title">Course Content</h3>
+      <div className="sidebar-header" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <h3 className="sidebar-title" style={{ margin: 0 }}>Course Content</h3>
+        {courseDurationStr && (
+          <span className="sidebar-subtitle" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+            Total Duration: {courseDurationStr}
+          </span>
+        )}
       </div>
       <div className="sidebar-scrollable">
         {sections.length === 0 ? (
@@ -134,12 +181,19 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
                               <span className="lesson-title-text" title={lesson.title}>
                                 {lesson.title}
                               </span>
-                              {getLessonResourcesCount(lesson) > 0 && (
-                                <span className="lesson-resource-badge" title={`${getLessonResourcesCount(lesson)} companion resource${getLessonResourcesCount(lesson) > 1 ? 's' : ''}`}>
-                                  <Paperclip size={10} />
-                                  <span>{getLessonResourcesCount(lesson)}</span>
-                                </span>
-                              )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginTop: '2px' }}>
+                                {lesson.duration > 0 && (
+                                  <span className="lesson-duration-badge" title={`Duration: ${formatDuration(lesson.duration)}`}>
+                                    {formatDuration(lesson.duration)}
+                                  </span>
+                                )}
+                                {getLessonResourcesCount(lesson) > 0 && (
+                                  <span className="lesson-resource-badge" title={`${getLessonResourcesCount(lesson)} companion resource${getLessonResourcesCount(lesson) > 1 ? 's' : ''}`}>
+                                    <Paperclip size={10} />
+                                    <span>{getLessonResourcesCount(lesson)}</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             {!isCompleted && progressPercent > 0 && (
                               <div className="lesson-progress-bar" style={{ width: '100%' }}>

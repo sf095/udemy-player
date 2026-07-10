@@ -2,6 +2,77 @@ const fs = require('fs');
 const path = require('path');
 
 /**
+ * Extract duration (in seconds) from an MP4/M4V file by parsing the mvhd box header
+ */
+function getMp4Duration(filePath) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    const stat = fs.fstatSync(fd);
+    let offset = 0;
+    const buf = Buffer.alloc(16);
+
+    while (offset < stat.size) {
+      const bytesRead = fs.readSync(fd, buf, 0, 8, offset);
+      if (bytesRead < 8) break;
+
+      const size = buf.readUInt32BE(0);
+      const type = buf.toString('ascii', 4, 8);
+
+      let headerSize = 8;
+      let actualSize = size;
+      if (size === 1) {
+        fs.readSync(fd, buf, 0, 8, offset + 8);
+        const high = buf.readUInt32BE(0);
+        const low = buf.readUInt32BE(4);
+        actualSize = high * 0x100000000 + low;
+        headerSize = 16;
+      } else if (size === 0) {
+        actualSize = stat.size - offset;
+      }
+
+      if (type === 'moov') {
+        offset += headerSize;
+      } else if (type === 'mvhd') {
+        const mvhdBuf = Buffer.alloc(32);
+        fs.readSync(fd, mvhdBuf, 0, 32, offset + headerSize);
+        const version = mvhdBuf.readUInt8(0);
+        let timescale = 0;
+        let duration = 0;
+
+        if (version === 1) {
+          timescale = mvhdBuf.readUInt32BE(20);
+          const durHigh = mvhdBuf.readUInt32BE(24);
+          const durLow = mvhdBuf.readUInt32BE(28);
+          duration = durHigh * 0x100000000 + durLow;
+        } else {
+          timescale = mvhdBuf.readUInt32BE(12);
+          duration = mvhdBuf.readUInt32BE(16);
+        }
+
+        if (timescale > 0) {
+          return Math.round(duration / timescale);
+        }
+        break;
+      } else {
+        const advance = actualSize > 0 ? actualSize : 8;
+        offset += advance;
+      }
+    }
+  } catch (err) {
+    console.error(`Error reading MP4 duration for ${filePath}:`, err);
+  } finally {
+    if (fd !== undefined) {
+      try {
+        fs.closeSync(fd);
+      } catch (e) {}
+    }
+  }
+  return null;
+}
+
+
+/**
  * Clean up lesson filenames to make user-friendly titles
  */
 function cleanTitle(filename, prefix) {
@@ -199,6 +270,7 @@ function scanCourseFolder(coursePath) {
         index: prefix === 'un-numbered' ? null : parseInt(prefix, 10),
         title: title || 'Untitled Lesson',
         video: videoFile ? videoFile.fullPath : null,
+        duration: videoFile ? getMp4Duration(videoFile.fullPath) : null,
         subtitle: subtitles['en'] || Object.values(subtitles)[0] || null,
         subtitles: subtitles,
         pdf: firstPdf ? firstPdf.path : null,
