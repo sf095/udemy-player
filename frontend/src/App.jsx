@@ -41,6 +41,7 @@ export default function App() {
     return saved || '';
   });
   const [currentTime, setCurrentTime] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'doc'
   const [activeResource, setActiveResource] = useState(null);
   
@@ -75,6 +76,34 @@ export default function App() {
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  // Reset video playback status on lesson change
+  useEffect(() => {
+    setIsVideoPlaying(false);
+  }, [activeLesson]);
+
+  // Update document title dynamically based on active lesson and playback state
+  useEffect(() => {
+    if (!activeLesson) {
+      document.title = 'Udemy Offline Player - Custom Learning Portal';
+      return;
+    }
+
+    let statusPrefix = '';
+    let suffix = ' - Udemy Offline Player';
+    
+    if (activeLesson.type === 'video' && activeTab === 'video') {
+      statusPrefix = isVideoPlaying ? '▶ ' : '⏸ ';
+    } else {
+      const typeSuffix = activeLesson.type === 'pdf' ? ' (PDF)' : 
+                         activeLesson.type === 'html' ? ' (HTML)' : 
+                         activeLesson.type === 'quiz' ? ' (Quiz)' : '';
+      statusPrefix = '';
+      suffix = `${typeSuffix} - Udemy Offline Player`;
+    }
+
+    document.title = `${statusPrefix}${activeLesson.title}${suffix}`;
+  }, [activeLesson, activeTab, isVideoPlaying]);
 
   useEffect(() => {
     localStorage.setItem('udemy-player:sidebar-width', sidebarWidth);
@@ -929,6 +958,8 @@ export default function App() {
                     onToggleSidebar={() => setSidebarCollapsed(c => !c)}
                     notesCollapsed={notesCollapsed}
                     onToggleNotes={() => setNotesCollapsed(c => !c)}
+                    onPlay={() => setIsVideoPlaying(true)}
+                    onPause={() => setIsVideoPlaying(false)}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>

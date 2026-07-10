@@ -161,7 +161,9 @@ export default function VideoPlayer({
   sidebarCollapsed = false,
   onToggleSidebar,
   notesCollapsed = false,
-  onToggleNotes
+  onToggleNotes,
+  onPlay,
+  onPause
 }) {
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
@@ -847,8 +849,14 @@ export default function VideoPlayer({
       }
     };
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      if (onPlay) onPlay();
+    };
+    const handlePause = () => {
+      setIsPlaying(false);
+      if (onPause) onPause();
+    };
     const handleVolumeChange = () => {
       setVolume(video.volume);
       setIsMuted(video.muted);
@@ -879,7 +887,7 @@ export default function VideoPlayer({
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('volumechange', handleVolumeChange);
     };
-  }, [videoPath, initialTime, autoplayEnabled, hasNextLesson, speed]);
+  }, [videoPath, initialTime, autoplayEnabled, hasNextLesson, speed, onPlay, onPause]);
 
   const availableLangs = Object.keys(subtitles || {});
   const translatableLangs = CURATED_LANGUAGES.filter(lang => !availableLangs.includes(lang.code));
