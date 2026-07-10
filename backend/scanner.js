@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { getFfprobePath } = require('./lib/ffmpeg-path');
 
 /**
  * Extract duration (in seconds) from an MP4/M4V file by parsing the mvhd box header
@@ -81,7 +82,7 @@ function getMp4Duration(filePath) {
  */
 function getMkvDuration(filePath) {
   try {
-    const output = execFileSync('ffprobe', [
+    const output = execFileSync(getFfprobePath(), [
       '-v', 'error',
       '-show_entries', 'format=duration',
       '-of', 'default=noprint_wrappers=1:nokey=1',

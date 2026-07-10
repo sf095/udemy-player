@@ -8,13 +8,21 @@ files:
   - "!backend/progress_db.json"
   - frontend/dist/**/*
   - package.json
+  - bin-paths.js
 mac:
   category: public.app-category.education
   target:
     - target: dmg
   icon: build/icon.icns
   artifactName: ${productName}-${version}-${arch}.${ext}
+  extraResources:
+    - from: bin/darwin/${arch}
+      to: bin
 win:
   target:
     - target: nsis
   icon: build/icon.ico
+  extraResources:
+    - from: bin/win32/x64
+      to: bin
+

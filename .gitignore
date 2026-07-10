@@ -52,3 +52,7 @@ skills-lock.json
 
 # Marketing
 marketing-plans
+
+# Local static binaries
+bin/
+

@@ -41,8 +41,16 @@ udemy-player/
 ├── backend/
 │   ├── server.js          # Express server with range-streaming, VTT conversion, MKV remux/cache, & persistence APIs
 │   ├── scanner.js         # File grouping and section sorting scanner (.mp4, .m4v, .mkv)
+│   ├── lib/
+│   │   ├── ffmpeg-path.js # 3-tier binary resolution (bundled → local dev → system PATH)
+│   │   ├── path-env.js    # PATH augmentation for macOS GUI / Electron contexts
+│   │   └── subtitle.js    # Subtitle cue parser
 │   ├── progress_db.json   # Local user notes and completion database (JSON)
 │   └── package.json       # Backend server dependencies
+├── bin/                   # Static ffmpeg/ffprobe binaries (downloaded, git-ignored)
+├── bin-paths.js           # Shared bin/ directory structure constants
+├── scripts/
+│   └── download-binaries.js  # Downloads platform-specific ffmpeg/ffprobe static builds
 ├── docs/                  # Technical specifications, implementation plans, and task lists
 ├── frontend/              # Vite React client
 │   ├── src/
@@ -58,10 +66,21 @@ udemy-player/
 
 ### Prerequisites
 * [Node.js](https://nodejs.org/) (v16+)
-* [FFmpeg](https://ffmpeg.org/) (v5+) including `ffprobe` — required for `.mkv` video playback
+* `ffmpeg` (v5+) and `ffprobe` — required for `.mkv` video playback.
+  The `postinstall` script automatically downloads static builds into `bin/`, so a
+  system-wide install is optional. If you prefer a system install:
+  ```bash
+  brew install ffmpeg   # macOS
+  ```
+  To manually re-download the static binaries at any time:
+  ```bash
+  npm run download-binaries
+  ```
 
 ### 1. Install Dependencies
-Install all root, client, and server dependencies in one command:
+Install all root, client, and server dependencies in one command.
+The `postinstall` hook will also download static `ffmpeg` / `ffprobe` binaries for
+your platform into `bin/`.
 ```bash
 npm run install:all
 ```
@@ -77,12 +96,16 @@ Visit **[http://localhost:3002](http://localhost:3002)** to browse and play your
 
 ### 4. Running the Desktop App (macOS DMG)
 To package and run the application as a standalone desktop app on macOS:
-1. Build the frontend and compile the package:
+1. Ensure the static binaries are downloaded (they are bundled into the app):
+   ```bash
+   npm run download-binaries
+   ```
+2. Build the frontend and compile the package:
    ```bash
    npm run package
    ```
-2. Drag **Udemy Offline Player.app** from `dist-desktop/` to your `/Applications` folder.
-3. If macOS Gatekeeper blocks the app from running, remove the quarantine attribute and self-sign it:
+3. Drag **Udemy Offline Player.app** from `dist-desktop/` to your `/Applications` folder.
+4. If macOS Gatekeeper blocks the app from running, remove the quarantine attribute and self-sign it:
    ```bash
    # Remove the quarantine attribute
    xattr -cr /Applications/Udemy\ Offline\ Player.app
@@ -90,7 +113,7 @@ To package and run the application as a standalone desktop app on macOS:
    # Self-sign the application
    codesign --force --deep --sign - /Applications/Udemy\ Offline\ Player.app
    ```
-4. Launch the application normally from Applications or Launchpad.
+5. Launch the application normally from Applications or Launchpad.
 
 ---
 

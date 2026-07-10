@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const os = require('os');
 const { scanCourseFolder } = require('./scanner');
 const { parseSubtitleCues } = require('./lib/subtitle');
+const { getFfmpegPath, getFfprobePath } = require('./lib/ffmpeg-path');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -435,7 +436,7 @@ function cleanupCourseCache(coursePath) {
  */
 function probeCodecs(filePath) {
   try {
-    const output = execFileSync('ffprobe', [
+    const output = execFileSync(getFfprobePath(), [
       '-v', 'error',
       '-show_entries', 'stream=codec_name,codec_type',
       '-of', 'json',
@@ -463,7 +464,7 @@ function probeCodecs(filePath) {
  * Always passes -y to overwrite existing files.
  */
 function runFfmpeg(inputPath, args, destPath) {
-  execFileSync('ffmpeg', ['-y', '-i', inputPath, ...args, destPath], { stdio: 'inherit' });
+  execFileSync(getFfmpegPath(), ['-y', '-i', inputPath, ...args, destPath], { stdio: 'inherit' });
 }
 
 function ensureMp4Cached(mkvPath) {
