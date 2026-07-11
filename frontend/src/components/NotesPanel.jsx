@@ -178,7 +178,7 @@ export default function NotesPanel({
         if (data.summary) {
           setSummary(data.summary);
         } else if (autoCreateSummary && hasApiKey) {
-          generateSummaryRef.current(autoCreateSummaryLang);
+          await generateSummaryRef.current(autoCreateSummaryLang);
         }
       }
     } catch (e) {
