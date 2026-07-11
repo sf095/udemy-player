@@ -946,6 +946,7 @@ export default function App() {
                   />
                 ) : activeTab === 'video' && activeLesson.video ? (
                   <VideoPlayer
+                    key={activeLesson.video}
                     videoPath={activeLesson.video}
                     subtitles={activeLesson.subtitles}
                     initialTime={activeLessonProgress.watchTime || 0}

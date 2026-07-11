@@ -184,7 +184,7 @@ export default function VideoPlayer({
   const [contextMenu, setContextMenu] = useState(null);
   const [confirmReTranslate, setConfirmReTranslate] = useState(null);
 
-  const [localCurrentTime, setLocalCurrentTime] = useState(0);
+  const [localCurrentTime, setLocalCurrentTime] = useState(initialTime || 0);
   const [localDuration, setLocalDuration] = useState(0);
   const [volume, setVolume] = useState(() => {
     const saved = localStorage.getItem('udemy-player-volume');
