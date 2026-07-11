@@ -798,14 +798,6 @@ export default function VideoPlayer({
 
   const hasSeekedRef = React.useRef(false);
 
-  // Reset states when the video file changes
-  useEffect(() => {
-    hasSeekedRef.current = false;
-    setShowAutoplayOverlay(false);
-    setCountdown(5);
-    setShowChaptersList(false);
-  }, [videoPath]);
-
   // Stable ref for the play-next callback to avoid effect re-runs
   const onPlayNextLessonRef = useRef(onPlayNextLesson);
   onPlayNextLessonRef.current = onPlayNextLesson;

@@ -122,6 +122,7 @@ export default function NotesPanel({
 
   // Guard against stale async calls when lesson/lang changes mid-request
   const summaryGenIdRef = useRef(0);
+  const cacheGenIdRef = useRef(0);
 
   // Summary action handlers
   const generateSummary = useCallback(async (lang = (autoCreateSummaryLang || effectiveSummaryLang || activeLang)) => {
@@ -164,6 +165,7 @@ export default function NotesPanel({
     if (!subtitlePath) return;
 
     const langCode = effectiveSummaryLang || activeLang;
+    const cacheId = ++cacheGenIdRef.current;
 
     setSummaryLoading(true);
     setSummaryError(null);
@@ -174,6 +176,7 @@ export default function NotesPanel({
         body: JSON.stringify({ subtitlePath, langCode, checkCacheOnly: true })
       });
       const data = await response.json();
+      if (cacheId !== cacheGenIdRef.current) return; // stale request
       if (data.success) {
         if (data.summary) {
           setSummary(data.summary);
@@ -182,9 +185,12 @@ export default function NotesPanel({
         }
       }
     } catch (e) {
+      if (cacheId !== cacheGenIdRef.current) return; // stale request
       console.error('Error checking summary cache:', e);
     } finally {
-      setSummaryLoading(false);
+      if (cacheId === cacheGenIdRef.current) {
+        setSummaryLoading(false);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLesson, activeLang, effectiveSummaryLang, autoCreateSummary, autoCreateSummaryLang, hasApiKey]);
