@@ -214,6 +214,8 @@ export default function VideoPlayer({
 
   const timelineContainerRef = useRef(null);
   const thumbnailVideoRef = useRef(null);
+  const wasPlayingRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
   const getBackendOrigin = () => {
     if (window.location.port === '3002') {
@@ -229,7 +231,7 @@ export default function VideoPlayer({
 
   // Debounced/throttled update of the thumbnail preview currentTime
   useEffect(() => {
-    if (!hoverInfo || !thumbnailVideoRef.current) return;
+    if (!hoverInfo || isDraggingRef.current || !thumbnailVideoRef.current) return;
 
     const targetTime = hoverInfo.time;
     const videoEl = thumbnailVideoRef.current;
@@ -541,7 +543,11 @@ export default function VideoPlayer({
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      isDraggingRef.current = false;
       setDragTime(null);
+      if (playerRef.current && wasPlayingRef.current) {
+        playerRef.current.play().catch(() => {});
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -555,6 +561,13 @@ export default function VideoPlayer({
   // Timeline drag start
   const handleTimelineMouseDown = (e) => {
     if (!localDuration) return;
+
+    if (playerRef.current) {
+      wasPlayingRef.current = !playerRef.current.paused;
+      playerRef.current.pause();
+    }
+
+    isDraggingRef.current = true;
     setIsDragging(true);
     const newTime = calculateTimeFromEvent(e);
     setDragTime(newTime);
@@ -850,6 +863,14 @@ export default function VideoPlayer({
     const video = playerRef.current;
     if (!video) return;
 
+    // Prevent browser from resetting playback rate on seek/state change
+    const handleRateChange = () => {
+      if (video.playbackRate !== speed) {
+        video.playbackRate = speed;
+      }
+    };
+    video.addEventListener('ratechange', handleRateChange);
+
     // Keep speed constant across source changes
     video.playbackRate = speed;
     video.volume = volume;
@@ -918,6 +939,7 @@ export default function VideoPlayer({
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('volumechange', handleVolumeChange);
+      video.removeEventListener('ratechange', handleRateChange);
     };
   }, [videoPath, initialTime, autoplayEnabled, hasNextLesson, speed, onPlay, onPause]);
 
@@ -1258,7 +1280,7 @@ export default function VideoPlayer({
           {/* Hover Tooltip — persisted in DOM so the thumbnail <video> keeps its loaded state
               across show/hide cycles; key={videoPath} forces remount when the source video changes */}
           <div
-            className={`timeline-tooltip${hoverInfo ? '' : ' timeline-tooltip--hidden'}`}
+            className={`timeline-tooltip${(hoverInfo && !isDragging) ? '' : ' timeline-tooltip--hidden'}`}
             style={{ left: `${hoverInfo ? hoverInfo.left : 0}px` }}
           >
             <div className="timeline-tooltip-thumbnail-wrapper">
