@@ -664,15 +664,25 @@ export default function VideoPlayer({
       }];
     }
     
+    // Filter out chapters that are at or after localDuration
+    const validChapters = chapters.filter(ch => ch.time < localDuration);
+    if (validChapters.length === 0) {
+      return [{
+        start: 0,
+        end: localDuration,
+        title: 'Video'
+      }];
+    }
+    
     const result = [];
-    for (let i = 0; i < chapters.length; i++) {
-      const start = chapters[i].time;
-      const end = (i === chapters.length - 1) ? localDuration : chapters[i + 1].time;
+    for (let i = 0; i < validChapters.length; i++) {
+      const start = Math.max(0, validChapters[i].time);
+      const end = (i === validChapters.length - 1) ? localDuration : validChapters[i + 1].time;
       const clampedEnd = Math.min(localDuration, Math.max(start, end));
       result.push({
         start,
         end: clampedEnd,
-        title: chapters[i].title
+        title: validChapters[i].title
       });
     }
     return result;

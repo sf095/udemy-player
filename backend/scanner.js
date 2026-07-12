@@ -336,4 +336,4 @@ function scanCourseFolder(coursePath) {
   return sections;
 }
 
-module.exports = { scanCourseFolder };
+module.exports = { scanCourseFolder, getVideoDuration };

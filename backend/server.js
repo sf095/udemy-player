@@ -7,7 +7,7 @@ const { exec, execFileSync } = require('child_process');
 require('./lib/path-env');
 const crypto = require('crypto');
 const os = require('os');
-const { scanCourseFolder } = require('./scanner');
+const { scanCourseFolder, getVideoDuration } = require('./scanner');
 const { parseSubtitleCues } = require('./lib/subtitle');
 const { getFfmpegPath, getFfprobePath } = require('./lib/ffmpeg-path');
 
@@ -1279,7 +1279,7 @@ app.post('/api/chapters/regenerate', async (req, res) => {
   const chaptersPath = path.join(dir, `${base}.chapters.json`);
 
   try {
-    const chapters = await generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, language);
+    const chapters = await generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, language, videoPath);
     res.json({ success: true, chapters });
   } catch (err) {
     console.error('Failed to regenerate chapters:', err);
@@ -1288,7 +1288,7 @@ app.post('/api/chapters/regenerate', async (req, res) => {
 });
 
 // Helper function to generate chapters using Gemini
-async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, language) {
+async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, language, videoPath) {
   const db = readDb();
   const config = getAiConfig(db);
 
@@ -1303,13 +1303,23 @@ async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, lan
     throw new Error('No subtitle cues found.');
   }
 
+  let videoDuration = null;
+  if (videoPath) {
+    try {
+      videoDuration = getVideoDuration(videoPath);
+      console.log(`Resolved video duration: ${videoDuration}s`);
+    } catch (err) {
+      console.error('Failed to resolve video duration:', err);
+    }
+  }
+
   // Create simplified transcript list
   let simpleTranscript = cues
     .map(c => {
       const minutes = Math.floor(c.start / 60);
       const seconds = Math.floor(c.start % 60);
       const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-      return `[${timeStr}] ${c.text}`;
+      return `[${timeStr} (${Math.floor(c.start)}s)] ${c.text}`;
     })
     .join('\n');
 
@@ -1324,7 +1334,7 @@ async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, lan
         const minutes = Math.floor(c.start / 60);
         const seconds = Math.floor(c.start % 60);
         const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        return `[${timeStr}] ${c.text}`;
+        return `[${timeStr} (${Math.floor(c.start)}s)] ${c.text}`;
       })
       .join('\n');
   }
@@ -1333,9 +1343,15 @@ async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, lan
   
   // Resolve language code to name (e.g., 'en' → 'English'), fall back to raw value for backward compat
   const targetLanguage = (language && SUPPORTED_SUMMARY_LANGUAGES[language.toLowerCase()]) || language || 'English';
+  
+  const durationConstraint = videoDuration 
+    ? `The total duration of the video is ${videoDuration} seconds. All chapter starting timestamps MUST be strictly less than ${videoDuration} seconds.` 
+    : '';
+
   const prompt = `Analyze the following video transcript to divide the video into logical chapters/topics (usually 3 to 8 chapters depending on video length and density of content).
-For each chapter, provide the starting timestamp in seconds (integer) and a brief, descriptive title (maximum 80 characters) written in ${targetLanguage}.
+For each chapter, provide the starting timestamp in seconds as an integer (use the exact seconds integer from the transcript timestamps, e.g. 125 from [02:05 (125s)]) and a brief, descriptive title (maximum 80 characters) written in ${targetLanguage}.
 The first chapter MUST start at 0 seconds.
+${durationConstraint}
 
 Return a JSON array of objects with the exact schema:
 [
@@ -1380,6 +1396,22 @@ ${simpleTranscript}`;
 
   // Sort ascending by time
   chapters.sort((a, b) => a.time - b.time);
+
+  // Filter out chapters at or beyond video duration
+  if (videoDuration) {
+    chapters = chapters.filter(ch => ch.time < videoDuration);
+  }
+
+  // Deduplicate chapters by time
+  const uniqueChapters = [];
+  const seenTimes = new Set();
+  for (const ch of chapters) {
+    if (!seenTimes.has(ch.time)) {
+      seenTimes.add(ch.time);
+      uniqueChapters.push(ch);
+    }
+  }
+  chapters = uniqueChapters;
 
   // Ensure first chapter is at 0
   if (chapters.length === 0) {
