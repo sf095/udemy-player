@@ -66,7 +66,7 @@ export default function NotesPanel({
   autoCreateSummary = false,
   autoCreateSummaryLang = 'en'
 }) {
-  const [activeTab, setActiveTab] = useState('notes'); // 'notes' | 'summary' | 'chat'
+  const [activeTab, setActiveTab] = useState('summary'); // 'notes' | 'summary' | 'chat'
   const providerName = aiProvider === 'anthropic' ? 'Anthropic' : 'Gemini';
   
   // Notes states
@@ -335,28 +335,6 @@ export default function NotesPanel({
       {/* Right Sidebar Tabs */}
       <div className="panel-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-notes-tabs)' }}>
         <button
-          className={`panel-tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
-          onClick={() => setActiveTab('notes')}
-          style={{
-            flex: 1,
-            padding: '12px 6px',
-            border: 'none',
-            borderBottom: activeTab === 'notes' ? '2px solid var(--primary)' : '2px solid transparent',
-            background: 'transparent',
-            color: activeTab === 'notes' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'notes' ? 600 : 500,
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            transition: 'var(--transition-fast)'
-          }}
-        >
-          <BookOpen size={14} /> Notes ({notes.length})
-        </button>
-        <button
           className={`panel-tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
           onClick={() => setActiveTab('summary')}
           style={{
@@ -399,6 +377,28 @@ export default function NotesPanel({
           }}
         >
           <MessageSquare size={14} /> AI Chat
+        </button>
+        <button
+          className={`panel-tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('notes')}
+          style={{
+            flex: 1,
+            padding: '12px 6px',
+            border: 'none',
+            borderBottom: activeTab === 'notes' ? '2px solid var(--primary)' : '2px solid transparent',
+            background: 'transparent',
+            color: activeTab === 'notes' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: activeTab === 'notes' ? 600 : 500,
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            transition: 'var(--transition-fast)'
+          }}
+        >
+          <BookOpen size={14} /> Notes ({notes.length})
         </button>
       </div>
 
