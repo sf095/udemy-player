@@ -113,6 +113,7 @@ function getVideoDuration(filePath) {
   if (ext === '.mkv') {
     return getMkvDuration(filePath);
   }
+  console.warn(`Unsupported video format "${ext}" — cannot validate chapter timestamps against video duration`);
   return null;
 }
 

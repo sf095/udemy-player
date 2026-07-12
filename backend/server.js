@@ -1385,7 +1385,7 @@ ${simpleTranscript}`;
   }
 
   // Validate and clean chapters
-  chapters = chapters.map(ch => {
+  const cleaned = chapters.map(ch => {
     let t = parseInt(ch.time, 10);
     if (isNaN(t) || t < 0) t = 0;
     return {
@@ -1395,36 +1395,33 @@ ${simpleTranscript}`;
   });
 
   // Sort ascending by time
-  chapters.sort((a, b) => a.time - b.time);
+  cleaned.sort((a, b) => a.time - b.time);
 
   // Filter out chapters at or beyond video duration
-  if (videoDuration) {
-    chapters = chapters.filter(ch => ch.time < videoDuration);
-  }
+  const withinDuration = videoDuration
+    ? cleaned.filter(ch => ch.time < videoDuration)
+    : cleaned;
 
-  // Deduplicate chapters by time
-  const uniqueChapters = [];
+  // Deduplicate chapters by time (keep first occurrence)
   const seenTimes = new Set();
-  for (const ch of chapters) {
-    if (!seenTimes.has(ch.time)) {
-      seenTimes.add(ch.time);
-      uniqueChapters.push(ch);
-    }
-  }
-  chapters = uniqueChapters;
+  const deduped = withinDuration.filter(ch => {
+    if (seenTimes.has(ch.time)) return false;
+    seenTimes.add(ch.time);
+    return true;
+  });
 
   // Ensure first chapter is at 0
-  if (chapters.length === 0) {
-    chapters.push({ time: 0, title: 'Introduction' });
-  } else if (chapters[0].time !== 0) {
-    console.warn(`AI returned first chapter at ${chapters[0].time}s, forcing to 0. Title: "${chapters[0].title}"`);
-    chapters[0].time = 0;
+  if (deduped.length === 0) {
+    deduped.push({ time: 0, title: 'Introduction' });
+  } else if (deduped[0].time !== 0) {
+    console.warn(`AI returned first chapter at ${deduped[0].time}s, forcing to 0. Title: "${deduped[0].title}"`);
+    deduped[0].time = 0;
   }
 
   // Write to disk
-  await fs.promises.writeFile(chaptersPath, JSON.stringify(chapters, null, 2), 'utf8');
+  await fs.promises.writeFile(chaptersPath, JSON.stringify(deduped, null, 2), 'utf8');
 
-  return chapters;
+  return deduped;
 }
 
 // 15. Native Folder Dialog Browser

@@ -653,19 +653,15 @@ export default function VideoPlayer({
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
+  // Chapters within video duration (defense-in-depth; backend also enforces this)
+  const validChapters = useMemo(() => {
+    if (!chapters || !localDuration) return [];
+    return chapters.filter(ch => ch.time < localDuration);
+  }, [chapters, localDuration]);
+
   // Computed chapter segments
   const segments = useMemo(() => {
     if (!localDuration) return [];
-    if (!chapters || chapters.length === 0) {
-      return [{
-        start: 0,
-        end: localDuration,
-        title: 'Video'
-      }];
-    }
-    
-    // Filter out chapters that are at or after localDuration
-    const validChapters = chapters.filter(ch => ch.time < localDuration);
     if (validChapters.length === 0) {
       return [{
         start: 0,
@@ -673,10 +669,10 @@ export default function VideoPlayer({
         title: 'Video'
       }];
     }
-    
+
     const result = [];
     for (let i = 0; i < validChapters.length; i++) {
-      const start = Math.max(0, validChapters[i].time);
+      const start = validChapters[i].time;
       const end = (i === validChapters.length - 1) ? localDuration : validChapters[i + 1].time;
       const clampedEnd = Math.min(localDuration, Math.max(start, end));
       result.push({
@@ -686,19 +682,19 @@ export default function VideoPlayer({
       });
     }
     return result;
-  }, [chapters, localDuration]);
+  }, [validChapters, localDuration]);
 
   const activeTime = isDragging && dragTime !== null ? dragTime : localCurrentTime;
 
   const activeChapterIdx = useMemo(() => {
-    if (!chapters || chapters.length === 0) return -1;
-    for (let i = chapters.length - 1; i >= 0; i--) {
-      if (activeTime >= chapters[i].time) {
+    if (validChapters.length === 0) return -1;
+    for (let i = validChapters.length - 1; i >= 0; i--) {
+      if (activeTime >= validChapters[i].time) {
         return i;
       }
     }
     return 0;
-  }, [chapters, activeTime]);
+  }, [validChapters, activeTime]);
 
 
   const getSegmentFillRatio = (segment) => {
