@@ -17,8 +17,8 @@ We will modify the existing timeline tooltip in `VideoPlayer.jsx` to include a p
 graph TD
     MouseMove[timeline: onMouseMove] --> UpdateHover[setHoverInfo]
     UpdateHover --> Effect[useEffect: hoverInfo.time]
-    Effect --> Debounce[Debounce 50ms]
-    Debounce --> SeekVideo[Seek thumbnailVideoRef to time]
+    Effect --> Throttle[Throttle 150ms with trailing edge]
+    Throttle --> SeekVideo[Seek thumbnailVideoRef to time]
     SeekVideo --> Render[Browser decodes & displays frame]
 ```
 
@@ -30,14 +30,14 @@ graph TD
 
 2. **React Logic**:
    - Add `thumbnailVideoRef` to keep a reference to the thumbnail preview video.
-   - Implement a `useEffect` that listens to `hoverInfo?.time` and updates `thumbnailVideoRef.current.currentTime` with a debounce/throttle of 50ms.
+   - Implement a `useEffect` that listens to `hoverInfo?.time` and updates `thumbnailVideoRef.current.currentTime` with a throttle of 150ms and trailing-edge update.
    - Change the timeline tooltip rendering in JSX from conditional display (`{hoverInfo && ...}`) to a persistently mounted element utilizing `opacity` and `visibility` based on `hoverInfo`.
 
 ## Phase 3: Risks & Mitigations
 
 | Risk | Mitigation |
 | --- | --- |
-| Excessive seeking causes browser decoding lag or crashes. | Debounce/throttle seek requests in a `useEffect` hook by 50ms. Only perform seeks if the thumbnail video element exists and the target time has changed significantly. |
+| Excessive seeking causes browser decoding lag or crashes. | Throttle seek requests in a `useEffect` hook to at most once per 150ms. Only perform seeks if the thumbnail video element exists and the target time has changed significantly. |
 | Video load overhead on player mount. | Set `preload="auto"` and `muted` so the browser loads metadata efficiently. The browser will cache metadata and segments because the main video and thumbnail video share the exact same video URL. |
 | Tooltip overflows the left/right screen bounds. | The existing tooltip positioning logic is already handled; we will ensure the thumbnail fits neatly within it. |
 
@@ -48,6 +48,6 @@ graph TD
   - Verify that when hovered, the preview container appears above the timeline cursor.
 - **Checkpoint 2 (Thumbnail Seeking)**:
   - Verify that hovering on a specific timeline position seeks the preview video to that exact point.
-  - Verify that moving the cursor rapidly updates the preview with a tiny debounced delay (50ms), preventing decoding freeze or lag.
+  - Verify that moving the cursor rapidly updates the preview at a throttled rate (at most once per 150ms), preventing decoding freeze or lag.
 - **Checkpoint 3 (UX & Aesthetics)**:
   - Verify the thumbnail aspect ratio remains consistent (16:9) and fits neatly into the existing player design system.

@@ -216,6 +216,8 @@ export default function VideoPlayer({
   const thumbnailVideoRef = useRef(null);
   const wasPlayingRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const lastSeekTimeRef = useRef(0);
+  const pendingSeekTimeoutRef = useRef(null);
 
   const getBackendOrigin = () => {
     if (window.location.port === '3002') {
@@ -229,18 +231,31 @@ export default function VideoPlayer({
   const primarySubtitlePath = subtitles?.[activeLang];
   const secondarySubtitlePath = secondaryLang ? subtitles?.[secondaryLang] : null;
 
-  // Debounced/throttled update of the thumbnail preview currentTime
+  // Reset lastSeekTimeRef when video source changes
+  useEffect(() => {
+    lastSeekTimeRef.current = 0;
+  }, [videoSrc]);
+
+  // Throttled update of the thumbnail preview currentTime (with trailing-edge update)
   useEffect(() => {
     if (!hoverInfo || isDraggingRef.current || !thumbnailVideoRef.current) return;
 
     const targetTime = hoverInfo.time;
     const videoEl = thumbnailVideoRef.current;
+    const now = Date.now();
+    const throttleMs = 150;
 
-    const timeoutId = setTimeout(() => {
+    if (pendingSeekTimeoutRef.current) {
+      clearTimeout(pendingSeekTimeoutRef.current);
+      pendingSeekTimeoutRef.current = null;
+    }
+
+    const performSeek = () => {
       if (videoEl) {
         try {
           if (Math.abs(videoEl.currentTime - targetTime) > 0.1) {
             videoEl.currentTime = targetTime;
+            lastSeekTimeRef.current = Date.now();
           }
         } catch (err) {
           if (process.env.NODE_ENV === 'development') {
@@ -248,12 +263,21 @@ export default function VideoPlayer({
           }
         }
       }
-    }, 50);
+    };
+
+    const timeSinceLastSeek = now - lastSeekTimeRef.current;
+    if (timeSinceLastSeek >= throttleMs) {
+      performSeek();
+    } else {
+      pendingSeekTimeoutRef.current = setTimeout(performSeek, throttleMs - timeSinceLastSeek);
+    }
 
     return () => {
-      clearTimeout(timeoutId);
+      if (pendingSeekTimeoutRef.current) {
+        clearTimeout(pendingSeekTimeoutRef.current);
+      }
     };
-  }, [hoverInfo?.time, videoSrc]);
+  }, [hoverInfo, videoSrc]);
 
   useKeyboardShortcuts([
     {

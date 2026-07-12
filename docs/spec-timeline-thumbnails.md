@@ -19,7 +19,7 @@ We will modify the following files:
 
 ## Code Style
 The preview thumbnail will be added to the `.timeline-tooltip` element.
-We will use a `useRef` to target the thumbnail video element and update its `currentTime` dynamically to prevent full component renders. A simple debounce timeout will prevent overloading the browser decoder during rapid mouse movements.
+We will use `useRef` to target the thumbnail video element and track seeking state (last seek timestamp and pending timeout). Instead of a pure debounce, we will use a throttle mechanism to seek the thumbnail at regular intervals (e.g. 150ms) during active mouse movement, followed by a final seek (trailing-edge) when the movement stops.
 
 Example:
 ```jsx
@@ -61,7 +61,7 @@ Example:
 ## Success Criteria
 - Hovering over the timeline displays a 160x90px preview thumbnail.
 - The thumbnail dynamically updates its frame to match the hovered time position.
-- Rapid hovering/scrubbing is debounced/throttled to keep playback smooth and prevent crashes.
+- Rapid hovering triggers thumbnail updates at a throttled rate (at most once per 150ms) while moving, and updates immediately once hovering stops.
 - The preview matches the dark-themed UI and scales correctly inside the tooltip.
 
 ## Open Questions

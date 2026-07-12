@@ -21,3 +21,8 @@
   - Acceptance: Hover previews update smoothly without console errors or UI lag. Previews work correctly when switching lessons or course videos.
   - Verify: Run the dev environment and manually verify the timeline preview feature.
   - Files: [VideoPlayer.jsx](file:///Users/hientranthanh/Downloads/sources/udemy-player/frontend/src/components/VideoPlayer.jsx), [index.css](file:///Users/hientranthanh/Downloads/sources/udemy-player/frontend/src/index.css)
+
+- [x] Task 5: Fix hover thumbnail seeking behavior using throttle mechanism
+  - Acceptance: Refactor the timeline tooltip seek logic to seek the thumbnail video at most once every 150ms during active hover, followed by a trailing-edge update once movement stops.
+  - Verify: Run dev and hover along the timeline, ensuring the preview frame updates dynamically as the mouse moves, and shows the final correct frame when stationary.
+  - Files: [VideoPlayer.jsx](file:///Users/hientranthanh/Downloads/sources/udemy-player/frontend/src/components/VideoPlayer.jsx)
