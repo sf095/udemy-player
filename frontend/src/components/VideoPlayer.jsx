@@ -489,7 +489,7 @@ export default function VideoPlayer({
     
     const fetchChapters = async () => {
       try {
-        const subtitlePath = primarySubtitlePath || '';
+        const subtitlePath = primarySubtitlePath || (subtitles ? Object.values(subtitles)[0] : '');
         const response = await fetch(`${backendOrigin}/api/chapters?videoPath=${encodeURIComponent(videoPath)}&subtitlePath=${encodeURIComponent(subtitlePath)}`);
         const data = await response.json();
         if (isCancelled) return;
@@ -636,7 +636,7 @@ export default function VideoPlayer({
     setLoadingChapters(true);
     setChaptersError(null);
     try {
-      const subtitlePath = primarySubtitlePath || '';
+      const subtitlePath = primarySubtitlePath || (subtitles ? Object.values(subtitles)[0] : '');
       const response = await fetch(`${backendOrigin}/api/chapters/regenerate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

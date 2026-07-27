@@ -1055,7 +1055,12 @@ app.post('/api/summarize-lesson', async (req, res) => {
   const targetLanguageName = SUPPORTED_SUMMARY_LANGUAGES[langLower];
 
   try {
-    const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
+    let subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
+    const MAX_SUMMARY_TRANSCRIPT_CHARS = 400000;
+    if (subtitleContent.length > MAX_SUMMARY_TRANSCRIPT_CHARS) {
+      console.warn(`Summary transcript is ${subtitleContent.length} chars, truncating to ${MAX_SUMMARY_TRANSCRIPT_CHARS} chars`);
+      subtitleContent = subtitleContent.substring(0, MAX_SUMMARY_TRANSCRIPT_CHARS);
+    }
 
     const prompt = `You are an expert offline learning assistant.
 Below is the subtitle transcript of a video lesson.
@@ -1073,7 +1078,7 @@ ${subtitleContent}`;
     let summaryText = await callAiProvider(config, prompt);
 
     // Clean up markdown block if the model returned it
-    summaryText = summaryText.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '');
+    summaryText = summaryText.replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/g, '').trim();
 
     // Save summary file next to subtitle
     fs.writeFileSync(outPath, summaryText, 'utf8');
@@ -1180,7 +1185,7 @@ function parseTimestampToSeconds(timeStr) {
 
   const secondsParts = secondsWithMs.split('.');
   const seconds = parseInt(secondsParts[0], 10);
-  const ms = secondsParts.length > 1 ? parseInt(secondsParts[1].padEnd(3, '0'), 10) : 0;
+  const ms = secondsParts.length > 1 ? parseInt(secondsParts[1].slice(0, 3).padEnd(3, '0'), 10) : 0;
 
   if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) || isNaN(ms)) return NaN;
 
@@ -1370,11 +1375,16 @@ ${simpleTranscript}`;
     maxTokens: 2048
   });
 
-  reply = reply.replace(/^```[a-z]*\n/i, '').replace(/\n```$/, '').trim();
+  let replyClean = reply.trim();
+  replyClean = replyClean.replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/g, '').trim();
+  const jsonArrayMatch = replyClean.match(/\[[\s\S]*\]/);
+  if (jsonArrayMatch) {
+    replyClean = jsonArrayMatch[0];
+  }
   
   let chapters;
   try {
-    chapters = JSON.parse(reply);
+    chapters = JSON.parse(replyClean);
   } catch (e) {
     console.error('Failed to parse AI chapters JSON:', reply);
     throw new Error('AI returned invalid JSON: ' + e.message);

@@ -126,7 +126,7 @@ export default function NotesPanel({
 
   // Summary action handlers
   const generateSummary = useCallback(async (lang = (autoCreateSummaryLang || effectiveSummaryLang || activeLang)) => {
-    const subtitlePath = activeLesson?.subtitles?.[activeLang];
+    const subtitlePath = activeLesson?.subtitles?.[activeLang] || (activeLesson?.subtitles ? Object.values(activeLesson.subtitles)[0] : null);
     if (!subtitlePath) return;
 
     const genId = ++summaryGenIdRef.current;
@@ -161,7 +161,7 @@ export default function NotesPanel({
   generateSummaryRef.current = generateSummary;
 
   const checkSummaryCache = useCallback(async () => {
-    const subtitlePath = activeLesson?.subtitles?.[activeLang];
+    const subtitlePath = activeLesson?.subtitles?.[activeLang] || (activeLesson?.subtitles ? Object.values(activeLesson.subtitles)[0] : null);
     if (!subtitlePath) return;
 
     const langCode = effectiveSummaryLang || activeLang;
@@ -250,7 +250,7 @@ export default function NotesPanel({
 
 
   const clearSummaryCache = async () => {
-    const subtitlePath = activeLesson?.subtitles?.[activeLang];
+    const subtitlePath = activeLesson?.subtitles?.[activeLang] || (activeLesson?.subtitles ? Object.values(activeLesson.subtitles)[0] : null);
     if (!subtitlePath) return;
 
     const langCode = effectiveSummaryLang || activeLang;
