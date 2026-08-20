@@ -520,6 +520,27 @@ body {
   margin-top: 2px;
 }
 
+.section-summary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  margin-right: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+}
+
+.section-summary-btn:hover,
+.section-summary-btn:focus-visible {
+  color: var(--primary);
+  background: var(--bg-hover);
+}
+
 .section-lessons {
   border-top: 1px solid var(--border-color);
   padding: 4px;
@@ -1138,11 +1159,13 @@ video::-webkit-media-text-track-container {
   width: 100vw;
   height: 100vh;
   background: var(--bg-modal-overlay);
-  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  /* Promote to its own compositor layer so child scrolling does not trigger
+     main-thread repaints that flash the app behind the overlay. */
+  transform: translateZ(0);
   transition: background-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 

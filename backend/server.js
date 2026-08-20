@@ -71,6 +71,20 @@ function readDb() {
     // Merge defaults to backfill any missing settings fields
     parsed.settings = { ...DEFAULT_SETTINGS, ...parsed.settings };
 
+    // Sanitize language codes if stored as full language names
+    if (parsed.settings.autoCreateTimelineLang && parsed.settings.autoCreateTimelineLang.length > 2) {
+      const code = Object.keys(SUPPORTED_SUMMARY_LANGUAGES).find(
+        k => SUPPORTED_SUMMARY_LANGUAGES[k].toLowerCase() === parsed.settings.autoCreateTimelineLang.toLowerCase()
+      );
+      parsed.settings.autoCreateTimelineLang = code || DEFAULT_SETTINGS.autoCreateTimelineLang;
+    }
+    if (parsed.settings.autoCreateSummaryLang && parsed.settings.autoCreateSummaryLang.length > 2) {
+      const code = Object.keys(SUPPORTED_SUMMARY_LANGUAGES).find(
+        k => SUPPORTED_SUMMARY_LANGUAGES[k].toLowerCase() === parsed.settings.autoCreateSummaryLang.toLowerCase()
+      );
+      parsed.settings.autoCreateSummaryLang = code || DEFAULT_SETTINGS.autoCreateSummaryLang;
+    }
+
     // Ensure activeCoursePath exists on disk
     if (parsed.activeCoursePath && !fs.existsSync(parsed.activeCoursePath)) {
       parsed.activeCoursePath = '';
@@ -1123,6 +1137,174 @@ app.post('/api/clear-summary', (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Helper to extract clean plain text from subtitle file
+function getCleanSubtitleText(filePath) {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const cues = parseSubtitleContentToCues(raw);
+    if (cues.length > 0) {
+      return cues.map(c => c.text).join(' ');
+    }
+    return raw
+      .replace(/WEBVTT[^\n]*/g, '')
+      .replace(/\d{2}:\d{2}:\d{2}[\.,]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[\.,]\d{3}/g, '')
+      .replace(/<[^>]*>/g, '')
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !/^\d+$/.test(l))
+      .join(' ');
+  } catch (err) {
+    console.warn(`Failed to read subtitle file at ${filePath}:`, err);
+    return '';
+  }
+}
+
+// 13a. Summarize Section (Chapter) based on subtitles of all lessons in section
+app.post('/api/summarize-section', async (req, res) => {
+  const { sectionPath, langCode } = req.body;
+  if (!sectionPath || !langCode) {
+    return res.status(400).json({ error: 'sectionPath and langCode are required' });
+  }
+
+  const langLower = langCode.toLowerCase();
+  if (!SUPPORTED_SUMMARY_LANGUAGES[langLower]) {
+    return res.status(400).json({ error: `Unsupported summary language: ${langCode}` });
+  }
+
+  if (!validateSubtitlePath(sectionPath)) {
+    return res.status(403).json({ error: 'Path traversal denied' });
+  }
+
+  if (!fs.existsSync(sectionPath)) {
+    return res.status(404).json({ error: `Section directory not found: ${sectionPath}` });
+  }
+
+  const outPath = path.join(sectionPath, `section.summary.${langLower}.txt`);
+
+  // Check cache first
+  if (fs.existsSync(outPath)) {
+    try {
+      const summaryContent = fs.readFileSync(outPath, 'utf8');
+      return res.json({ success: true, summary: summaryContent, cached: true });
+    } catch (e) {
+      console.error('Error reading cached section summary', e);
+    }
+  }
+
+  if (req.body.checkCacheOnly) {
+    return res.json({ success: true, summary: null, cached: false });
+  }
+
+  const db = readDb();
+  const config = getAiConfig(db);
+
+  if (!config.apiKey) {
+    const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
+    return res.status(400).json({ error: errorMsg });
+  }
+
+  try {
+    const lessons = Array.isArray(req.body.lessons) ? req.body.lessons : [];
+
+    let lessonTranscripts = [];
+
+    if (lessons.length > 0) {
+      for (const lesson of lessons) {
+        const subPath = lesson.subtitles?.[langLower]
+          || lesson.subtitle
+          || (lesson.subtitles ? Object.values(lesson.subtitles)[0] : null);
+
+        // Subtitle paths arrive from the client — re-validate against path traversal.
+        if (subPath && validateSubtitlePath(subPath) && fs.existsSync(subPath)) {
+          const cleanText = getCleanSubtitleText(subPath);
+          if (cleanText.trim()) {
+            lessonTranscripts.push(`### Lesson: ${lesson.title}\n${cleanText.trim()}`);
+          }
+        }
+      }
+    } else {
+      // Fallback: read subtitle files directly from the section directory.
+      const files = fs.readdirSync(sectionPath);
+      const subFiles = files.filter(f => (f.endsWith('.srt') || f.endsWith('.vtt')) && !f.includes('.summary.'));
+      for (const f of subFiles) {
+        const fullP = path.join(sectionPath, f);
+        const cleanText = getCleanSubtitleText(fullP);
+        if (cleanText.trim()) {
+          lessonTranscripts.push(`### Subtitle: ${f}\n${cleanText.trim()}`);
+        }
+      }
+    }
+
+    if (lessonTranscripts.length === 0) {
+      return res.status(400).json({ error: 'No subtitle files found for lessons in this section.' });
+    }
+
+    let combinedTranscript = lessonTranscripts.join('\n\n');
+    const MAX_SUMMARY_TRANSCRIPT_CHARS = 400000;
+    if (combinedTranscript.length > MAX_SUMMARY_TRANSCRIPT_CHARS) {
+      console.warn(`Section summary transcript is ${combinedTranscript.length} chars, truncating to ${MAX_SUMMARY_TRANSCRIPT_CHARS} chars`);
+      combinedTranscript = combinedTranscript.substring(0, MAX_SUMMARY_TRANSCRIPT_CHARS);
+    }
+
+    const targetLanguageName = SUPPORTED_SUMMARY_LANGUAGES[langLower];
+    const prompt = `You are an expert offline learning assistant.
+Below are the combined subtitle transcripts of all lessons in an entire course chapter/section.
+Please write a comprehensive, well-structured summary of this whole chapter.
+The summary must:
+- Start with an Executive Overview of what this chapter covers and key takeaways.
+- Provide a detailed breakdown of core concepts and topics presented across the lessons.
+- Include actionable insights, important code/commands/formulas if applicable.
+- Be formatted in clean, beautiful Markdown (using headers, bullet points, bold text).
+- Be written in the target language: ${targetLanguageName}.
+- Do NOT include any meta-commentary, explanations, introductory text, or markdown code blocks (like \`\`\`markdown). Return ONLY the direct summary content.
+
+[Chapter Transcripts]:
+${combinedTranscript}`;
+
+    console.log(`Calling ${config.providerName} API for chapter summary in ${targetLanguageName}...`);
+    let summaryText = await callAiProvider(config, prompt);
+
+    summaryText = summaryText.replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/g, '').trim();
+
+    fs.writeFileSync(outPath, summaryText, 'utf8');
+
+    res.json({ success: true, summary: summaryText, cached: false });
+  } catch (error) {
+    console.error('Section summarization error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 13b. Clear Section Summary Cache
+app.post('/api/clear-section-summary', (req, res) => {
+  const { sectionPath, langCode } = req.body;
+  if (!sectionPath || !langCode) {
+    return res.status(400).json({ error: 'sectionPath and langCode are required' });
+  }
+
+  const langLower = langCode.toLowerCase();
+  if (!SUPPORTED_SUMMARY_LANGUAGES[langLower]) {
+    return res.status(400).json({ error: `Unsupported summary language: ${langCode}` });
+  }
+
+  if (!validateSubtitlePath(sectionPath)) {
+    return res.status(403).json({ error: 'Path traversal denied' });
+  }
+
+  try {
+    const outPath = path.join(sectionPath, `section.summary.${langLower}.txt`);
+
+    if (fs.existsSync(outPath)) {
+      fs.unlinkSync(outPath);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing section summary file:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // 14. Chat about lesson based on subtitle file
 app.post('/api/chat-lesson', async (req, res) => {

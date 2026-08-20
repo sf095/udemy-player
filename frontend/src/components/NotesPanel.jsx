@@ -1,48 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle } from 'lucide-react';
+import { renderMarkdown } from './markdown';
+import { SUMMARY_LANGUAGES } from '../languages';
 
 function formatTime(seconds) {
   if (isNaN(seconds) || seconds === null) return '0:00';
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  
+
   if (hrs > 0) {
     return `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   }
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-}
-
-function formatInlineStyles(text) {
-  const parts = text.split(/\*\*([^*]+)\*\*/g);
-  if (parts.length > 1) {
-    return parts.map((part, i) => i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)' }}>{part}</strong> : part);
-  }
-  return text;
-}
-
-function renderMarkdown(text) {
-  if (!text) return null;
-  const lines = text.split('\n');
-  return lines.map((line, idx) => {
-    if (line.startsWith('### ')) {
-      return <h4 key={idx} style={{ marginTop: '12px', marginBottom: '6px', color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 600 }}>{line.substring(4)}</h4>;
-    }
-    if (line.startsWith('## ')) {
-      return <h3 key={idx} style={{ marginTop: '16px', marginBottom: '8px', color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: 600 }}>{line.substring(3)}</h3>;
-    }
-    if (line.startsWith('# ')) {
-      return <h2 key={idx} style={{ marginTop: '18px', marginBottom: '10px', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 600 }}>{line.substring(2)}</h2>;
-    }
-    if (line.startsWith('- ') || line.startsWith('* ')) {
-      const content = line.substring(2);
-      return <li key={idx} style={{ marginLeft: '16px', marginBottom: '4px', listStyleType: 'disc', fontSize: '0.85rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>{formatInlineStyles(content)}</li>;
-    }
-    if (line.trim() === '') {
-      return <div key={idx} style={{ height: '8px' }} />;
-    }
-    return <p key={idx} style={{ marginBottom: '8px', fontSize: '0.85rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>{formatInlineStyles(line)}</p>;
-  });
 }
 
 export default function NotesPanel({
@@ -96,22 +66,6 @@ export default function NotesPanel({
   // recreates with the new langCode, and the reset effect calls the fresh callback.
   const effectiveSummaryLang = summaryLang || activeLang;
 
-  const SUMMARY_LANGUAGES = {
-    vi: 'Vietnamese',
-    ja: 'Japanese',
-    zh: 'Chinese',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-    ko: 'Korean',
-    ru: 'Russian',
-    ar: 'Arabic',
-    pt: 'Portuguese',
-    en: 'English',
-    id: 'Indonesian',
-    it: 'Italian'
-  };
-
   useEffect(() => {
     if (activeTab === 'chat') {
       requestAnimationFrame(() => {
@@ -125,7 +79,7 @@ export default function NotesPanel({
   const cacheGenIdRef = useRef(0);
 
   // Summary action handlers
-  const generateSummary = useCallback(async (lang = (autoCreateSummaryLang || effectiveSummaryLang || activeLang)) => {
+  const generateSummary = useCallback(async (lang = (effectiveSummaryLang || autoCreateSummaryLang || activeLang)) => {
     const subtitlePath = activeLesson?.subtitles?.[activeLang] || (activeLesson?.subtitles ? Object.values(activeLesson.subtitles)[0] : null);
     if (!subtitlePath) return;
 
@@ -164,7 +118,11 @@ export default function NotesPanel({
     const subtitlePath = activeLesson?.subtitles?.[activeLang] || (activeLesson?.subtitles ? Object.values(activeLesson.subtitles)[0] : null);
     if (!subtitlePath) return;
 
-    const langCode = effectiveSummaryLang || activeLang;
+    // When auto-creating, honor the configured autoCreateSummaryLang; otherwise
+    // fall back to the display language (manual choice, then subtitle language).
+    const langCode = autoCreateSummary
+      ? (summaryLang || autoCreateSummaryLang || activeLang)
+      : (summaryLang || activeLang);
     const cacheId = ++cacheGenIdRef.current;
 
     setSummaryLoading(true);
@@ -181,7 +139,7 @@ export default function NotesPanel({
         if (data.summary) {
           setSummary(data.summary);
         } else if (autoCreateSummary && hasApiKey) {
-          await generateSummaryRef.current(autoCreateSummaryLang);
+          await generateSummaryRef.current(langCode);
         }
       }
     } catch (e) {
@@ -193,7 +151,7 @@ export default function NotesPanel({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLesson, activeLang, effectiveSummaryLang, autoCreateSummary, autoCreateSummaryLang, hasApiKey]);
+  }, [activeLesson, activeLang, summaryLang, effectiveSummaryLang, autoCreateSummary, autoCreateSummaryLang, hasApiKey]);
 
   // Reset state when lesson or language changes
   useEffect(() => {
@@ -265,10 +223,12 @@ export default function NotesPanel({
       const data = await response.json();
       if (data.success) {
         setSummary('');
+        await generateSummary(langCode);
+      } else {
+        setSummaryLoading(false);
       }
     } catch (e) {
       console.error('Error clearing summary:', e);
-    } finally {
       setSummaryLoading(false);
     }
   };

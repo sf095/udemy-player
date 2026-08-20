@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File, HelpCircle, Paperclip } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File, HelpCircle, Paperclip, Sparkles } from 'lucide-react';
 
 // Helper to format duration in MM:SS or H:MM:SS
 function formatDuration(seconds) {
@@ -32,7 +32,7 @@ function formatFriendlyDuration(totalSeconds) {
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
-export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete, onResizeStart, onResizeReset }) {
+export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete, onResizeStart, onResizeReset, onOpenSectionSummary }) {
   const [expandedSections, setExpandedSections] = useState({});
 
   const toggleSection = (secId) => {
@@ -49,13 +49,18 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
         sec.lessons.some((l) => l.id === activeLesson.id)
       );
       if (activeSection) {
-        setExpandedSections((prev) => {
-          if (prev[activeSection.id]) return prev;
-          return {
-            ...prev,
-            [activeSection.id]: true
-          };
-        });
+        // Defer to the next tick so the setState is not synchronous in the
+        // effect body (react-hooks/set-state-in-effect).
+        const timer = setTimeout(() => {
+          setExpandedSections((prev) => {
+            if (prev[activeSection.id]) return prev;
+            return {
+              ...prev,
+              [activeSection.id]: true
+            };
+          });
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
   }, [activeLesson, sections]);
@@ -144,6 +149,20 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
                       <span className="section-meta">{stats}</span>
                     )}
                   </div>
+                  {onOpenSectionSummary && (
+                    <button
+                      type="button"
+                      className="section-summary-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenSectionSummary(sec);
+                      }}
+                      aria-label={`Summarize chapter: ${sec.title}`}
+                      title="Summarize Chapter"
+                    >
+                      <Sparkles size={14} />
+                    </button>
+                  )}
                   {isExpanded ? <ChevronDown size={16} style={{ minWidth: '16px' }} /> : <ChevronRight size={16} style={{ minWidth: '16px' }} />}
                 </button>
 

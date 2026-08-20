@@ -500,7 +500,7 @@ export default function VideoPlayer({
               const regenResponse = await fetch(`${backendOrigin}/api/chapters/regenerate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ videoPath, subtitlePath, language: autoCreateTimelineLang || selectedChapterLang })
+                body: JSON.stringify({ videoPath, subtitlePath, language: selectedChapterLang || autoCreateTimelineLang || 'en' })
               });
               const regenData = await regenResponse.json();
               if (isCancelled) return;

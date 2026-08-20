@@ -10,6 +10,7 @@ files:
   - package.json
   - bin-paths.js
 mac:
+  identity: null
   category: public.app-category.education
   target:
     - target: dmg

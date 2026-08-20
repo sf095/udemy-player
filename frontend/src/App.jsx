@@ -11,6 +11,7 @@ import NotesPanel from './components/NotesPanel';
 import SettingsModal from './components/SettingsModal';
 import CourseManagerModal from './components/CourseManagerModal';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import ChapterSummaryModal from './components/ChapterSummaryModal';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 
 const DEFAULT_SETTINGS = {
@@ -58,6 +59,8 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
   const [theaterMode, setTheaterMode] = useState(false);
+  const [activeSectionForSummary, setActiveSectionForSummary] = useState(null);
+  const [showChapterSummaryModal, setShowChapterSummaryModal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('udemy-player:sidebar-width');
     return saved ? parseInt(saved, 10) : 320;
@@ -650,6 +653,11 @@ export default function App() {
   const isVideoActive = () => !!activeLesson?.video && activeTab === 'video';
   const hasLesson = () => !!activeLesson;
 
+  const handleOpenSectionSummary = (section) => {
+    setActiveSectionForSummary(section);
+    setShowChapterSummaryModal(true);
+  };
+
   useKeyboardShortcuts([
     // --- Video Playback ---
     { key: ' ', action: () => {
@@ -727,6 +735,7 @@ export default function App() {
       if (showShortcutsModal) setShowShortcutsModal(false);
       else if (showSettingsModal) setShowSettingsModal(false);
       else if (showCourseManager) setShowCourseManager(false);
+      else if (showChapterSummaryModal) setShowChapterSummaryModal(false);
       else if (theaterMode) setTheaterMode(false);
     }},
     // --- App-Level ---
@@ -881,6 +890,7 @@ export default function App() {
           onToggleComplete={handleToggleComplete}
           onResizeStart={handleSidebarResizeStart}
           onResizeReset={handleSidebarResizeReset}
+          onOpenSectionSummary={handleOpenSectionSummary}
         />
 
         {/* Center Screen Stage */}
@@ -1121,6 +1131,17 @@ export default function App() {
       {showShortcutsModal && (
         <KeyboardShortcutsModal
           onClose={() => setShowShortcutsModal(false)}
+        />
+      )}
+      {showChapterSummaryModal && (
+        <ChapterSummaryModal
+          isOpen={showChapterSummaryModal}
+          onClose={() => setShowChapterSummaryModal(false)}
+          section={activeSectionForSummary}
+          coursePath={coursePath}
+          hasApiKey={hasApiKey}
+          aiProvider={settings.aiProvider || 'gemini'}
+          defaultLang={summaryLang || activeLang || 'en'}
         />
       )}
     </div>
