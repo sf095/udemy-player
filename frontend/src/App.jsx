@@ -1142,6 +1142,7 @@ export default function App() {
           hasApiKey={hasApiKey}
           aiProvider={settings.aiProvider || 'gemini'}
           defaultLang={summaryLang || activeLang || 'en'}
+          onLanguageChange={setSummaryLang}
         />
       )}
     </div>

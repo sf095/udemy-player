@@ -10,7 +10,8 @@ export default function ChapterSummaryModal({
   coursePath,
   hasApiKey,
   aiProvider = 'gemini',
-  defaultLang = 'en'
+  defaultLang = 'en',
+  onLanguageChange
 }) {
   const [selectedLang, setSelectedLang] = useState(defaultLang);
   const [summary, setSummary] = useState('');
@@ -23,7 +24,53 @@ export default function ChapterSummaryModal({
 
   const sectionPath = section && coursePath ? `${coursePath}/${section.id}` : '';
 
-  const checkCacheOrGenerate = useCallback(
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedLang(defaultLang);
+    }
+  }, [isOpen, defaultLang]);
+
+  // Check cache only (does not call AI generation)
+  const checkCache = useCallback(
+    async (lang) => {
+      if (!sectionPath) return;
+
+      const genId = ++genIdRef.current;
+      setLoading(true);
+      setError(null);
+
+      try {
+        const cacheRes = await fetch('/api/summarize-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sectionPath, langCode: lang, checkCacheOnly: true })
+        });
+        const cacheData = await cacheRes.json();
+        if (genId !== genIdRef.current) return;
+
+        if (cacheData.success && cacheData.summary) {
+          setSummary(cacheData.summary);
+          setIsCached(true);
+        } else {
+          setSummary('');
+          setIsCached(false);
+        }
+      } catch (err) {
+        if (genId !== genIdRef.current) return;
+        console.error('Error checking chapter summary cache:', err);
+        setSummary('');
+        setIsCached(false);
+      } finally {
+        if (genId === genIdRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [sectionPath]
+  );
+
+  // Generate summary via AI API
+  const generateSummary = useCallback(
     async (lang, forceRegenerate = false) => {
       if (!sectionPath) return;
 
@@ -39,24 +86,7 @@ export default function ChapterSummaryModal({
       setSummary('');
 
       try {
-        if (!forceRegenerate) {
-          // Check cache first
-          const cacheRes = await fetch('/api/summarize-section', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sectionPath, langCode: lang, checkCacheOnly: true })
-          });
-          const cacheData = await cacheRes.json();
-          if (genId !== genIdRef.current) return;
-
-          if (cacheData.success && cacheData.summary) {
-            setSummary(cacheData.summary);
-            setIsCached(true);
-            setLoading(false);
-            return;
-          }
-        } else {
-          // Unlink cache file first
+        if (forceRegenerate) {
           await fetch('/api/clear-section-summary', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -64,7 +94,6 @@ export default function ChapterSummaryModal({
           });
         }
 
-        // Auto generate summary
         const res = await fetch('/api/summarize-section', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -81,7 +110,7 @@ export default function ChapterSummaryModal({
         }
       } catch (err) {
         if (genId !== genIdRef.current) return;
-        console.error('Error in chapter summary:', err);
+        console.error('Error in chapter summary generation:', err);
         setError('Network error while summarizing chapter.');
       } finally {
         if (genId === genIdRef.current) {
@@ -95,11 +124,18 @@ export default function ChapterSummaryModal({
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isOpen && sectionPath) {
-        checkCacheOrGenerate(selectedLang, false);
+        checkCache(selectedLang);
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [isOpen, sectionPath, selectedLang, checkCacheOrGenerate]);
+  }, [isOpen, sectionPath, selectedLang, checkCache]);
+
+  const handleLangChange = (newLang) => {
+    setSelectedLang(newLang);
+    if (onLanguageChange) {
+      onLanguageChange(newLang);
+    }
+  };
 
   if (!isOpen || !section) return null;
 
@@ -192,7 +228,7 @@ export default function ChapterSummaryModal({
             <select
               className="summary-lang-select"
               value={selectedLang}
-              onChange={(e) => setSelectedLang(e.target.value)}
+              onChange={(e) => handleLangChange(e.target.value)}
               disabled={loading}
             >
               {Object.entries(SUMMARY_LANGUAGES).map(([code, label]) => (
@@ -220,7 +256,7 @@ export default function ChapterSummaryModal({
             )}
             {hasApiKey && (
               <button
-                onClick={() => checkCacheOrGenerate(selectedLang, true)}
+                onClick={() => generateSummary(selectedLang, true)}
                 disabled={loading}
                 style={{
                   background: 'transparent',
@@ -312,7 +348,7 @@ export default function ChapterSummaryModal({
               <button
                 className="btn-add-note"
                 style={{ marginTop: '16px' }}
-                onClick={() => checkCacheOrGenerate(selectedLang, true)}
+                onClick={() => generateSummary(selectedLang, true)}
               >
                 <RefreshCw size={14} style={{ marginRight: '6px' }} /> Try Again
               </button>
@@ -327,12 +363,12 @@ export default function ChapterSummaryModal({
               />
               <div className="empty-state-title">No Summary Generated</div>
               <div className="empty-state-desc">
-                Summarize all video lessons in "{section.title}".
+                Summarize all video lessons in "{section.title}" ({SUMMARY_LANGUAGES[selectedLang] || selectedLang}).
               </div>
               <button
                 className="btn-add-note"
                 style={{ marginTop: '16px' }}
-                onClick={() => checkCacheOrGenerate(selectedLang, true)}
+                onClick={() => generateSummary(selectedLang, false)}
               >
                 <Sparkles size={14} style={{ marginRight: '6px' }} /> Generate
                 Chapter Summary
