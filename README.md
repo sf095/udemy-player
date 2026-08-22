@@ -24,7 +24,7 @@ This player is built to help you learn faster and retain more information:
 5. **Auto-Completion & Auto-Save**: Lessons are marked complete at `90%` watch progress. Your playback position saves every 5 seconds so you can resume exactly where you left off.
 6. **AI Subtitle Translation**: Automatically translate English subtitle tracks to your native language using the built-in Gemini API.
 7. **Dual Subtitle Display**: Watch with two subtitle tracks simultaneously (e.g., English + your native language). The player merges both WebVTT tracks in real time, showing the secondary language in a distinct style below the primary subtitles.
-8. **Offline AI Summarization**: Generate structured, bulleted summaries of video lessons in any supported language — independent of the active subtitle track. Choose your preferred output language via the dropdown selector. Summaries cache locally, letting you review them instantly without internet access.
+8. **Offline AI Lesson & Chapter Summarization**: Generate structured, bulleted summaries for individual video lessons or entire course chapters in any supported language — independent of the active subtitle track. Select your target output language via the dropdown selector prior to generating to control output and conserve AI quota. Summaries cache locally on disk (`.summary.<lang>.txt` and `section.summary.<lang>.txt`), letting you review them instantly without internet access.
 9. **Transcript-Grounded AI Chat**: Ask questions about the lesson in the chat sidebar. The AI answers using the active subtitle transcript as context.
 10. **Auto-Generated Timeline Chapters**: The player automatically analyzes lesson subtitle transcripts via the Gemini API to generate structured video chapters on the playback timeline, allowing you to easily browse and jump to different sections of the video.
 11. **Video Duration Display**: The sidebar shows individual lesson durations, section totals, and overall course duration, helping you plan your study sessions.
@@ -54,7 +54,7 @@ udemy-player/
 ├── docs/                  # Technical specifications, implementation plans, and task lists
 ├── frontend/              # Vite React client
 │   ├── src/
-│   │   ├── components/    # CourseSelector, Sidebar, VideoPlayer, DocViewer, NotesPanel
+│   │   ├── components/    # CourseSelector, Sidebar, VideoPlayer, DocViewer, NotesPanel, ChapterSummaryModal
 │   │   ├── App.jsx        # App logic controller
 │   │   ├── main.jsx       # Client entry
 │   │   └── index.css      # Dark-mode styling tokens and layout rules
@@ -130,7 +130,10 @@ To package and run the application as a standalone desktop app on macOS:
 * **`DELETE /api/userdata/notes`**: Removes note entries from a lesson timeline.
 * **`POST /api/userdata/settings`**: Saves application settings (such as the Gemini API Key).
 * **`POST /api/translate-subtitle`**: Translates subtitles using the Gemini API.
-* **`POST /api/summarize-lesson`**: Generates and caches lesson summaries.
+* **`POST /api/summarize-lesson`**: Checks cache or generates lesson summaries using AI.
+* **`POST /api/clear-summary`**: Removes cached lesson summary file for a given language.
+* **`POST /api/summarize-section`**: Checks cache or aggregates subtitles across a chapter to generate chapter summaries using AI.
+* **`POST /api/clear-section-summary`**: Removes cached chapter summary file for a given language.
 * **`POST /api/chat-lesson`**: Chat assistant grounded in the subtitles transcript.
 * **`POST /api/browse-folder`**: Launches native OS folder dialog window.
 * **`GET /api/chapters?videoPath=<path>&subtitlePath=<path>`**: Loads cached timeline chapters or generates them from subtitles via Gemini.
