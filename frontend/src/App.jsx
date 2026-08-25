@@ -534,7 +534,6 @@ export default function App() {
       setActiveTab('video');
     } else {
       setActiveTab('doc');
-      setTheaterMode(false);
     }
   };
 
@@ -732,7 +731,7 @@ export default function App() {
     { key: 'n', action: () => {
       if (activeLesson?.type === 'video') setNotesCollapsed(c => !c);
     }},
-    { key: 't', action: handleToggleTheaterMode, when: () => isVideoActive() || theaterMode },
+    { key: 't', action: handleToggleTheaterMode, when: hasLesson },
     { key: 'Escape', action: () => {
       if (showShortcutsModal) setShowShortcutsModal(false);
       else if (showSettingsModal) setShowSettingsModal(false);
@@ -750,7 +749,7 @@ export default function App() {
   const hasMultipleTabs = activeLesson && activeLesson.video && lessonResources.length > 0;
 
   return (
-    <div className={`app-container ${theaterMode ? 'theater-mode' : ''}`}>
+    <div className={`app-container ${theaterMode ? 'theater-mode' : ''} ${activeTab === 'video' && activeLesson?.video ? 'video-active' : ''}`}>
       <header className="app-header">
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
@@ -942,39 +941,54 @@ export default function App() {
           ) : activeLesson ? (
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
               
-              {/* Stage Header Banner */}
+              {/* Unified Stage Header Bar */}
               <div className="stage-header-banner">
-                <div className="stage-header-breadcrumbs">
-                  <span className="stage-header-section" title={activeSection?.title}>
-                    {activeSection?.title || 'Section'}
-                  </span>
-                  <span className="stage-header-separator">&gt;</span>
-                  <span className="stage-header-lesson" title={activeLesson.title}>
-                    {activeLesson.title}
-                  </span>
+                <div className="stage-header-left">
+                  <div className="stage-header-breadcrumbs">
+                    <span className="stage-header-section" title={activeSection?.title}>
+                      {activeSection?.title || 'Section'}
+                    </span>
+                    <span className="stage-header-separator">&gt;</span>
+                    <span className="stage-header-lesson" title={activeLesson.title}>
+                      {activeLesson.title}
+                    </span>
+                  </div>
+                  <div className={`stage-header-badge ${activeLesson.type || 'video'}`}>
+                    {activeLesson.type === 'video' ? 'Video' : activeLesson.type === 'pdf' ? 'PDF' : activeLesson.type === 'html' ? 'HTML' : activeLesson.type === 'quiz' ? 'Quiz' : 'Lesson'}
+                  </div>
                 </div>
-                <div className={`stage-header-badge ${activeLesson.type || 'video'}`}>
-                  {activeLesson.type === 'video' ? 'Video' : activeLesson.type === 'pdf' ? 'PDF' : activeLesson.type === 'html' ? 'HTML' : activeLesson.type === 'quiz' ? 'Quiz' : 'Lesson'}
+
+                <div className="stage-header-right">
+                  {/* Tab Selector (only shown if a lesson has multiple assets, e.g. video and companion PDF sheet) */}
+                  {hasMultipleTabs && (
+                    <div className="stage-nav-tabs">
+                      <button
+                        className={`stage-nav-tab ${activeTab === 'video' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('video')}
+                      >
+                        <Play size={13} /> Video Lesson
+                      </button>
+                      <button
+                        className={`stage-nav-tab ${activeTab === 'doc' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('doc')}
+                      >
+                        <BookOpen size={13} /> Companion Resources
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Theater toggle button on stage bar when in theater mode */}
+                  {theaterMode && (
+                    <button
+                      className="stage-theater-toggle-btn"
+                      onClick={handleToggleTheaterMode}
+                      title="Exit Theater Mode (t)"
+                    >
+                      <Minimize2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Tab Selector (only shown if a lesson has multiple assets, e.g. video and companion PDF sheet) */}
-              {hasMultipleTabs && (
-                <div className="stage-tabs">
-                  <button
-                     className={`tab-btn ${activeTab === 'video' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('video')}
-                  >
-                    <Play size={14} /> Video Lesson
-                  </button>
-                  <button
-                    className={`tab-btn ${activeTab === 'doc' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('doc')}
-                  >
-                    <BookOpen size={14} /> Companion Resources
-                  </button>
-                </div>
-              )}
 
               {/* Media viewport content */}
               <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
@@ -1070,34 +1084,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
-              {/* Floating tab bar in theater mode — overlays the stage area when not in video view */}
-              {theaterMode && hasMultipleTabs && activeTab !== 'video' && (
-                <div className="stage-tabs-floating">
-                  <button
-                    className={`tab-btn-floating ${activeTab === 'video' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('video')}
-                    title="Video Lesson"
-                  >
-                    <Play size={14} /> Video
-                  </button>
-                  <button
-                    className={`tab-btn-floating ${activeTab === 'doc' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('doc')}
-                    title="Companion Resources"
-                  >
-                    <BookOpen size={14} /> Resources
-                  </button>
-                  <div className="tab-separator" />
-                  <button
-                    className="theater-exit-btn"
-                    onClick={handleToggleTheaterMode}
-                    title="Exit Theater Mode (t)"
-                  >
-                    <Minimize2 size={14} />
-                  </button>
-                </div>
-              )}
               </div>
             </div>
           ) : !coursePath ? (

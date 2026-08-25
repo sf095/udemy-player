@@ -732,15 +732,30 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
+  gap: 16px;
+  padding: 0 16px;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
   z-index: 10;
   transition: background-color var(--transition-normal), border-color var(--transition-normal), height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
   flex-shrink: 0;
-  height: 52px;
+  height: 44px;
   box-sizing: border-box;
+}
+
+.stage-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.stage-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .stage-header-breadcrumbs {
@@ -752,7 +767,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 80%;
+  min-width: 0;
 }
 
 .stage-header-section {
@@ -858,41 +873,64 @@ video::-webkit-media-text-track-container {
 }
 
 
-/* Tabs for secondary document assets (PDF/HTML sheets inside a lesson) */
-.stage-tabs {
+/* Unified Stage Nav Tabs */
+.stage-nav-tabs {
   display: flex;
-  background: var(--bg-stage-tabs);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 16px;
-  height: 48px;
   align-items: center;
-  gap: 8px;
-  transition: background-color var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal), height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
-.tab-btn {
+.stage-nav-tab {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  padding: 8px 16px;
-  font-size: 0.875rem;
+  padding: 4px 10px;
+  font-size: 0.78rem;
   font-weight: 500;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-radius: 6px;
   transition: var(--transition-fast);
   font-family: inherit;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  white-space: nowrap;
 }
 
-.tab-btn:hover {
+.stage-nav-tab:hover {
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
-.tab-btn.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+.stage-nav-tab.active {
+  color: var(--text-primary);
+  background: var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.stage-theater-toggle-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.stage-theater-toggle-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--border-active);
 }
 
 /* Embedded document viewer */
@@ -1430,18 +1468,7 @@ body.resizing video {
   pointer-events: none;
 }
 
-.app-container.theater-mode .stage-header-banner {
-  height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  overflow: hidden;
-  border-bottom-width: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Hide standard stage-tabs in theater mode */
-.app-container.theater-mode .stage-tabs {
+.app-container.theater-mode.video-active .stage-header-banner {
   height: 0;
   padding-top: 0;
   padding-bottom: 0;
@@ -1468,14 +1495,6 @@ body.resizing video {
   z-index: 10;
 }
 
-/* Standalone floating tabs (e.g. Doc view) centered at top */
-:not(.video-overlays-container) > .stage-tabs-floating {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
 /* Auto-hide floating tabs with controls */
 .video-container.controls-hidden .video-overlays-container,
 .video-container.controls-hidden .stage-tabs-floating,
@@ -1486,10 +1505,6 @@ body.resizing video {
   pointer-events: none;
 }
 
-.video-container.controls-hidden :not(.video-overlays-container) > .stage-tabs-floating {
-  transform: translateX(-50%) translateY(-10px);
-}
-
 /* Ensure floating tabs & overlays stay visible when hovered */
 .video-container:hover .video-overlays-container:hover,
 .video-container:hover .stage-tabs-floating:hover,
@@ -1498,10 +1513,6 @@ body.resizing video {
   visibility: visible !important;
   pointer-events: auto !important;
   transform: translateY(0) !important;
-}
-
-:not(.video-overlays-container) > .stage-tabs-floating:hover {
-  transform: translateX(-50%) translateY(0) !important;
 }
 
 /* Floating tab button */
