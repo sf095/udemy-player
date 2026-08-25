@@ -23,6 +23,9 @@ const DEFAULT_SETTINGS = {
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
+  openaiApiKey: '',
+  openaiModel: 'gpt-4o-mini',
+  openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
@@ -162,15 +165,26 @@ async function callGeminiWithFallback(apiKey, payloadBody, isV1Beta = false) {
 // Resolve AI provider configuration from database + optional API key override
 function getAiConfig(db, overrideApiKey) {
   const provider = db.settings?.aiProvider || 'gemini';
-  const providerName = provider === 'anthropic' ? 'Anthropic' : 'Gemini';
-  const apiKey = provider === 'anthropic'
-    ? db.settings?.anthropicApiKey || ''
-    : overrideApiKey || db.settings?.geminiApiKey || '';
+  const providerName = provider === 'anthropic' ? 'Anthropic' : provider === 'openai' ? 'OpenAI' : 'Gemini';
+  let apiKey = overrideApiKey || '';
+  if (!apiKey) {
+    if (provider === 'anthropic') {
+      apiKey = db.settings?.anthropicApiKey || '';
+    } else if (provider === 'openai') {
+      apiKey = db.settings?.openaiApiKey || '';
+    } else {
+      apiKey = db.settings?.geminiApiKey || '';
+    }
+  }
   const model = provider === 'anthropic'
     ? db.settings?.anthropicModel || 'claude-3-5-sonnet-latest'
+    : provider === 'openai'
+    ? db.settings?.openaiModel || 'gpt-4o-mini'
     : null;
   const baseUrl = provider === 'anthropic'
     ? db.settings?.anthropicBaseUrl || 'https://api.anthropic.com'
+    : provider === 'openai'
+    ? db.settings?.openaiBaseUrl || 'https://api.openai.com'
     : null;
   return { provider, providerName, apiKey, model, baseUrl };
 }
@@ -179,6 +193,24 @@ function getAiConfig(db, overrideApiKey) {
 async function callAiProvider(config, prompt, options = {}) {
   const { provider, apiKey, model, baseUrl } = config;
   const { isChat = false, messages = [], systemInstruction, maxTokens = 4096 } = options;
+
+  if (provider === 'openai') {
+    const openaiMessages = [];
+    if (systemInstruction) {
+      openaiMessages.push({ role: 'system', content: systemInstruction });
+    }
+    if (isChat) {
+      messages.forEach(m => {
+        openaiMessages.push({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        });
+      });
+    } else {
+      openaiMessages.push({ role: 'user', content: prompt });
+    }
+    return await callOpenAI(apiKey, baseUrl, model, openaiMessages, maxTokens);
+  }
 
   if (provider === 'anthropic') {
     const anthropicMessages = isChat
@@ -207,6 +239,89 @@ async function callAiProvider(config, prompt, options = {}) {
     contents: [{ parts: [{ text: prompt }] }]
   };
   return await callGeminiWithFallback(apiKey, payload, false);
+}
+
+// Caller for OpenAI API or OpenAI-compatible custom endpoints
+async function callOpenAI(apiKey, baseUrl, model, messages, maxTokens = 4096) {
+  const rawBaseUrl = (baseUrl || 'https://api.openai.com').trim().replace(/\/+$/, '');
+  const url = rawBaseUrl.endsWith('/v1')
+    ? `${rawBaseUrl}/chat/completions`
+    : `${rawBaseUrl}/v1/chat/completions`;
+
+  console.log(`Attempting OpenAI API call with model ${model} via ${url}...`);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000); // 120s timeout
+
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: model,
+        max_tokens: maxTokens,
+        messages: messages
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    let responseText = '';
+    try {
+      responseText = await response.text();
+    } catch (readErr) {
+      console.warn('Failed to read response body:', readErr);
+    }
+
+    if (response.ok) {
+      try {
+        const responseData = JSON.parse(responseText);
+
+        // Standard OpenAI format: choices[0].message.content
+        if (responseData.choices && Array.isArray(responseData.choices) && responseData.choices.length > 0) {
+          const choice = responseData.choices[0];
+          if (choice?.message?.content && typeof choice.message.content === 'string') {
+            return choice.message.content;
+          }
+          if (typeof choice?.text === 'string') {
+            return choice.text;
+          }
+        }
+
+        // Direct content or text properties for non-standard compatible providers
+        if (typeof responseData.content === 'string') {
+          return responseData.content;
+        }
+        if (typeof responseData.text === 'string') {
+          return responseData.text;
+        }
+
+        console.warn('OpenAI response HTTP 200 but no extractable content found. Response keys:', Object.keys(responseData));
+        throw new Error('OpenAI API returned HTTP 200 but the response content could not be parsed.');
+      } catch (jsonErr) {
+        if (jsonErr.message && jsonErr.message.includes('response content could not be parsed')) {
+          throw jsonErr;
+        }
+        return responseText;
+      }
+    }
+
+    console.warn(`OpenAI call with model ${model} failed (HTTP ${response.status}):`, responseText);
+    throw new Error(`OpenAI API error (${response.status}): ${responseText || response.statusText}`);
+  } catch (e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') {
+      throw new Error('OpenAI API request timed out after 120 seconds.');
+    }
+    throw e;
+  }
 }
 
 // Caller for Anthropic API or Anthropic-compatible custom endpoints
@@ -865,7 +980,21 @@ app.delete('/api/userdata/notes', (req, res) => {
 
 // 10. Update Settings
 app.post('/api/userdata/settings', (req, res) => {
-  const { aiProvider, geminiApiKey, anthropicApiKey, anthropicModel, anthropicBaseUrl, autoplayNext, autoCreateTimeline, autoCreateTimelineLang, autoCreateSummary, autoCreateSummaryLang } = req.body;
+  const {
+    aiProvider,
+    geminiApiKey,
+    anthropicApiKey,
+    anthropicModel,
+    anthropicBaseUrl,
+    openaiApiKey,
+    openaiModel,
+    openaiBaseUrl,
+    autoplayNext,
+    autoCreateTimeline,
+    autoCreateTimelineLang,
+    autoCreateSummary,
+    autoCreateSummaryLang
+  } = req.body;
   const db = readDb();
   if (!db.settings) {
     db.settings = {};
@@ -875,6 +1004,9 @@ app.post('/api/userdata/settings', (req, res) => {
   db.settings.anthropicApiKey = anthropicApiKey || DEFAULT_SETTINGS.anthropicApiKey;
   db.settings.anthropicModel = anthropicModel || DEFAULT_SETTINGS.anthropicModel;
   db.settings.anthropicBaseUrl = anthropicBaseUrl || DEFAULT_SETTINGS.anthropicBaseUrl;
+  db.settings.openaiApiKey = openaiApiKey || DEFAULT_SETTINGS.openaiApiKey;
+  db.settings.openaiModel = openaiModel || DEFAULT_SETTINGS.openaiModel;
+  db.settings.openaiBaseUrl = openaiBaseUrl || DEFAULT_SETTINGS.openaiBaseUrl;
   db.settings.autoplayNext = typeof autoplayNext === 'boolean' ? autoplayNext : DEFAULT_SETTINGS.autoplayNext;
   db.settings.autoCreateTimeline = typeof autoCreateTimeline === 'boolean' ? autoCreateTimeline : DEFAULT_SETTINGS.autoCreateTimeline;
   db.settings.autoCreateTimelineLang = (autoCreateTimelineLang && SUPPORTED_SUMMARY_LANGUAGES[autoCreateTimelineLang.toLowerCase()])

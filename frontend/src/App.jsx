@@ -20,6 +20,9 @@ const DEFAULT_SETTINGS = {
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
+  openaiApiKey: '',
+  openaiModel: 'gpt-4o-mini',
+  openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
@@ -34,12 +37,11 @@ export default function App() {
   const [progress, setProgress] = useState({});
   const [notes, setNotes] = useState({});
   const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
-  const hasApiKey = useMemo(() =>
-    settings.aiProvider === 'anthropic'
-      ? !!settings.anthropicApiKey
-      : !!settings.geminiApiKey,
-    [settings.aiProvider, settings.anthropicApiKey, settings.geminiApiKey]
-  );
+  const hasApiKey = useMemo(() => {
+    if (settings.aiProvider === 'anthropic') return !!settings.anthropicApiKey;
+    if (settings.aiProvider === 'openai') return !!settings.openaiApiKey;
+    return !!settings.geminiApiKey;
+  }, [settings.aiProvider, settings.anthropicApiKey, settings.openaiApiKey, settings.geminiApiKey]);
   
   const [activeLesson, setActiveLesson] = useState(null);
   const [activeLang, setActiveLang] = useState('');

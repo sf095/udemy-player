@@ -7,6 +7,9 @@ const DEFAULT_SETTINGS = {
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
+  openaiApiKey: '',
+  openaiModel: 'gpt-4o-mini',
+  openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
@@ -37,6 +40,9 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const [anthropicApiKey, setAnthropicApiKey] = useState(merged.anthropicApiKey);
   const [anthropicModel, setAnthropicModel] = useState(merged.anthropicModel);
   const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(merged.anthropicBaseUrl);
+  const [openaiApiKey, setOpenaiApiKey] = useState(merged.openaiApiKey);
+  const [openaiModel, setOpenaiModel] = useState(merged.openaiModel);
+  const [openaiBaseUrl, setOpenaiBaseUrl] = useState(merged.openaiBaseUrl);
   const [autoplayNext, setAutoplayNext] = useState(merged.autoplayNext);
   const [autoCreateTimeline, setAutoCreateTimeline] = useState(merged.autoCreateTimeline);
   const [autoCreateTimelineLang, setAutoCreateTimelineLang] = useState(merged.autoCreateTimelineLang);
@@ -45,6 +51,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
 
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -58,6 +65,9 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       anthropicApiKey: anthropicApiKey.trim(),
       anthropicModel: anthropicModel.trim() || 'claude-3-5-sonnet-latest',
       anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com',
+      openaiApiKey: openaiApiKey.trim(),
+      openaiModel: openaiModel.trim() || 'gpt-4o-mini',
+      openaiBaseUrl: openaiBaseUrl.trim() || 'https://api.openai.com',
       autoplayNext,
       autoCreateTimeline,
       autoCreateTimelineLang,
@@ -74,7 +84,11 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     }
   };
 
-  const isKeyEntered = aiProvider === 'anthropic' ? !!anthropicApiKey : !!geminiApiKey;
+  const isKeyEntered = aiProvider === 'anthropic'
+    ? !!anthropicApiKey
+    : aiProvider === 'openai'
+    ? !!openaiApiKey
+    : !!geminiApiKey;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -84,6 +98,9 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         style={{
           width: '100%',
           maxWidth: '480px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           background: 'var(--bg-sidebar)',
           border: '1px solid var(--border-color)',
           borderRadius: '16px',
@@ -99,7 +116,8 @@ export default function SettingsModal({ settings, onSave, onClose }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            borderBottom: '1px solid var(--border-color)'
+            borderBottom: '1px solid var(--border-color)',
+            flexShrink: 0
           }}
         >
           <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>Application Settings</h2>
@@ -123,7 +141,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
           {/* AI Provider dropdown */}
           <div style={{ marginBottom: '20px' }}>
             <label 
@@ -157,6 +175,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
             >
               <option value="gemini">Google Gemini</option>
               <option value="anthropic">Anthropic Claude / Compatible</option>
+              <option value="openai">OpenAI / Compatible</option>
             </select>
           </div>
 
@@ -236,6 +255,142 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 </a>.
               </p>
             </div>
+          ) : aiProvider === 'openai' ? (
+            <>
+              {/* OpenAI API Key */}
+              <div style={{ marginBottom: '16px' }}>
+                <label 
+                  htmlFor="openai-key" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  OpenAI API Key
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="openai-key"
+                    type={showOpenaiKey ? 'text' : 'password'}
+                    placeholder="sk-proj-..."
+                    value={openaiApiKey}
+                    onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '10px 40px 10px 12px',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'monospace',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      transition: 'var(--transition-fast)'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0
+                    }}
+                  >
+                    {showOpenaiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* OpenAI Model */}
+              <div style={{ marginBottom: '16px' }}>
+                <label 
+                  htmlFor="openai-model" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Model Name
+                </label>
+                <input
+                  id="openai-model"
+                  type="text"
+                  placeholder="gpt-4o-mini"
+                  value={openaiModel}
+                  onChange={(e) => setOpenaiModel(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'var(--transition-fast)'
+                  }}
+                />
+              </div>
+
+              {/* OpenAI Custom Base URL */}
+              <div style={{ marginBottom: '20px' }}>
+                <label 
+                  htmlFor="openai-url" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Custom Base URL (Optional)
+                </label>
+                <input
+                  id="openai-url"
+                  type="text"
+                  placeholder="https://api.openai.com"
+                  value={openaiBaseUrl}
+                  onChange={(e) => setOpenaiBaseUrl(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'var(--transition-fast)'
+                  }}
+                />
+                <p 
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
+                    marginTop: '8px',
+                    lineHeight: 1.4
+                  }}
+                >
+                  Leave default or point to OpenAI-compatible proxies/backends (e.g. OpenRouter, DeepSeek, Ollama, LM Studio, vLLM, Groq).
+                </p>
+              </div>
+            </>
           ) : (
             <>
               {/* Anthropic API Key */}

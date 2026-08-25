@@ -19,7 +19,7 @@ export default function ChapterSummaryModal({
   const [error, setError] = useState(null);
   const [isCached, setIsCached] = useState(false);
 
-  const providerName = aiProvider === 'anthropic' ? 'Anthropic' : 'Gemini';
+  const providerName = aiProvider === 'anthropic' ? 'Anthropic' : aiProvider === 'openai' ? 'OpenAI' : 'Gemini';
   const genIdRef = useRef(0);
 
   const sectionPath = section && coursePath ? `${coursePath}/${section.id}` : '';

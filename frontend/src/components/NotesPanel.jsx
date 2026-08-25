@@ -37,7 +37,7 @@ export default function NotesPanel({
   autoCreateSummaryLang = 'en'
 }) {
   const [activeTab, setActiveTab] = useState('summary'); // 'notes' | 'summary' | 'chat'
-  const providerName = aiProvider === 'anthropic' ? 'Anthropic' : 'Gemini';
+  const providerName = aiProvider === 'anthropic' ? 'Anthropic' : aiProvider === 'openai' ? 'OpenAI' : 'Gemini';
   
   // Notes states
   const [newNoteText, setNewNoteText] = useState('');
