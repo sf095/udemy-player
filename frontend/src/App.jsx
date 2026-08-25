@@ -756,7 +756,7 @@ export default function App() {
           <button
             className="btn-toggle"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title="Toggle Sidebar"
+            title="Toggle Sidebar (B)"
             style={{
               background: sidebarCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
               border: sidebarCollapsed ? '1px dashed var(--primary)' : '1px solid transparent',
@@ -799,7 +799,7 @@ export default function App() {
             <button
               className="btn-toggle"
               onClick={() => setNotesCollapsed(!notesCollapsed)}
-              title="Toggle Notes"
+              title="Toggle Notes (N)"
               style={{
                 background: notesCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-hover)',
                 border: notesCollapsed ? '1px dashed var(--primary)' : '1px solid var(--border-color)',
@@ -847,8 +847,36 @@ export default function App() {
 
           <button
             className="btn-toggle"
+            onClick={() => setShowShortcutsModal(true)}
+            title="Keyboard Shortcuts (?)"
+            style={{
+              background: 'var(--bg-hover)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'var(--transition-fast)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'var(--bg-hover-active)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.background = 'var(--bg-hover)';
+            }}
+          >
+            <Keyboard size={18} />
+          </button>
+
+          <button
+            className="btn-toggle"
             onClick={() => setShowSettingsModal(true)}
-            title="Settings"
+            title="Settings (,)"
             style={{
               background: 'var(--bg-hover)',
               border: '1px solid var(--border-color)',

@@ -89,7 +89,7 @@ export default function KeyboardShortcutsModal({ onClose }) {
 
         {/* Footer hint */}
         <div className="shortcuts-modal-footer">
-          Press <kbd className="shortcut-kbd">?</kbd> to toggle this panel
+          Press <kbd className="shortcut-kbd">?</kbd> or <kbd className="shortcut-kbd">Esc</kbd> to toggle or close this panel
         </div>
       </div>
     </div>
