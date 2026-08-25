@@ -1453,11 +1453,6 @@ body.resizing video {
 
 /* ─── Floating Tab Bar for Theater Mode ─── */
 .stage-tabs-floating {
-  position: absolute;
-  bottom: 56px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1469,13 +1464,44 @@ body.resizing video {
   transition: opacity 0.1s ease, transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.1s ease;
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+/* Standalone floating tabs (e.g. Doc view) centered at top */
+:not(.video-overlays-container) > .stage-tabs-floating {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 /* Auto-hide floating tabs with controls */
+.video-container.controls-hidden .video-overlays-container,
+.video-container.controls-hidden .stage-tabs-floating,
 .video-container.controls-hidden ~ .stage-tabs-floating {
   opacity: 0;
   visibility: hidden;
-  transform: translateX(-50%) translateY(10px);
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+.video-container.controls-hidden :not(.video-overlays-container) > .stage-tabs-floating {
+  transform: translateX(-50%) translateY(-10px);
+}
+
+/* Ensure floating tabs & overlays stay visible when hovered */
+.video-container:hover .video-overlays-container:hover,
+.video-container:hover .stage-tabs-floating:hover,
+.stage-tabs-floating:hover {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+:not(.video-overlays-container) > .stage-tabs-floating:hover {
+  transform: translateX(-50%) translateY(0) !important;
 }
 
 /* Floating tab button */

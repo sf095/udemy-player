@@ -987,6 +987,9 @@ export default function App() {
                     autoCreateTimeline={settings.autoCreateTimeline}
                     autoCreateTimelineLang={settings.autoCreateTimelineLang}
                     hasApiKey={hasApiKey}
+                    hasMultipleTabs={hasMultipleTabs}
+                    activeTab={activeTab}
+                    onSelectTab={setActiveTab}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>
@@ -1038,8 +1041,8 @@ export default function App() {
                   </div>
                 )}
 
-              {/* Floating tab bar in theater mode — overlays the video area */}
-              {theaterMode && hasMultipleTabs && (
+              {/* Floating tab bar in theater mode — overlays the stage area when not in video view */}
+              {theaterMode && hasMultipleTabs && activeTab !== 'video' && (
                 <div className="stage-tabs-floating">
                   <button
                     className={`tab-btn-floating ${activeTab === 'video' ? 'active' : ''}`}

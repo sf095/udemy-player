@@ -166,7 +166,10 @@ export default function VideoPlayer({
   onPause,
   autoCreateTimeline = false,
   autoCreateTimelineLang = 'en',
-  hasApiKey = false
+  hasApiKey = false,
+  hasMultipleTabs = false,
+  activeTab = 'video',
+  onSelectTab
 }) {
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
@@ -1096,6 +1099,34 @@ export default function VideoPlayer({
             <span className="video-overlay-label" style={{ color: 'var(--text-muted)' }}>None</span>
           )}
         </div>
+
+        {/* Floating tab bar in theater mode — flex child of top overlays container */}
+        {theaterMode && hasMultipleTabs && (
+          <div className="stage-tabs-floating">
+            <button
+              className={`tab-btn-floating ${activeTab === 'video' ? 'active' : ''}`}
+              onClick={() => onSelectTab && onSelectTab('video')}
+              title="Video Lesson"
+            >
+              <Play size={14} /> Video
+            </button>
+            <button
+              className={`tab-btn-floating ${activeTab === 'doc' ? 'active' : ''}`}
+              onClick={() => onSelectTab && onSelectTab('doc')}
+              title="Companion Resources"
+            >
+              <BookOpen size={14} /> Resources
+            </button>
+            <div className="tab-separator" />
+            <button
+              className="theater-exit-btn"
+              onClick={onToggleTheaterMode}
+              title="Exit Theater Mode (t)"
+            >
+              <Minimize2 size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Player Controls & Speed Panel (Right) */}
         <div className="video-overlay-right">
