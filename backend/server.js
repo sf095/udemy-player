@@ -20,7 +20,7 @@ const DB_FILE = process.env.USER_DATA_PATH
 const DEFAULT_SETTINGS = {
   aiProvider: 'gemini',
   geminiApiKey: '',
-  geminiModel: 'gemini-3.8-flash',
+  geminiModel: 'gemini-2.5-flash',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
@@ -114,54 +114,42 @@ function writeDb(data) {
   }
 }
 
-// Resilient API Caller that prioritizes the configured Gemini model (e.g. gemini-3.8-flash) and falls back on transient errors
-async function callGeminiWithFallback(apiKey, payloadBody, isV1Beta = false, targetModel = null) {
-  const fallbackModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
-  const models = Array.from(new Set([targetModel, ...fallbackModels].filter(Boolean)));
-  let lastError = null;
+// Caller for Google Gemini API using only the configured model without fallbacks
+async function callGemini(apiKey, payloadBody, isV1Beta = false, model = 'gemini-2.5-flash') {
+  const targetModel = (model || 'gemini-2.5-flash').trim();
+  const apiVersion = (isV1Beta || !targetModel.startsWith('gemini-1.0')) ? 'v1beta' : 'v1';
+  const currentUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${targetModel}:generateContent?key=${apiKey}`;
 
-  for (const model of models) {
-    const apiVersion = (isV1Beta || model.includes('3.') || model.includes('2.5')) ? 'v1beta' : 'v1';
-    const currentUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+  console.log(`Attempting Gemini API call with model ${targetModel} via ${apiVersion}...`);
+  const response = await fetch(currentUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payloadBody)
+  });
 
-    console.log(`Attempting Gemini API call with model ${model} via ${apiVersion}...`);
+  let responseText = '';
+  try {
+    responseText = await response.text();
+  } catch (readErr) {
+    console.warn(`Failed to read response body for model ${targetModel}:`, readErr);
+  }
+
+  if (response.ok) {
     try {
-      const response = await fetch(currentUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payloadBody)
-      });
-
-      let responseText = '';
-      try {
-        responseText = await response.text();
-      } catch (readErr) {
-        console.warn(`Failed to read response body for model ${model}:`, readErr);
+      const responseData = JSON.parse(responseText);
+      const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        return text;
       }
-
-      if (response.ok) {
-        try {
-          const responseData = JSON.parse(responseText);
-          const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            return text;
-          }
-        } catch (jsonErr) {
-          console.warn(`Failed to parse Gemini response as JSON:`, jsonErr);
-        }
-      }
-
-      console.warn(`Gemini call with model ${model} failed (HTTP ${response.status}):`, responseText);
-      lastError = new Error(`Gemini API error: ${response.statusText} (${responseText})`);
-    } catch (e) {
-      console.warn(`Network error with model ${model}:`, e);
-      lastError = e;
+    } catch (jsonErr) {
+      console.warn(`Failed to parse Gemini response as JSON:`, jsonErr);
     }
   }
 
-  throw lastError || new Error('All Gemini model attempts failed.');
+  console.warn(`Gemini call with model ${targetModel} failed (HTTP ${response.status}):`, responseText);
+  throw new Error(`Gemini API error: ${response.statusText} (${responseText})`);
 }
 
 // Resolve AI provider configuration from database + optional API key override
@@ -182,7 +170,7 @@ function getAiConfig(db, overrideApiKey) {
     ? db.settings?.anthropicModel || 'claude-3-5-sonnet-latest'
     : provider === 'openai'
     ? db.settings?.openaiModel || 'gpt-4o-mini'
-    : db.settings?.geminiModel || 'gemini-3.8-flash';
+    : db.settings?.geminiModel || 'gemini-2.5-flash';
   const baseUrl = provider === 'anthropic'
     ? db.settings?.anthropicBaseUrl || 'https://api.anthropic.com'
     : provider === 'openai'
@@ -234,13 +222,13 @@ async function callAiProvider(config, prompt, options = {}) {
         parts: [{ text: m.content }]
       }))
     };
-    return await callGeminiWithFallback(apiKey, payload, true, model);
+    return await callGemini(apiKey, payload, true, model);
   }
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }]
   };
-  return await callGeminiWithFallback(apiKey, payload, false, model);
+  return await callGemini(apiKey, payload, false, model);
 }
 
 // Caller for OpenAI API or OpenAI-compatible custom endpoints

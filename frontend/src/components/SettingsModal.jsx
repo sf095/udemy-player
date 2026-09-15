@@ -4,7 +4,7 @@ import { X, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 const DEFAULT_SETTINGS = {
   aiProvider: 'gemini',
   geminiApiKey: '',
-  geminiModel: 'gemini-3.8-flash',
+  geminiModel: 'gemini-2.5-flash',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
@@ -38,7 +38,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const merged = { ...DEFAULT_SETTINGS, ...settings };
   const [aiProvider, setAiProvider] = useState(merged.aiProvider);
   const [geminiApiKey, setGeminiApiKey] = useState(merged.geminiApiKey);
-  const [geminiModel, setGeminiModel] = useState(merged.geminiModel || 'gemini-3.8-flash');
+  const [geminiModel, setGeminiModel] = useState(merged.geminiModel || 'gemini-2.5-flash');
   const [anthropicApiKey, setAnthropicApiKey] = useState(merged.anthropicApiKey);
   const [anthropicModel, setAnthropicModel] = useState(merged.anthropicModel);
   const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(merged.anthropicBaseUrl);
@@ -64,7 +64,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     const result = await onSave({
       aiProvider,
       geminiApiKey: geminiApiKey.trim(),
-      geminiModel: geminiModel.trim() || 'gemini-3.8-flash',
+      geminiModel: geminiModel.trim() || 'gemini-2.5-flash',
       anthropicApiKey: anthropicApiKey.trim(),
       anthropicModel: anthropicModel.trim() || 'claude-3-5-sonnet-latest',
       anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com',
@@ -257,7 +257,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 <input
                   id="gemini-model"
                   type="text"
-                  placeholder="gemini-3.8-flash"
+                  placeholder="gemini-2.5-flash"
                   value={geminiModel}
                   onChange={(e) => setGeminiModel(e.target.value)}
                   style={{
@@ -280,7 +280,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                     lineHeight: 1.4
                   }}
                 >
-                  Defaults to gemini-3.8-flash (with automatic fallback to gemini-2.5-flash and gemini-1.5-flash). Get a free API key from{' '}
+                  Defaults to gemini-2.5-flash. Get a free API key from{' '}
                   <a 
                     href="https://aistudio.google.com/" 
                     target="_blank" 

@@ -16,7 +16,7 @@ import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 const DEFAULT_SETTINGS = {
   aiProvider: 'gemini',
   geminiApiKey: '',
-  geminiModel: 'gemini-3.8-flash',
+  geminiModel: 'gemini-2.5-flash',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
