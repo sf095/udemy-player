@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle } from 'lucide-react';
+import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle, ListOrdered } from 'lucide-react';
 import { renderMarkdown } from './markdown';
 import { SUMMARY_LANGUAGES } from '../languages';
+import Sidebar from './Sidebar';
 
 function formatTime(seconds) {
   if (isNaN(seconds) || seconds === null) return '0:00';
@@ -24,7 +25,14 @@ export default function NotesPanel({
   onSeek,
   onPauseVideo,
 
-  // New props for Summarization & Chat
+  // Props for Course Content Tab
+  sections = [],
+  progress = {},
+  onSelectLesson,
+  onToggleComplete,
+  onOpenSectionSummary,
+
+  // Props for Summarization & Chat
   activeLesson,
   activeLang,
   summaryLang,
@@ -36,7 +44,7 @@ export default function NotesPanel({
   autoCreateSummary = false,
   autoCreateSummaryLang = 'en'
 }) {
-  const [activeTab, setActiveTab] = useState('summary'); // 'notes' | 'summary' | 'chat'
+  const [activeTab, setActiveTab] = useState('content'); // 'content' | 'summary' | 'chat' | 'notes'
   const providerName = aiProvider === 'anthropic' ? 'Anthropic' : aiProvider === 'openai' ? 'OpenAI' : 'Gemini';
   
   // Notes states
@@ -293,13 +301,36 @@ export default function NotesPanel({
   return (
     <div className="notes-panel">
       {/* Right Sidebar Tabs */}
-      <div className="panel-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-notes-tabs)' }}>
+      <div className="panel-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-notes-tabs)', overflowX: 'auto' }}>
+        <button
+          className={`panel-tab-btn ${activeTab === 'content' ? 'active' : ''}`}
+          onClick={() => setActiveTab('content')}
+          style={{
+            flex: 1,
+            padding: '12px 4px',
+            border: 'none',
+            borderBottom: activeTab === 'content' ? '2px solid var(--primary)' : '2px solid transparent',
+            background: 'transparent',
+            color: activeTab === 'content' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: activeTab === 'content' ? 600 : 500,
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+            whiteSpace: 'nowrap',
+            transition: 'var(--transition-fast)'
+          }}
+        >
+          <ListOrdered size={14} /> Content
+        </button>
         <button
           className={`panel-tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
           onClick={() => setActiveTab('summary')}
           style={{
             flex: 1,
-            padding: '12px 6px',
+            padding: '12px 4px',
             border: 'none',
             borderBottom: activeTab === 'summary' ? '2px solid var(--primary)' : '2px solid transparent',
             background: 'transparent',
@@ -310,7 +341,8 @@ export default function NotesPanel({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
+            gap: '5px',
+            whiteSpace: 'nowrap',
             transition: 'var(--transition-fast)'
           }}
         >
@@ -321,7 +353,7 @@ export default function NotesPanel({
           onClick={() => setActiveTab('chat')}
           style={{
             flex: 1,
-            padding: '12px 6px',
+            padding: '12px 4px',
             border: 'none',
             borderBottom: activeTab === 'chat' ? '2px solid var(--primary)' : '2px solid transparent',
             background: 'transparent',
@@ -332,7 +364,8 @@ export default function NotesPanel({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
+            gap: '5px',
+            whiteSpace: 'nowrap',
             transition: 'var(--transition-fast)'
           }}
         >
@@ -343,7 +376,7 @@ export default function NotesPanel({
           onClick={() => setActiveTab('notes')}
           style={{
             flex: 1,
-            padding: '12px 6px',
+            padding: '12px 4px',
             border: 'none',
             borderBottom: activeTab === 'notes' ? '2px solid var(--primary)' : '2px solid transparent',
             background: 'transparent',
@@ -354,19 +387,58 @@ export default function NotesPanel({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
+            gap: '5px',
+            whiteSpace: 'nowrap',
             transition: 'var(--transition-fast)'
           }}
         >
-          <BookOpen size={14} /> Notes ({notes.length})
+          <BookOpen size={14} /> Notes{notes.length > 0 ? ` (${notes.length})` : ''}
         </button>
       </div>
 
       {/* Tab Contents */}
-      {activeTab === 'notes' && (
-        <>
-          <div className="notes-scrollable">
-            {notes.length === 0 ? (
+      {/* Content Tab */}
+      <div
+        style={{
+          display: activeTab === 'content' ? 'flex' : 'none',
+          flex: 1,
+          flexDirection: 'column',
+          height: 'calc(100% - 45px)',
+          overflow: 'hidden'
+        }}
+      >
+        <Sidebar
+          sections={sections}
+          progress={progress}
+          activeLesson={activeLesson}
+          onSelectLesson={onSelectLesson}
+          onToggleComplete={onToggleComplete}
+          onOpenSectionSummary={onOpenSectionSummary}
+          embedded
+          isActive={activeTab === 'content'}
+        />
+      </div>
+
+      {/* Notes Tab */}
+      <div
+        style={{
+          display: activeTab === 'notes' ? 'flex' : 'none',
+          flex: 1,
+          flexDirection: 'column',
+          height: 'calc(100% - 45px)',
+          overflow: 'hidden'
+        }}
+      >
+        <div className="notes-scrollable">
+          {!activeLesson ? (
+            <div className="empty-state" style={{ padding: '40px 20px', height: 'auto' }}>
+              <BookOpen size={32} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+              <div className="empty-state-title" style={{ fontSize: '0.9rem' }}>No Active Lesson</div>
+              <div className="empty-state-desc" style={{ fontSize: '0.75rem' }}>
+                Select a lesson from the Course Content tab to view or take notes.
+              </div>
+            </div>
+          ) : notes.length === 0 ? (
               <div className="empty-state" style={{ padding: '20px 10px', height: 'auto' }}>
                 <span style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📝</span>
                 <div className="empty-state-title" style={{ fontSize: '0.9rem' }}>No Notes Yet</div>
@@ -428,32 +500,33 @@ export default function NotesPanel({
             )}
           </div>
 
-          <form className="notes-form" onSubmit={handleAddSubmit}>
-            <textarea
-              className="textarea-note"
-              placeholder="Take a note... Video will pause automatically."
-              value={newNoteText}
-              onChange={(e) => setNewNoteText(e.target.value)}
-              onFocus={handleFocus}
-            />
-            <div className="form-actions">
-              <span className="note-time-badge">
-                {newNoteText.trim() && (
-                  <>
-                    Timestamp: <strong>{formatTime(noteTime !== null ? noteTime : currentTime)}</strong>
-                  </>
-                )}
-              </span>
-              <button type="submit" className="btn-add-note">
-                <Plus size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Add Note
-              </button>
-            </div>
-          </form>
-        </>
-      )}
+          {activeLesson && (
+            <form className="notes-form" onSubmit={handleAddSubmit}>
+              <textarea
+                className="textarea-note"
+                placeholder="Take a note... Video will pause automatically."
+                value={newNoteText}
+                onChange={(e) => setNewNoteText(e.target.value)}
+                onFocus={handleFocus}
+              />
+              <div className="form-actions">
+                <span className="note-time-badge">
+                  {newNoteText.trim() && (
+                    <>
+                      Timestamp: <strong>{formatTime(noteTime !== null ? noteTime : currentTime)}</strong>
+                    </>
+                  )}
+                </span>
+                <button type="submit" className="btn-add-note">
+                  <Plus size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Add Note
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
 
-      {activeTab === 'summary' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px' }}>
+        {/* Summary Tab */}
+        <div style={{ display: activeTab === 'summary' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden', padding: '16px', height: 'calc(100% - 45px)' }}>
           {/* Language Selector — always visible when subtitles and API key are ready */}
           {currentSubtitlePath && hasApiKey && (
             <div style={{
@@ -484,7 +557,23 @@ export default function NotesPanel({
               </select>
             </div>
           )}
-          {!currentSubtitlePath ? (
+          {!activeLesson ? (
+            <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
+              <FileText size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+              <div className="empty-state-title">No Active Lesson</div>
+              <div className="empty-state-desc">
+                Please select a video lesson to view or generate its summary.
+              </div>
+            </div>
+          ) : activeLesson.type !== 'video' ? (
+            <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
+              <FileText size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+              <div className="empty-state-title">Not a Video Lesson</div>
+              <div className="empty-state-desc">
+                Summarization is available for video lessons with subtitles.
+              </div>
+            </div>
+          ) : !currentSubtitlePath ? (
             <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
               <AlertCircle size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
               <div className="empty-state-title">No Subtitles Track</div>
@@ -556,11 +645,26 @@ export default function NotesPanel({
             </div>
           )}
         </div>
-      )}
 
-      {activeTab === 'chat' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px' }}>
-          {!currentSubtitlePath ? (
+        {/* Chat Tab */}
+        <div style={{ display: activeTab === 'chat' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden', padding: '16px', height: 'calc(100% - 45px)' }}>
+          {!activeLesson ? (
+            <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
+              <MessageSquare size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+              <div className="empty-state-title">No Active Lesson</div>
+              <div className="empty-state-desc">
+                Please select a video lesson to chat with AI about its transcript.
+              </div>
+            </div>
+          ) : activeLesson.type !== 'video' ? (
+            <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
+              <MessageSquare size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+              <div className="empty-state-title">Not a Video Lesson</div>
+              <div className="empty-state-desc">
+                AI chat is available for video lessons with subtitles.
+              </div>
+            </div>
+          ) : !currentSubtitlePath ? (
             <div className="empty-state" style={{ padding: '40px 20px', height: '100%' }}>
               <AlertCircle size={28} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
               <div className="empty-state-title">No Subtitles Track</div>
@@ -726,7 +830,6 @@ export default function NotesPanel({
             </>
           )}
         </div>
-      )}
       <div 
         className="resize-handle left-handle" 
         onPointerDown={onResizeStart} 

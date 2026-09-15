@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { ChevronDown, ChevronRight, Play, FileText, Globe, CheckCircle2, Circle, File, HelpCircle, Paperclip, Sparkles } from 'lucide-react';
 
 // Helper to format duration in MM:SS or H:MM:SS
@@ -32,8 +32,49 @@ function formatFriendlyDuration(totalSeconds) {
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
-export default function Sidebar({ sections, progress, activeLesson, onSelectLesson, onToggleComplete, onResizeStart, onResizeReset, onOpenSectionSummary }) {
+export default function Sidebar({
+  sections = [],
+  progress = {},
+  activeLesson,
+  onSelectLesson,
+  onToggleComplete,
+  onResizeStart,
+  onResizeReset,
+  onOpenSectionSummary,
+  embedded = false,
+  isActive = true
+}) {
   const [expandedSections, setExpandedSections] = useState({});
+  const scrollContainerRef = useRef(null);
+  const savedScrollTopRef = useRef(0);
+
+  const handleScroll = (e) => {
+    if (!isActive) return;
+    savedScrollTopRef.current = e.currentTarget.scrollTop;
+  };
+
+  // Restore scroll position when tab becomes active again
+  useEffect(() => {
+    if (isActive && scrollContainerRef.current) {
+      const targetScroll = savedScrollTopRef.current;
+      if (targetScroll > 0) {
+        const timer = setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = targetScroll;
+          }
+        }, 0);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isActive]);
+
+  // Reset saved scroll position only when course changes
+  useEffect(() => {
+    savedScrollTopRef.current = 0;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [sections]);
 
   const toggleSection = (secId) => {
     setExpandedSections((prev) => ({
@@ -113,7 +154,7 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
   const courseDurationStr = totalCourseSeconds > 0 ? formatFriendlyDuration(totalCourseSeconds) : '';
 
   return (
-    <div className="sidebar-panel">
+    <div className={`sidebar-panel ${embedded ? 'embedded' : ''}`}>
       <div className="sidebar-header">
         <h3 className="sidebar-title">Course Content</h3>
         {courseDurationStr && (
@@ -122,7 +163,11 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
           </span>
         )}
       </div>
-      <div className="sidebar-scrollable">
+      <div
+        className="sidebar-scrollable"
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+      >
         {sections.length === 0 ? (
           <div className="sidebar-empty-state" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
             No course folder loaded.
@@ -137,7 +182,7 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
               <div key={sec.id} className={`section-accordion ${isExpanded ? 'expanded' : ''} ${containsActive ? 'has-active' : ''}`}>
                 <button className="section-trigger" onClick={() => toggleSection(sec.id)}>
                   <div className="section-title-container">
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span className="section-title-text">
                       {sec.title}
                     </span>
                     {containsActive && !isExpanded ? (
@@ -236,11 +281,13 @@ export default function Sidebar({ sections, progress, activeLesson, onSelectLess
           })
         )}
       </div>
-      <div
-        className="resize-handle right-handle"
-        onPointerDown={onResizeStart}
-        onDoubleClick={onResizeReset}
-      />
+      {!embedded && onResizeStart && (
+        <div
+          className="resize-handle right-handle"
+          onPointerDown={onResizeStart}
+          onDoubleClick={onResizeReset}
+        />
+      )}
     </div>
   );
 }

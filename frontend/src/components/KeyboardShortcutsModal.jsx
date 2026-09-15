@@ -30,8 +30,8 @@ const SHORTCUT_GROUPS = [
   {
     title: 'UI Panels',
     shortcuts: [
-      { keys: ['B'], description: 'Toggle sidebar' },
-      { keys: ['N'], description: 'Toggle notes panel' },
+      { keys: ['B'], description: 'Toggle sidebar panel' },
+      { keys: ['N'], description: 'Toggle sidebar panel' },
       { keys: ['C'], description: 'Toggle chapters panel' },
       { keys: ['Esc'], description: 'Close modal' },
     ]

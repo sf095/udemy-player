@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon, Minimize2 } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
-import Sidebar from './components/Sidebar';
 import AppLogo from './components/AppLogo';
 import VideoPlayer from './components/VideoPlayer';
 import DocViewer from './components/DocViewer';
@@ -59,15 +58,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'doc'
   const [activeResource, setActiveResource] = useState(null);
   
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [theaterMode, setTheaterMode] = useState(false);
   const [activeSectionForSummary, setActiveSectionForSummary] = useState(null);
   const [showChapterSummaryModal, setShowChapterSummaryModal] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem('udemy-player:sidebar-width');
-    return saved ? parseInt(saved, 10) : 320;
-  });
   const [notesWidth, setNotesWidth] = useState(() => {
     const saved = localStorage.getItem('udemy-player:notes-width');
     return saved ? parseInt(saved, 10) : 360;
@@ -121,9 +115,6 @@ export default function App() {
     document.title = `${statusPrefix}${activeLesson.title}${suffix}`;
   }, [activeLesson, activeTab, isVideoPlaying]);
 
-  useEffect(() => {
-    localStorage.setItem('udemy-player:sidebar-width', sidebarWidth);
-  }, [sidebarWidth]);
 
   useEffect(() => {
     localStorage.setItem('udemy-player:notes-width', notesWidth);
@@ -461,32 +452,7 @@ export default function App() {
     return fallback;
   };
 
-  // Resizing event handlers for side panels
-  const handleSidebarResizeStart = (e) => {
-    e.preventDefault();
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    document.body.classList.add('resizing');
-
-    const handlePointerMove = (moveEvent) => {
-      const clientX = moveEvent.clientX;
-      const maxSidebarWidth = window.innerWidth - notesWidth - 400;
-      const clampedWidth = Math.max(200, Math.min(500, maxSidebarWidth, clientX));
-      setSidebarWidth(clampedWidth);
-    };
-
-    const handlePointerUp = () => {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      document.body.classList.remove('resizing');
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-    };
-
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
-  };
-
+  // Resizing event handlers for side panel
   const handleNotesResizeStart = (e) => {
     e.preventDefault();
     document.body.style.cursor = 'col-resize';
@@ -495,9 +461,9 @@ export default function App() {
 
     const handlePointerMove = (moveEvent) => {
       const clientX = moveEvent.clientX;
-      const maxNotesWidth = window.innerWidth - sidebarWidth - 400;
+      const maxNotesWidth = window.innerWidth - 400;
       const calculatedWidth = window.innerWidth - clientX;
-      const clampedWidth = Math.max(260, Math.min(600, maxNotesWidth, calculatedWidth));
+      const clampedWidth = Math.max(280, Math.min(650, maxNotesWidth, calculatedWidth));
       setNotesWidth(clampedWidth);
     };
 
@@ -511,10 +477,6 @@ export default function App() {
 
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', handlePointerUp);
-  };
-
-  const handleSidebarResizeReset = () => {
-    setSidebarWidth(320);
   };
 
   const handleNotesResizeReset = () => {
@@ -728,10 +690,8 @@ export default function App() {
       showToast(isCompleted ? '⬜ Unmarked' : '✅ Completed');
     }, when: hasLesson },
     // --- UI Panels ---
-    { key: 'b', action: () => setSidebarCollapsed(c => !c) },
-    { key: 'n', action: () => {
-      if (activeLesson?.type === 'video') setNotesCollapsed(c => !c);
-    }},
+    { key: 'b', action: () => setPanelCollapsed(c => !c) },
+    { key: 'n', action: () => setPanelCollapsed(c => !c) },
     { key: 't', action: handleToggleTheaterMode, when: hasLesson },
     { key: 'Escape', action: () => {
       if (showShortcutsModal) setShowShortcutsModal(false);
@@ -753,25 +713,6 @@ export default function App() {
     <div className={`app-container ${theaterMode ? 'theater-mode' : ''} ${activeTab === 'video' && activeLesson?.video ? 'video-active' : ''}`}>
       <header className="app-header">
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            className="btn-toggle"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title="Toggle Sidebar (B)"
-            style={{
-              background: sidebarCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-              border: sidebarCollapsed ? '1px dashed var(--primary)' : '1px solid transparent',
-              color: sidebarCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
-              padding: '6px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'var(--transition-fast)'
-            }}
-          >
-            <Menu size={18} />
-          </button>
           <AppLogo size={24} />
           <span style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>Udemy Offline Player</span>
         </div>
@@ -795,27 +736,25 @@ export default function App() {
             </div>
           )}
 
-          {activeLesson && activeLesson.type === 'video' && (
-            <button
-              className="btn-toggle"
-              onClick={() => setNotesCollapsed(!notesCollapsed)}
-              title="Toggle Notes (N)"
-              style={{
-                background: notesCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-hover)',
-                border: notesCollapsed ? '1px dashed var(--primary)' : '1px solid var(--border-color)',
-                color: notesCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                padding: '8px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'var(--transition-fast)'
-              }}
-            >
-              <BookOpen size={18} />
-            </button>
-          )}
+          <button
+            className="btn-toggle"
+            onClick={() => setPanelCollapsed(c => !c)}
+            title={panelCollapsed ? "Open Sidebar (B or N)" : "Collapse Sidebar (B or N)"}
+            style={{
+              background: panelCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-hover)',
+              border: panelCollapsed ? '1px dashed var(--primary)' : '1px solid var(--border-color)',
+              color: panelCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'var(--transition-fast)'
+            }}
+          >
+            <Menu size={18} />
+          </button>
 
           <button
             className="btn-toggle"
@@ -904,25 +843,11 @@ export default function App() {
       </header>
 
       <main 
-        className={`dashboard-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${notesCollapsed ? 'notes-collapsed' : ''}`}
+        className={`dashboard-content ${panelCollapsed ? 'notes-collapsed' : ''}`}
         style={{
-          '--sidebar-width': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-          '--notes-width': (notesCollapsed || !activeLesson || activeLesson.type !== 'video') ? '0px' : `${notesWidth}px`
+          '--notes-width': panelCollapsed ? '0px' : `${notesWidth}px`
         }}
       >
-        
-        {/* Left Sidebar */}
-        <Sidebar
-          sections={sections}
-          progress={progress}
-          activeLesson={activeLesson}
-          onSelectLesson={handleSelectLesson}
-          onToggleComplete={handleToggleComplete}
-          onResizeStart={handleSidebarResizeStart}
-          onResizeReset={handleSidebarResizeReset}
-          onOpenSectionSummary={handleOpenSectionSummary}
-        />
-
         {/* Center Screen Stage */}
         <section className="stage-panel">
           {/* Main content stage renders here without overlapping float controls */}
@@ -1023,10 +948,10 @@ export default function App() {
                     onPlayNextLesson={goToNextLesson}
                     theaterMode={theaterMode}
                     onToggleTheaterMode={handleToggleTheaterMode}
-                    sidebarCollapsed={sidebarCollapsed}
-                    onToggleSidebar={() => setSidebarCollapsed(c => !c)}
-                    notesCollapsed={notesCollapsed}
-                    onToggleNotes={() => setNotesCollapsed(c => !c)}
+                    sidebarCollapsed={panelCollapsed}
+                    onToggleSidebar={() => setPanelCollapsed(c => !c)}
+                    notesCollapsed={panelCollapsed}
+                    onToggleNotes={() => setPanelCollapsed(c => !c)}
                     onPlay={handleVideoPlay}
                     onPause={handleVideoPause}
                     autoCreateTimeline={settings.autoCreateTimeline}
@@ -1100,14 +1025,14 @@ export default function App() {
               <Award className="empty-state-icon" style={{ strokeWidth: 1.5, size: 48 }} />
               <div className="empty-state-title">Ready to Learn?</div>
               <div className="empty-state-desc">
-                Select a section chapter and choose a lesson from the left sidebar to start playing.
+                Select a section chapter and choose a lesson from the right sidebar to start playing.
               </div>
             </div>
           )}
         </section>
 
-        {/* Right Sidebar Notes */}
-        {activeLesson && activeLesson.type === 'video' && !notesCollapsed && (
+        {/* Right Sidebar */}
+        {!panelCollapsed && (
           <NotesPanel
             notes={activeLessonNotes}
             currentTime={currentTime}
@@ -1116,6 +1041,11 @@ export default function App() {
             onDeleteNote={handleDeleteNote}
             onSeek={handleSeek}
             onPauseVideo={handlePauseVideo}
+            sections={sections}
+            progress={progress}
+            onSelectLesson={handleSelectLesson}
+            onToggleComplete={handleToggleComplete}
+            onOpenSectionSummary={handleOpenSectionSummary}
             activeLesson={activeLesson}
             activeLang={activeLang}
             summaryLang={summaryLang}

@@ -1130,24 +1130,14 @@ export default function VideoPlayer({
 
         {/* Player Controls & Speed Panel (Right) */}
         <div className="video-overlay-right">
-          {/* Toggle Sidebar/Menu Overlay */}
+          {/* Toggle Sidebar Panel Overlay */}
           <button
-            onClick={onToggleSidebar}
-            title={sidebarCollapsed ? "Open Course Content (b)" : "Collapse Course Content (b)"}
-            className={`video-overlay-btn ${!sidebarCollapsed ? 'active' : ''}`}
+            onClick={onToggleSidebar || onToggleNotes}
+            title={sidebarCollapsed || notesCollapsed ? "Open Sidebar Panel (b or n)" : "Collapse Sidebar Panel (b or n)"}
+            className={`video-overlay-btn ${!(sidebarCollapsed || notesCollapsed) ? 'active' : ''}`}
             style={{ borderRadius: '12px', padding: '4px 6px' }}
           >
             <Menu size={14} />
-          </button>
-
-          {/* Toggle Notes Overlay */}
-          <button
-            onClick={onToggleNotes}
-            title={notesCollapsed ? "Open Notes Panel (n)" : "Collapse Notes Panel (n)"}
-            className={`video-overlay-btn ${!notesCollapsed ? 'active' : ''}`}
-            style={{ borderRadius: '12px', padding: '4px 6px' }}
-          >
-            <BookOpen size={14} />
           </button>
 
           {/* Theater Mode Toggle Overlay */}
