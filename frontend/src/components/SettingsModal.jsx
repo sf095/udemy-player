@@ -4,6 +4,7 @@ import { X, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 const DEFAULT_SETTINGS = {
   aiProvider: 'gemini',
   geminiApiKey: '',
+  geminiModel: 'gemini-3.8-flash',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
@@ -37,6 +38,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const merged = { ...DEFAULT_SETTINGS, ...settings };
   const [aiProvider, setAiProvider] = useState(merged.aiProvider);
   const [geminiApiKey, setGeminiApiKey] = useState(merged.geminiApiKey);
+  const [geminiModel, setGeminiModel] = useState(merged.geminiModel || 'gemini-3.8-flash');
   const [anthropicApiKey, setAnthropicApiKey] = useState(merged.anthropicApiKey);
   const [anthropicModel, setAnthropicModel] = useState(merged.anthropicModel);
   const [anthropicBaseUrl, setAnthropicBaseUrl] = useState(merged.anthropicBaseUrl);
@@ -62,6 +64,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     const result = await onSave({
       aiProvider,
       geminiApiKey: geminiApiKey.trim(),
+      geminiModel: geminiModel.trim() || 'gemini-3.8-flash',
       anthropicApiKey: anthropicApiKey.trim(),
       anthropicModel: anthropicModel.trim() || 'claude-3-5-sonnet-latest',
       anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com',
@@ -181,80 +184,116 @@ export default function SettingsModal({ settings, onSave, onClose }) {
 
           {/* Conditional provider inputs */}
           {aiProvider === 'gemini' ? (
-            <div style={{ marginBottom: '20px' }}>
-              <label 
-                htmlFor="gemini-key" 
-                style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  marginBottom: '8px'
-                }}
-              >
-                Gemini API Key
-              </label>
-              <div style={{ position: 'relative' }}>
+            <>
+              <div style={{ marginBottom: '16px' }}>
+                <label 
+                  htmlFor="gemini-key" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Gemini API Key
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="gemini-key"
+                    type={showGeminiKey ? 'text' : 'password'}
+                    placeholder="AIzaSy..."
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '10px 40px 10px 12px',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'monospace',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      transition: 'var(--transition-fast)'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0
+                    }}
+                  >
+                    {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Gemini Model */}
+              <div style={{ marginBottom: '20px' }}>
+                <label 
+                  htmlFor="gemini-model" 
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Model Name
+                </label>
                 <input
-                  id="gemini-key"
-                  type={showGeminiKey ? 'text' : 'password'}
-                  placeholder="AIzaSy..."
-                  value={geminiApiKey}
-                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  id="gemini-model"
+                  type="text"
+                  placeholder="gemini-3.8-flash"
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value)}
                   style={{
                     width: '100%',
                     background: 'var(--bg-input)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '8px',
-                    padding: '10px 40px 10px 12px',
+                    padding: '10px 12px',
                     color: 'var(--text-primary)',
-                    fontFamily: 'monospace',
                     fontSize: '0.9rem',
                     outline: 'none',
                     transition: 'var(--transition-fast)'
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                <p 
                   style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent',
-                    border: 'none',
+                    fontSize: '0.75rem',
                     color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 0
+                    marginTop: '8px',
+                    lineHeight: 1.4
                   }}
                 >
-                  {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                  Defaults to gemini-3.8-flash (with automatic fallback to gemini-2.5-flash and gemini-1.5-flash). Get a free API key from{' '}
+                  <a 
+                    href="https://aistudio.google.com/" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}
+                    onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                    onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                  >
+                    Google AI Studio
+                  </a>.
+                </p>
               </div>
-              <p 
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary)',
-                  marginTop: '8px',
-                  lineHeight: 1.4
-                }}
-              >
-                Required for translation, summarization, and AI chat. Get a free API key from{' '}
-                <a 
-                  href="https://aistudio.google.com/" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}
-                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                >
-                  Google AI Studio
-                </a>.
-              </p>
-            </div>
+            </>
           ) : aiProvider === 'openai' ? (
             <>
               {/* OpenAI API Key */}

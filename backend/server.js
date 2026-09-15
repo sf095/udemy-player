@@ -20,6 +20,7 @@ const DB_FILE = process.env.USER_DATA_PATH
 const DEFAULT_SETTINGS = {
   aiProvider: 'gemini',
   geminiApiKey: '',
+  geminiModel: 'gemini-3.8-flash',
   anthropicApiKey: '',
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
@@ -113,13 +114,14 @@ function writeDb(data) {
   }
 }
 
-// Resilient API Caller that falls back from Gemini 2.5 Flash to Gemini 1.5 Flash on transient errors
-async function callGeminiWithFallback(apiKey, payloadBody, isV1Beta = false) {
-  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+// Resilient API Caller that prioritizes the configured Gemini model (e.g. gemini-3.8-flash) and falls back on transient errors
+async function callGeminiWithFallback(apiKey, payloadBody, isV1Beta = false, targetModel = null) {
+  const fallbackModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+  const models = Array.from(new Set([targetModel, ...fallbackModels].filter(Boolean)));
   let lastError = null;
 
   for (const model of models) {
-    const apiVersion = isV1Beta ? 'v1beta' : 'v1';
+    const apiVersion = (isV1Beta || model.includes('3.') || model.includes('2.5')) ? 'v1beta' : 'v1';
     const currentUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
 
     console.log(`Attempting Gemini API call with model ${model} via ${apiVersion}...`);
@@ -180,7 +182,7 @@ function getAiConfig(db, overrideApiKey) {
     ? db.settings?.anthropicModel || 'claude-3-5-sonnet-latest'
     : provider === 'openai'
     ? db.settings?.openaiModel || 'gpt-4o-mini'
-    : null;
+    : db.settings?.geminiModel || 'gemini-3.8-flash';
   const baseUrl = provider === 'anthropic'
     ? db.settings?.anthropicBaseUrl || 'https://api.anthropic.com'
     : provider === 'openai'
@@ -232,13 +234,13 @@ async function callAiProvider(config, prompt, options = {}) {
         parts: [{ text: m.content }]
       }))
     };
-    return await callGeminiWithFallback(apiKey, payload, true);
+    return await callGeminiWithFallback(apiKey, payload, true, model);
   }
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }]
   };
-  return await callGeminiWithFallback(apiKey, payload, false);
+  return await callGeminiWithFallback(apiKey, payload, false, model);
 }
 
 // Caller for OpenAI API or OpenAI-compatible custom endpoints
@@ -983,6 +985,7 @@ app.post('/api/userdata/settings', (req, res) => {
   const {
     aiProvider,
     geminiApiKey,
+    geminiModel,
     anthropicApiKey,
     anthropicModel,
     anthropicBaseUrl,
@@ -1001,6 +1004,7 @@ app.post('/api/userdata/settings', (req, res) => {
   }
   db.settings.aiProvider = aiProvider || DEFAULT_SETTINGS.aiProvider;
   db.settings.geminiApiKey = geminiApiKey || DEFAULT_SETTINGS.geminiApiKey;
+  db.settings.geminiModel = geminiModel || DEFAULT_SETTINGS.geminiModel;
   db.settings.anthropicApiKey = anthropicApiKey || DEFAULT_SETTINGS.anthropicApiKey;
   db.settings.anthropicModel = anthropicModel || DEFAULT_SETTINGS.anthropicModel;
   db.settings.anthropicBaseUrl = anthropicBaseUrl || DEFAULT_SETTINGS.anthropicBaseUrl;
