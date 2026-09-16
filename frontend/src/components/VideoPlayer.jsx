@@ -140,6 +140,7 @@ export default function VideoPlayer({
   videoPath,
   subtitles = {},
   initialTime,
+  autoPlay = false,
   onTimeUpdate,
   playerRef,
   onSubtitlesUpdated,
@@ -915,6 +916,11 @@ export default function VideoPlayer({
           setLocalCurrentTime(initialTime);
         }
       }
+      if (!autoPlay && !video.paused) {
+        video.pause();
+      } else if (autoPlay && video.paused) {
+        video.play().catch(() => {});
+      }
     };
 
     const handleTimeUpdate = () => {
@@ -957,6 +963,11 @@ export default function VideoPlayer({
         video.currentTime = initialTime;
         setLocalCurrentTime(initialTime);
       }
+      if (!autoPlay && !video.paused) {
+        video.pause();
+      } else if (autoPlay && video.paused) {
+        video.play().catch(() => {});
+      }
     }
 
     return () => {
@@ -968,7 +979,7 @@ export default function VideoPlayer({
       video.removeEventListener('volumechange', handleVolumeChange);
       video.removeEventListener('ratechange', handleRateChange);
     };
-  }, [videoPath, initialTime, autoplayEnabled, hasNextLesson, speed, onPlay, onPause]);
+  }, [videoPath, initialTime, autoPlay, autoplayEnabled, hasNextLesson, speed, onPlay, onPause]);
 
   const availableLangs = Object.keys(subtitles || {});
   const translatableLangs = CURATED_LANGUAGES.filter(lang => !availableLangs.includes(lang.code));
@@ -990,7 +1001,7 @@ export default function VideoPlayer({
         crossOrigin="anonymous"
         className="custom-video"
         controls={false}
-        autoPlay
+        autoPlay={autoPlay}
         playsInline
         style={{ width: '100%', height: '100%' }}
         onClick={handleTogglePlay}

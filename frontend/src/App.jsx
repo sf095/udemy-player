@@ -30,12 +30,31 @@ const DEFAULT_SETTINGS = {
   autoCreateSummaryLang: 'en'
 };
 
+// Safe helper to get resources with backwards compatibility fallback
+function getLessonResources(lesson) {
+  if (!lesson) return [];
+  if (lesson.resources) return lesson.resources;
+  const fallback = [];
+  if (lesson.pdf) {
+    const parts = lesson.pdf.split(/[/\\]/);
+    const name = parts[parts.length - 1];
+    fallback.push({ name: name, title: 'PDF Document', path: lesson.pdf, ext: '.pdf', type: 'pdf' });
+  }
+  if (lesson.html) {
+    const parts = lesson.html.split(/[/\\]/);
+    const name = parts[parts.length - 1];
+    fallback.push({ name: name, title: 'HTML Document', path: lesson.html, ext: '.html', type: 'html' });
+  }
+  return fallback;
+}
+
 export default function App() {
   const [coursePath, setCoursePath] = useState('');
   const [history, setHistory] = useState([]);
   const [sections, setSections] = useState([]);
   const [progress, setProgress] = useState({});
   const [notes, setNotes] = useState({});
+  const [courseStates, setCourseStates] = useState({});
   const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
   const hasApiKey = useMemo(() => {
     if (settings.aiProvider === 'anthropic') return !!settings.anthropicApiKey;
@@ -55,6 +74,7 @@ export default function App() {
   });
   const [currentTime, setCurrentTime] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [autoPlayVideo, setAutoPlayVideo] = useState(false);
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'doc'
   const [activeResource, setActiveResource] = useState(null);
   
@@ -82,10 +102,123 @@ export default function App() {
   const saveProgressThrottleRef = useRef(null);
   const toastTimerRef = useRef(null);
 
-  // Initialize and load user data on mount
-  useEffect(() => {
-    fetchUserData();
+  const showToast = useCallback((msg) => {
+    setToast(prev => ({ message: msg, id: prev.id + 1 }));
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(prev => ({ ...prev, message: null })), 1500);
   }, []);
+
+  // Flush current playback watchTime and active lesson immediately to backend
+  const flushCurrentPlayback = useCallback(async () => {
+    if (!activeLesson || !coursePath) return;
+
+    let timeToSave = currentTime;
+    let durationToSave = 0;
+    if (playerRef.current) {
+      timeToSave = playerRef.current.currentTime || currentTime;
+      durationToSave = playerRef.current.duration || 0;
+    }
+
+    try {
+      await fetch('/api/userdata/course-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          coursePath,
+          lastLessonId: activeLesson.id,
+          lastActiveTab: activeTab,
+          watchTime: Math.floor(timeToSave),
+          duration: Math.floor(durationToSave)
+        })
+      });
+    } catch (err) {
+      console.error('Failed to flush course playback state:', err);
+    }
+  }, [activeLesson, coursePath, currentTime, activeTab]);
+
+  // Handle browser tab/window close or navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (activeLesson && coursePath) {
+        let timeToSave = currentTime;
+        let durationToSave = 0;
+        if (playerRef.current) {
+          timeToSave = playerRef.current.currentTime || currentTime;
+          durationToSave = playerRef.current.duration || 0;
+        }
+        const payload = JSON.stringify({
+          coursePath,
+          lastLessonId: activeLesson.id,
+          lastActiveTab: activeTab,
+          watchTime: Math.floor(timeToSave),
+          duration: Math.floor(durationToSave)
+        });
+        navigator.sendBeacon('/api/userdata/course-state', new Blob([payload], { type: 'application/json' }));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [activeLesson, coursePath, currentTime, activeTab]);
+
+  // Restore study state (last active lesson, watch time, active tab)
+  const restoreCourseStudyState = useCallback((sectionsList, courseState, currentProgress) => {
+    if (!sectionsList || sectionsList.length === 0) {
+      setActiveLesson(null);
+      return;
+    }
+
+    const allLessons = [];
+    sectionsList.forEach((sec) => {
+      sec.lessons.forEach((l) => allLessons.push(l));
+    });
+
+    if (allLessons.length === 0) {
+      setActiveLesson(null);
+      return;
+    }
+
+    let targetLesson = null;
+    let isResume = false;
+
+    // 1. Try to restore last active lesson from courseState
+    if (courseState?.lastLessonId) {
+      targetLesson = allLessons.find(l => l.id === courseState.lastLessonId) || null;
+      if (targetLesson) {
+        isResume = true;
+      }
+    }
+
+    // 2. If no saved last active lesson, find first incomplete lesson or lesson 0
+    if (!targetLesson) {
+      targetLesson = allLessons.find(l => !currentProgress?.[l.id]?.completed) || allLessons[0];
+    }
+
+    if (targetLesson) {
+      setAutoPlayVideo(false);
+      setActiveLesson(targetLesson);
+
+      const resources = getLessonResources(targetLesson);
+      const firstPreviewable = resources.find(r => r.type === 'pdf' || r.type === 'html' || r.type === 'quiz') || null;
+      setActiveResource(firstPreviewable);
+
+      // Restore activeTab if valid for this lesson
+      if (courseState?.lastActiveTab === 'doc' && resources.length > 0) {
+        setActiveTab('doc');
+      } else if (courseState?.lastActiveTab === 'video' && targetLesson.video) {
+        setActiveTab('video');
+      } else {
+        setActiveTab(targetLesson.type === 'video' ? 'video' : 'doc');
+      }
+
+      const lessonProg = currentProgress?.[targetLesson.id];
+      const initialWatchTime = lessonProg?.watchTime || 0;
+      setCurrentTime(initialWatchTime);
+
+      if (isResume) {
+        showToast(`Resumed: ${targetLesson.title}`);
+      }
+    }
+  }, [showToast]);
 
   // Reset video playback status on lesson change
   useEffect(() => {
@@ -152,15 +285,23 @@ export default function App() {
       setProgress(data.progress || {});
       setNotes(data.notes || {});
       setSettings(data.settings || { ...DEFAULT_SETTINGS });
+      if (data.courseStates) {
+        setCourseStates(data.courseStates);
+      }
       
       if (shouldScanContent && data.activeCoursePath) {
-        fetchCourseContent(data.activeCoursePath);
+        await fetchCourseContent(data.activeCoursePath, data.courseStates?.[data.activeCoursePath]);
       }
     } catch (err) {
       console.error('Failed to load user data', err);
       setError('Failed to fetch user progress state.');
     }
   };
+
+  // Initialize and load user data on mount
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
   const handleSaveSettings = async (newSettings) => {
     try {
@@ -202,10 +343,11 @@ export default function App() {
     }
   };
 
-  const fetchCourseContent = async (path) => {
+  const fetchCourseContent = async (path, targetCourseState = null) => {
     if (!path) {
       setSections([]);
       setError(null);
+      setActiveLesson(null);
       return;
     }
     setLoading(true);
@@ -215,12 +357,23 @@ export default function App() {
       const data = await response.json();
       if (data.success) {
         setSections(data.sections);
+        const effectiveProg = data.progress || progress;
+        if (data.progress) {
+          setProgress(data.progress);
+        }
+        if (data.courseState) {
+          setCourseStates(prev => ({ ...prev, [path]: data.courseState }));
+        }
+        const stateToRestore = targetCourseState || data.courseState || courseStates[path] || null;
+        restoreCourseStudyState(data.sections, stateToRestore, effectiveProg);
       } else {
         setError(data.error || 'Failed to scan course content.');
+        setActiveLesson(null);
       }
     } catch (err) {
       console.error('Failed to scan course content', err);
       setError('Failed to reach backend server.');
+      setActiveLesson(null);
     } finally {
       setLoading(false);
     }
@@ -228,8 +381,11 @@ export default function App() {
 
   // Change course folder path
   const handleSelectPath = async (newPath) => {
+    if (!newPath || newPath === coursePath) return;
     try {
       setLoading(true);
+      await flushCurrentPlayback();
+
       const res = await fetch('/api/userdata/course', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,9 +398,14 @@ export default function App() {
       }
       setCoursePath(data.activeCoursePath);
       setHistory(data.history);
-      setActiveLesson(null);
+      if (data.courseStates) {
+        setCourseStates(data.courseStates);
+      }
+      if (data.progress) {
+        setProgress(data.progress);
+      }
       setTheaterMode(false);
-      await fetchCourseContent(data.activeCoursePath);
+      await fetchCourseContent(data.activeCoursePath, data.courseStates?.[data.activeCoursePath]);
     } catch (err) {
       console.error('Failed to change course path', err);
       setError('Error scanning selected course path.');
@@ -256,6 +417,9 @@ export default function App() {
   // Delete course path from history
   const handleDeletePath = async (pathToDelete) => {
     try {
+      if (pathToDelete === coursePath) {
+        await flushCurrentPlayback();
+      }
       const res = await fetch('/api/userdata/course', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -263,10 +427,13 @@ export default function App() {
       });
       const data = await res.json();
       setHistory(data.history);
+      if (data.courseStates) {
+        setCourseStates(data.courseStates);
+      }
       if (data.activeCoursePath !== coursePath) {
         setCoursePath(data.activeCoursePath);
         setActiveLesson(null);
-        fetchCourseContent(data.activeCoursePath);
+        await fetchCourseContent(data.activeCoursePath, data.courseStates?.[data.activeCoursePath]);
       }
       return true;
     } catch (err) {
@@ -278,6 +445,9 @@ export default function App() {
   // Modify/rename course path in history
   const handleModifyPath = async (oldPath, newPath) => {
     try {
+      if (oldPath === coursePath) {
+        await flushCurrentPlayback();
+      }
       const res = await fetch('/api/userdata/course', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -288,9 +458,12 @@ export default function App() {
       }
       const data = await res.json();
       setHistory(data.history);
+      if (data.courseStates) {
+        setCourseStates(data.courseStates);
+      }
       if (oldPath === coursePath) {
         setCoursePath(data.activeCoursePath);
-        await fetchCourseContent(data.activeCoursePath);
+        await fetchCourseContent(data.activeCoursePath, data.courseStates?.[data.activeCoursePath]);
       }
       return true;
     } catch (err) {
@@ -307,6 +480,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          coursePath,
           lessonId,
           completed,
           watchTime: currentLessonProgress.watchTime || 0,
@@ -315,6 +489,9 @@ export default function App() {
       });
       const data = await res.json();
       setProgress(data.progress);
+      if (data.courseStates) {
+        setCourseStates(data.courseStates);
+      }
     } catch (err) {
       console.error('Failed to update completion state', err);
     }
@@ -340,6 +517,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          coursePath,
           lessonId: activeLesson.id,
           watchTime: Math.floor(time),
           duration: Math.floor(duration)
@@ -349,6 +527,9 @@ export default function App() {
       .then(data => {
         // Silently update progress mapping
         setProgress(data.progress);
+        if (data.courseStates) {
+          setCourseStates(data.courseStates);
+        }
       })
       .catch(err => console.error('Auto-save progress error:', err));
     }
@@ -434,24 +615,6 @@ export default function App() {
     }
   };
 
-  // Safe helper to get resources with backwards compatibility fallback
-  const getLessonResources = (lesson) => {
-    if (!lesson) return [];
-    if (lesson.resources) return lesson.resources;
-    const fallback = [];
-    if (lesson.pdf) {
-      const parts = lesson.pdf.split(/[/\\]/);
-      const name = parts[parts.length - 1];
-      fallback.push({ name: name, title: 'PDF Document', path: lesson.pdf, ext: '.pdf', type: 'pdf' });
-    }
-    if (lesson.html) {
-      const parts = lesson.html.split(/[/\\]/);
-      const name = parts[parts.length - 1];
-      fallback.push({ name: name, title: 'HTML Document', path: lesson.html, ext: '.html', type: 'html' });
-    }
-    return fallback;
-  };
-
   // Resizing event handlers for side panel
   const handleNotesResizeStart = (e) => {
     e.preventDefault();
@@ -484,7 +647,8 @@ export default function App() {
   };
 
   // Select lesson click handler
-  const handleSelectLesson = (lesson) => {
+  const handleSelectLesson = (lesson, shouldAutoPlay = true) => {
+    setAutoPlayVideo(shouldAutoPlay);
     setActiveLesson(lesson);
     setCurrentTime(0);
 
@@ -493,10 +657,37 @@ export default function App() {
     setActiveResource(firstPreviewable);
 
     // Auto-select tab based on available assets
-    if (lesson.type === 'video') {
-      setActiveTab('video');
-    } else {
-      setActiveTab('doc');
+    const defaultTab = lesson.type === 'video' ? 'video' : 'doc';
+    setActiveTab(defaultTab);
+
+    // Save study state for this course
+    if (coursePath) {
+      const lessonWatchTime = progress[lesson.id]?.watchTime || 0;
+      fetch('/api/userdata/course-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          coursePath,
+          lastLessonId: lesson.id,
+          lastActiveTab: defaultTab,
+          watchTime: lessonWatchTime
+        })
+      }).catch(err => console.error('Failed to update course state on lesson select:', err));
+    }
+  };
+
+  const handleSelectTab = (tab) => {
+    setActiveTab(tab);
+    if (coursePath && activeLesson) {
+      fetch('/api/userdata/course-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          coursePath,
+          lastLessonId: activeLesson.id,
+          lastActiveTab: tab
+        })
+      }).catch(err => console.error('Failed to save active tab state:', err));
     }
   };
 
@@ -528,12 +719,6 @@ export default function App() {
 
   // --- Keyboard Shortcuts Infrastructure ---
   const SPEED_STEPS = [1, 1.25, 1.5, 1.75, 2];
-
-  const showToast = (msg) => {
-    setToast(prev => ({ message: msg, id: prev.id + 1 }));
-    clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(prev => ({ ...prev, message: null })), 1500);
-  };
 
   const allLessonsFlat = useMemo(() => {
     const all = [];
@@ -890,13 +1075,13 @@ export default function App() {
                     <div className="stage-nav-tabs">
                       <button
                         className={`stage-nav-tab ${activeTab === 'video' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('video')}
+                        onClick={() => handleSelectTab('video')}
                       >
                         <Play size={13} /> Video Lesson
                       </button>
                       <button
                         className={`stage-nav-tab ${activeTab === 'doc' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('doc')}
+                        onClick={() => handleSelectTab('doc')}
                       >
                         <BookOpen size={13} /> Companion Resources
                       </button>
@@ -926,10 +1111,11 @@ export default function App() {
                   />
                 ) : activeTab === 'video' && activeLesson.video ? (
                   <VideoPlayer
-                    key={activeLesson.video}
+                    key={`${coursePath}:${activeLesson.id}`}
                     videoPath={activeLesson.video}
                     subtitles={activeLesson.subtitles}
                     initialTime={activeLessonProgress.watchTime || 0}
+                    autoPlay={autoPlayVideo}
                     onTimeUpdate={handleTimeUpdate}
                     playerRef={playerRef}
                     onSubtitlesUpdated={handleSubtitlesUpdated}
@@ -959,7 +1145,7 @@ export default function App() {
                     hasApiKey={hasApiKey}
                     hasMultipleTabs={hasMultipleTabs}
                     activeTab={activeTab}
-                    onSelectTab={setActiveTab}
+                    onSelectTab={handleSelectTab}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>

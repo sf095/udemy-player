@@ -55,11 +55,27 @@ const DEFAULT_DB = {
   history: [],
   progress: {}, // lessonId -> { completed: boolean, watchTime: number, duration: number }
   notes: {},     // lessonId -> Array of { id, timestamp, text, createdAt }
+  courseStates: {}, // coursePath -> { lastLessonId, lastActiveTab, lastActiveAt, progress: {} }
   settings: { ...DEFAULT_SETTINGS }
 };
 
 app.use(cors());
 app.use(express.json());
+
+// Helper to calculate effective progress and state for user data response
+function getEffectiveUserData(db, targetCoursePath = null) {
+  const activeCourse = targetCoursePath || db.activeCoursePath;
+  const courseState = (activeCourse && db.courseStates && db.courseStates[activeCourse]) || null;
+  const effectiveProgress = {
+    ...(db.progress || {}),
+    ...(courseState?.progress || {})
+  };
+  return {
+    ...db,
+    progress: effectiveProgress,
+    activeCourseState: courseState
+  };
+}
 
 // Helper to load/save JSON database file
 function readDb() {
@@ -74,6 +90,10 @@ function readDb() {
     }
     // Merge defaults to backfill any missing settings fields
     parsed.settings = { ...DEFAULT_SETTINGS, ...parsed.settings };
+
+    if (!parsed.courseStates || typeof parsed.courseStates !== 'object') {
+      parsed.courseStates = {};
+    }
 
     // Sanitize language codes if stored as full language names
     if (parsed.settings.autoCreateTimelineLang && parsed.settings.autoCreateTimelineLang.length > 2) {
@@ -463,8 +483,20 @@ app.get('/api/course-content', (req, res) => {
     return res.json({ success: false, error: 'No course folder selected.' });
   }
   try {
+    const db = readDb();
     const content = scanCourseFolder(coursePath);
-    res.json({ success: true, coursePath, sections: content });
+    const courseState = db.courseStates?.[coursePath] || null;
+    const effectiveProgress = {
+      ...(db.progress || {}),
+      ...(courseState?.progress || {})
+    };
+    res.json({
+      success: true,
+      coursePath,
+      sections: content,
+      courseState,
+      progress: effectiveProgress
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -822,7 +854,7 @@ app.get('/api/resource', (req, res) => {
 
 // 5. Get all User Data (Active course, history, notes, completed states)
 app.get('/api/userdata', (req, res) => {
-  res.json(readDb());
+  res.json(getEffectiveUserData(readDb()));
 });
 
 // 6. Update Active Course Path
@@ -842,6 +874,19 @@ app.post('/api/userdata/course', (req, res) => {
   if (!db.history.includes(coursePath)) {
     db.history.push(coursePath);
   }
+  if (!db.courseStates) {
+    db.courseStates = {};
+  }
+  if (!db.courseStates[coursePath]) {
+    db.courseStates[coursePath] = {
+      lastLessonId: null,
+      lastActiveTab: 'video',
+      lastActiveAt: Date.now(),
+      progress: {}
+    };
+  } else {
+    db.courseStates[coursePath].lastActiveAt = Date.now();
+  }
   writeDb(db);
 
   // Clear cached MKV conversions for the previous course
@@ -849,7 +894,7 @@ app.post('/api/userdata/course', (req, res) => {
     cleanupCourseCache(oldPath);
   }
 
-  res.json(db);
+  res.json(getEffectiveUserData(db));
 });
 
 // 6a. Delete Course Path from History
@@ -864,12 +909,15 @@ app.delete('/api/userdata/course', (req, res) => {
   if (db.activeCoursePath === coursePath) {
     db.activeCoursePath = '';
   }
+  if (db.courseStates && db.courseStates[coursePath]) {
+    delete db.courseStates[coursePath];
+  }
   writeDb(db);
 
   // Clear cached MKV conversions for the deleted course
   cleanupCourseCache(coursePath);
 
-  res.json(db);
+  res.json(getEffectiveUserData(db));
 });
 
 // 6b. Modify Course Path in History
@@ -891,28 +939,111 @@ app.put('/api/userdata/course', (req, res) => {
   if (db.activeCoursePath === oldPath) {
     db.activeCoursePath = newPath;
   }
+  if (db.courseStates) {
+    if (db.courseStates[oldPath]) {
+      db.courseStates[newPath] = db.courseStates[oldPath];
+      delete db.courseStates[oldPath];
+    }
+  }
   writeDb(db);
-  res.json(db);
+  res.json(getEffectiveUserData(db));
 });
 
 // 7. Update progress completion and watchTime
 app.post('/api/userdata/progress', (req, res) => {
-  const { lessonId, completed, watchTime, duration } = req.body;
+  const { coursePath: reqCoursePath, lessonId, completed, watchTime, duration } = req.body;
   if (!lessonId) {
     return res.status(400).json({ error: 'lessonId is required' });
   }
 
   const db = readDb();
-  const currentProgress = db.progress[lessonId] || { completed: false, watchTime: 0, duration: 0 };
+  const coursePath = reqCoursePath || db.activeCoursePath;
+
+  if (!db.courseStates) {
+    db.courseStates = {};
+  }
+  if (coursePath) {
+    if (!db.courseStates[coursePath]) {
+      db.courseStates[coursePath] = {
+        lastLessonId: lessonId,
+        lastActiveTab: 'video',
+        lastActiveAt: Date.now(),
+        progress: {}
+      };
+    } else {
+      if (!db.courseStates[coursePath].progress) {
+        db.courseStates[coursePath].progress = {};
+      }
+      db.courseStates[coursePath].lastLessonId = lessonId;
+      db.courseStates[coursePath].lastActiveAt = Date.now();
+    }
+  }
+
+  const currentProgress = (coursePath && db.courseStates[coursePath]?.progress?.[lessonId])
+    || db.progress[lessonId]
+    || { completed: false, watchTime: 0, duration: 0 };
   
-  db.progress[lessonId] = {
+  const updatedProgress = {
     completed: typeof completed !== 'undefined' ? completed : currentProgress.completed,
     watchTime: typeof watchTime !== 'undefined' ? watchTime : currentProgress.watchTime,
     duration: typeof duration !== 'undefined' ? duration : currentProgress.duration
   };
 
+  if (coursePath) {
+    db.courseStates[coursePath].progress[lessonId] = updatedProgress;
+  }
+  db.progress[lessonId] = updatedProgress;
+
   writeDb(db);
-  res.json(db);
+  res.json(getEffectiveUserData(db, coursePath));
+});
+
+// 7b. Update Course Study State (last active lesson, active tab, watch time)
+app.post('/api/userdata/course-state', (req, res) => {
+  const { coursePath: reqCoursePath, lastLessonId, lastActiveTab, watchTime, duration } = req.body;
+  const db = readDb();
+  const coursePath = reqCoursePath || db.activeCoursePath;
+
+  if (!coursePath) {
+    return res.status(400).json({ error: 'coursePath is required' });
+  }
+
+  if (!db.courseStates) {
+    db.courseStates = {};
+  }
+  if (!db.courseStates[coursePath]) {
+    db.courseStates[coursePath] = {
+      lastLessonId: null,
+      lastActiveTab: 'video',
+      lastActiveAt: Date.now(),
+      progress: {}
+    };
+  }
+
+  const state = db.courseStates[coursePath];
+  if (lastLessonId) {
+    state.lastLessonId = lastLessonId;
+  }
+  if (lastActiveTab) {
+    state.lastActiveTab = lastActiveTab;
+  }
+  state.lastActiveAt = Date.now();
+
+  // If watchTime is provided with lastLessonId, also update progress immediately
+  if (lastLessonId && typeof watchTime !== 'undefined') {
+    if (!state.progress) state.progress = {};
+    const existing = state.progress[lastLessonId] || db.progress[lastLessonId] || { completed: false, watchTime: 0, duration: 0 };
+    const updated = {
+      completed: existing.completed,
+      watchTime: Math.floor(watchTime),
+      duration: typeof duration !== 'undefined' ? Math.floor(duration) : existing.duration
+    };
+    state.progress[lastLessonId] = updated;
+    db.progress[lastLessonId] = updated;
+  }
+
+  writeDb(db);
+  res.json({ success: true, courseState: state, ...getEffectiveUserData(db, coursePath) });
 });
 
 // 8. Add or Update a Note
