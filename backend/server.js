@@ -1634,6 +1634,116 @@ app.post('/api/clear-section-summary', (req, res) => {
   }
 });
 
+// 13c. Chat about chapter (section) based on section summary and transcripts of all lessons
+app.post('/api/chat-chapter', async (req, res) => {
+  const { sectionPath, messages, langCode = 'en', enableWebSearch = false, lessons = [] } = req.body;
+  if (!sectionPath || !messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'sectionPath and messages array are required' });
+  }
+
+  if (!validateSubtitlePath(sectionPath)) {
+    return res.status(403).json({ error: 'Path traversal denied' });
+  }
+
+  if (!fs.existsSync(sectionPath)) {
+    return res.status(404).json({ error: `Section directory not found: ${sectionPath}` });
+  }
+
+  const db = readDb();
+  const config = getAiConfig(db);
+
+  if (!config.apiKey) {
+    const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
+    return res.status(400).json({ error: errorMsg });
+  }
+
+  try {
+    const langLower = (langCode || 'en').toLowerCase();
+    const summaryPath = path.join(sectionPath, `section.summary.${langLower}.txt`);
+    let chapterSummary = '';
+    if (fs.existsSync(summaryPath)) {
+      try {
+        chapterSummary = fs.readFileSync(summaryPath, 'utf8');
+      } catch (err) {
+        console.warn('Could not read cached chapter summary for chat:', err);
+      }
+    }
+
+    let lessonTranscripts = [];
+    if (Array.isArray(lessons) && lessons.length > 0) {
+      for (const lesson of lessons) {
+        const subPath = lesson.subtitles?.[langLower]
+          || lesson.subtitle
+          || (lesson.subtitles ? Object.values(lesson.subtitles)[0] : null);
+
+        if (subPath && validateSubtitlePath(subPath) && fs.existsSync(subPath)) {
+          const cleanText = getCleanSubtitleText(subPath);
+          if (cleanText.trim()) {
+            lessonTranscripts.push(`### Lesson: ${lesson.title}\n${cleanText.trim()}`);
+          }
+        }
+      }
+    } else {
+      // Fallback: read subtitle files directly from section directory
+      const files = fs.readdirSync(sectionPath);
+      const subFiles = files.filter(f => (f.endsWith('.srt') || f.endsWith('.vtt')) && !f.includes('.summary.'));
+      for (const f of subFiles) {
+        const fullP = path.join(sectionPath, f);
+        const cleanText = getCleanSubtitleText(fullP);
+        if (cleanText.trim()) {
+          lessonTranscripts.push(`### Subtitle: ${f}\n${cleanText.trim()}`);
+        }
+      }
+    }
+
+    let combinedTranscripts = lessonTranscripts.join('\n\n');
+    const MAX_CHAT_TRANSCRIPT_CHARS = 400000;
+    if (combinedTranscripts.length > MAX_CHAT_TRANSCRIPT_CHARS) {
+      combinedTranscripts = combinedTranscripts.substring(0, MAX_CHAT_TRANSCRIPT_CHARS);
+    }
+
+    const sectionTitle = path.basename(sectionPath);
+    let systemInstruction = `You are a helpful and knowledgeable offline AI learning assistant for a student studying a course chapter/section.
+The student is asking questions about the chapter: "${sectionTitle}".`;
+
+    if (chapterSummary.trim()) {
+      systemInstruction += `\n\nBelow is the structured summary of this chapter:\n---\n${chapterSummary.trim()}\n---`;
+    }
+
+    if (combinedTranscripts.trim()) {
+      systemInstruction += `\n\nBelow are the lesson transcripts (subtitles) of this chapter:\n---\n${combinedTranscripts.trim()}\n---`;
+    }
+
+    systemInstruction += `\n\nUse the chapter summary and lesson transcripts above to answer the student's questions accurately, thoroughly, and clearly.
+If the student asks high-level thematic questions, synthesize across the chapter.
+If the student asks specific questions, ground your explanation in the relevant lesson details.
+Keep your response structured, well-formatted, and helpful. Use the same language as the student's question.`;
+
+    if (enableWebSearch) {
+      systemInstruction += `\n\nWeb Search is enabled. You may use live web search results and up-to-date internet knowledge to supplement the chapter content when answering.`;
+    }
+
+    console.log(`Calling ${config.providerName} API for chapter chat question (web search: ${Boolean(enableWebSearch)})...`);
+    const result = await callAiProvider(config, null, {
+      isChat: true,
+      messages,
+      systemInstruction,
+      maxTokens: 8192,
+      enableWebSearch: Boolean(enableWebSearch),
+      returnSources: true
+    });
+
+    const replyText = typeof result === 'object' && result !== null ? result.text : result;
+    const sources = (typeof result === 'object' && result !== null && Array.isArray(result.sources)) ? result.sources : [];
+
+    res.json({ success: true, reply: replyText, sources });
+  } catch (error) {
+    console.error('Chat chapter error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 
 // 14. Chat about lesson based on subtitle file
 app.post('/api/chat-lesson', async (req, res) => {
