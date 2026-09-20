@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List } from 'lucide-react';
+import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List, CaptionsOff } from 'lucide-react';
 import ShortcutToast from './ShortcutToast';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 
@@ -1107,7 +1107,10 @@ export default function VideoPlayer({
             </>
           )}
           {availableLangs.length === 0 && (
-            <span className="video-overlay-label" style={{ color: 'var(--text-muted)' }}>None</span>
+            <div className="no-subtitles-indicator" title="No subtitles available for this video">
+              <CaptionsOff size={14} className="no-subtitles-icon" />
+              <span>No subtitles</span>
+            </div>
           )}
         </div>
 

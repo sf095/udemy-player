@@ -1655,6 +1655,22 @@ body.resizing video {
   white-space: nowrap;
 }
 
+.no-subtitles-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  user-select: none;
+}
+
+.no-subtitles-icon {
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
 .video-overlay-btn {
   background: transparent;
   color: var(--text-secondary);
