@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const { exec, execFileSync } = require('child_process');
+const { exec, execFileSync, execFile } = require('child_process');
 
 require('./lib/path-env');
 const crypto = require('crypto');
@@ -945,6 +945,80 @@ app.get('/api/resource', (req, res) => {
   }
 
   fs.createReadStream(resourcePath).pipe(res);
+});
+
+// 4a. Reveal resource in Finder / Explorer (fallback for web mode)
+app.post('/api/reveal-resource', (req, res) => {
+  const resourcePath = req.body && req.body.path;
+  if (!resourcePath || typeof resourcePath !== 'string') {
+    return res.status(400).json({ success: false, error: 'Valid path parameter is required' });
+  }
+
+  if (!fs.existsSync(resourcePath)) {
+    return res.status(404).json({ success: false, error: 'Resource file not found on disk' });
+  }
+
+  const platform = os.platform();
+  if (platform === 'darwin') {
+    execFile('open', ['-R', resourcePath], (err) => {
+      if (err) {
+        console.error('Failed to reveal in Finder:', err);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      res.json({ success: true });
+    });
+  } else if (platform === 'win32') {
+    execFile('explorer.exe', [`/select,${resourcePath}`], () => {
+      // explorer.exe frequently exits with code 1 even on success
+      res.json({ success: true });
+    });
+  } else {
+    // Linux
+    execFile('xdg-open', [path.dirname(resourcePath)], (err) => {
+      if (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      res.json({ success: true });
+    });
+  }
+});
+
+// 4b. Open resource with default system application (fallback for web mode)
+app.post('/api/open-resource', (req, res) => {
+  const resourcePath = req.body && req.body.path;
+  if (!resourcePath || typeof resourcePath !== 'string') {
+    return res.status(400).json({ success: false, error: 'Valid path parameter is required' });
+  }
+
+  if (!fs.existsSync(resourcePath)) {
+    return res.status(404).json({ success: false, error: 'Resource file not found on disk' });
+  }
+
+  const platform = os.platform();
+  if (platform === 'darwin') {
+    execFile('open', [resourcePath], (err) => {
+      if (err) {
+        console.error('Failed to open file:', err);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      res.json({ success: true });
+    });
+  } else if (platform === 'win32') {
+    execFile('cmd.exe', ['/c', 'start', '""', resourcePath], (err) => {
+      if (err) {
+        console.error('Failed to open file:', err);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      res.json({ success: true });
+    });
+  } else {
+    execFile('xdg-open', [resourcePath], (err) => {
+      if (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      res.json({ success: true });
+    });
+  }
 });
 
 // 5. Get all User Data (Active course, history, notes, completed states)

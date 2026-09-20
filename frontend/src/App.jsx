@@ -6,6 +6,7 @@ import VideoPlayer from './components/VideoPlayer';
 import DocViewer from './components/DocViewer';
 import QuizViewer from './components/QuizViewer';
 import ResourceList from './components/ResourceList';
+import LocalResourceCard from './components/LocalResourceCard';
 import NotesPanel from './components/NotesPanel';
 import SettingsModal from './components/SettingsModal';
 import CourseManagerModal from './components/CourseManagerModal';
@@ -207,8 +208,8 @@ export default function App() {
       setActiveLesson(targetLesson);
 
       const resources = getLessonResources(targetLesson);
-      const firstPreviewable = resources.find(r => r.type === 'pdf' || r.type === 'html' || r.type === 'quiz') || null;
-      setActiveResource(firstPreviewable);
+      const defaultResource = resources.find(r => r.type === 'pdf' || r.type === 'html' || r.type === 'quiz') || resources[0] || null;
+      setActiveResource(defaultResource);
 
       // Restore activeTab if valid for this lesson
       if (courseState?.lastActiveTab === 'doc' && resources.length > 0) {
@@ -662,8 +663,8 @@ export default function App() {
     setCurrentTime(0);
 
     const resources = getLessonResources(lesson);
-    const firstPreviewable = resources.find(r => r.type === 'pdf' || r.type === 'html' || r.type === 'quiz') || null;
-    setActiveResource(firstPreviewable);
+    const defaultResource = resources.find(r => r.type === 'pdf' || r.type === 'html' || r.type === 'quiz') || resources[0] || null;
+    setActiveResource(defaultResource);
 
     // Auto-select tab based on available assets
     const defaultTab = lesson.type === 'video' ? 'video' : 'doc';
@@ -1179,27 +1180,17 @@ export default function App() {
                           onComplete={(completed) => handleToggleComplete(activeLesson.id, completed)}
                           isCompleted={!!progress[activeLesson.id]?.completed}
                         />
+                      ) : activeResource ? (
+                        <LocalResourceCard resource={activeResource} />
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px', color: 'var(--text-secondary)', textAlign: 'center', gap: '16px' }}>
                           <BookOpen size={48} style={{ color: 'var(--text-muted)' }} />
                           <div>
                             <h5 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 600 }}>Companion Resource Viewer</h5>
                             <p style={{ margin: 0, fontSize: '0.85rem', maxWidth: '360px' }}>
-                              {activeResource 
-                                ? `"${activeResource.title}" is an external or downloadable resource. Look for your download, or select a PDF/HTML resource on the left to preview.`
-                                : "No previewable resource selected. Select a PDF or HTML resource on the left to preview it here."
-                              }
+                              No resource selected. Select a resource on the left to view it.
                             </p>
                           </div>
-                          {lessonResources.length === 1 && (
-                            <div style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                              <ResourceList
-                                resources={lessonResources}
-                                activeResource={activeResource}
-                                onSelectResource={setActiveResource}
-                              />
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>

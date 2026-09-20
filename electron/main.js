@@ -114,6 +114,22 @@ ipcMain.handle('dialog:openDirectory', async () => {
   }
 });
 
+ipcMain.handle('shell:showItemInFolder', async (_event, fullPath) => {
+  if (!fullPath || typeof fullPath !== 'string') {
+    return { success: false, error: 'Invalid path' };
+  }
+  shell.showItemInFolder(fullPath);
+  return { success: true };
+});
+
+ipcMain.handle('shell:openPath', async (_event, fullPath) => {
+  if (!fullPath || typeof fullPath !== 'string') {
+    return { success: false, error: 'Invalid path' };
+  }
+  const err = await shell.openPath(fullPath);
+  return { success: !err, error: err || null };
+});
+
 app.whenReady().then(startApp);
 
 app.on('window-all-closed', () => {
