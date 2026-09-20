@@ -302,11 +302,32 @@ export default function VideoPlayer({
       return;
     }
 
+    const CONTROLS_SELECTOR = '.video-control-bar, .video-overlays-container, .video-chapters-panel, .context-menu, .confirm-overlay, .stage-tabs-floating';
+    const CONTROLS_HOVER_SELECTOR = '.video-control-bar:hover, .video-overlays-container:hover, .video-chapters-panel:hover, .context-menu:hover, .confirm-overlay:hover, .stage-tabs-floating:hover';
+
+    const isOverControls = (target) => {
+      return Boolean(target?.closest?.(CONTROLS_SELECTOR));
+    };
+
+    const container = playerRef.current?.closest('.video-container');
+
+    const isPointerCurrentlyOverControls = () => {
+      if (!container) return false;
+      return Boolean(container.querySelector(CONTROLS_HOVER_SELECTOR));
+    };
+
     let timeoutId;
-    const handleMouseMove = () => {
+    const handleMouseMove = (e) => {
       setShowControls(true);
       clearTimeout(timeoutId);
+
+      // Keep controls visible without timeout while pointer is on controls
+      if (isOverControls(e.target)) {
+        return;
+      }
+
       timeoutId = setTimeout(() => {
+        if (isPointerCurrentlyOverControls()) return;
         setShowControls(false);
       }, 2500);
     };
@@ -316,16 +337,18 @@ export default function VideoPlayer({
       clearTimeout(timeoutId);
     };
 
-    const container = playerRef.current?.closest('.video-container');
     if (container) {
       container.addEventListener('mousemove', handleMouseMove);
       container.addEventListener('touchstart', handleMouseMove);
       container.addEventListener('mouseleave', handleMouseLeave);
     }
 
-    timeoutId = setTimeout(() => {
-      setShowControls(false);
-    }, 2500);
+    if (!isPointerCurrentlyOverControls()) {
+      timeoutId = setTimeout(() => {
+        if (isPointerCurrentlyOverControls()) return;
+        setShowControls(false);
+      }, 2500);
+    }
 
     return () => {
       clearTimeout(timeoutId);
