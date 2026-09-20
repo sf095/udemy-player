@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle, ListOrdered } from 'lucide-react';
+import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle, ListOrdered, Globe, ExternalLink } from 'lucide-react';
 import { renderMarkdown } from './markdown';
 import { SUMMARY_LANGUAGES } from '../languages';
 import Sidebar from './Sidebar';
@@ -63,6 +63,7 @@ export default function NotesPanel({
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState(null);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
@@ -264,11 +265,20 @@ export default function NotesPanel({
       const response = await fetch('/api/chat-lesson', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtitlePath, messages: newMessages })
+        body: JSON.stringify({
+          subtitlePath,
+          messages: newMessages,
+          enableWebSearch: webSearchEnabled
+        })
       });
       const data = await response.json();
       if (data.success) {
-        setChatMessages([...newMessages, { role: 'assistant', content: data.reply }]);
+        setChatMessages([...newMessages, {
+          role: 'assistant',
+          content: data.reply,
+          sources: data.sources || [],
+          searchedWeb: Boolean(webSearchEnabled && data.sources && data.sources.length > 0)
+        }]);
       } else {
         const errorText = data.error || 'Failed to get AI response.';
         setChatError(errorText);
@@ -683,10 +693,34 @@ export default function NotesPanel({
           ) : (
             <>
               {/* Chat sub-header bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Check size={12} style={{ color: 'var(--accent-green)' }} /> Grounded in Transcript
-                </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Check size={12} style={{ color: 'var(--accent-green)' }} /> Grounded in Transcript
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                    title={webSearchEnabled ? 'Web search enabled: AI can search the internet for current info' : 'Web search disabled: AI answers strictly from lesson transcript'}
+                    style={{
+                      background: webSearchEnabled ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-hover-subtle)',
+                      border: webSearchEnabled ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                      color: webSearchEnabled ? 'var(--primary)' : 'var(--text-secondary)',
+                      borderRadius: '12px',
+                      padding: '2px 8px',
+                      fontSize: '0.725rem',
+                      fontWeight: webSearchEnabled ? 600 : 500,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'var(--transition-fast)'
+                    }}
+                  >
+                    <Globe size={11} />
+                    <span>{webSearchEnabled ? 'Web Search: ON' : 'Web Search: OFF'}</span>
+                  </button>
+                </div>
                 <button
                   onClick={handleNewChat}
                   disabled={chatLoading}
@@ -750,6 +784,40 @@ export default function NotesPanel({
                         }}
                       >
                         {msg.content}
+                        {msg.sources && msg.sources.length > 0 && (
+                          <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
+                            <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Globe size={11} /> Sources:
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {msg.sources.map((source, sIdx) => (
+                                <a
+                                  key={sIdx}
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    color: 'var(--primary)',
+                                    textDecoration: 'none',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    fontSize: '0.725rem'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                                  title={source.title || source.url}
+                                >
+                                  <ExternalLink size={10} style={{ flexShrink: 0 }} />
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{source.title || source.url}</span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -771,7 +839,7 @@ export default function NotesPanel({
                         gap: '6px'
                       }}
                     >
-                      <RefreshCw size={12} className="animate-spin" /> AI is formulating answer...
+                      <RefreshCw size={12} className="animate-spin" /> {webSearchEnabled ? 'Searching web & formulating answer...' : 'AI is formulating answer...'}
                     </div>
                   </div>
                 )}

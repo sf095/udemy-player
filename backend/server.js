@@ -10,6 +10,7 @@ const os = require('os');
 const { scanCourseFolder, getVideoDuration } = require('./scanner');
 const { parseSubtitleCues } = require('./lib/subtitle');
 const { getFfmpegPath, getFfprobePath } = require('./lib/ffmpeg-path');
+const { searchWeb } = require('./lib/web-search');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -135,7 +136,7 @@ function writeDb(data) {
 }
 
 // Caller for Google Gemini API using only the configured model without fallbacks
-async function callGemini(apiKey, payloadBody, isV1Beta = false, model = 'gemini-2.5-flash') {
+async function callGemini(apiKey, payloadBody, isV1Beta = false, model = 'gemini-2.5-flash', returnSources = false) {
   const targetModel = (model || 'gemini-2.5-flash').trim();
   const apiVersion = (isV1Beta || !targetModel.startsWith('gemini-1.0')) ? 'v1beta' : 'v1';
   const currentUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${targetModel}:generateContent?key=${apiKey}`;
@@ -159,8 +160,29 @@ async function callGemini(apiKey, payloadBody, isV1Beta = false, model = 'gemini
   if (response.ok) {
     try {
       const responseData = JSON.parse(responseText);
-      const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const candidate = responseData.candidates?.[0];
+      const text = candidate?.content?.parts?.[0]?.text;
       if (text) {
+        if (returnSources) {
+          const sources = [];
+          const groundingChunks = candidate?.groundingMetadata?.groundingChunks;
+          if (Array.isArray(groundingChunks)) {
+            const seen = new Set();
+            for (const chunk of groundingChunks) {
+              if (chunk.web && chunk.web.uri) {
+                const uri = chunk.web.uri;
+                if (!seen.has(uri)) {
+                  seen.add(uri);
+                  sources.push({
+                    title: chunk.web.title || uri,
+                    url: uri
+                  });
+                }
+              }
+            }
+          }
+          return { text, sources };
+        }
         return text;
       }
     } catch (jsonErr) {
@@ -202,12 +224,43 @@ function getAiConfig(db, overrideApiKey) {
 // Unified AI provider dispatcher — translates a prompt + options into API calls
 async function callAiProvider(config, prompt, options = {}) {
   const { provider, apiKey, model, baseUrl } = config;
-  const { isChat = false, messages = [], systemInstruction, maxTokens = 4096 } = options;
+  const {
+    isChat = false,
+    messages = [],
+    systemInstruction,
+    maxTokens = 4096,
+    enableWebSearch = false,
+    returnSources = false
+  } = options;
+
+  let webSearchSources = [];
+  let webSearchInstruction = '';
+
+  const lastUserMsg = isChat
+    ? [...messages].reverse().find(m => m.role === 'user')?.content || ''
+    : (prompt || '');
+
+  // For OpenAI or Anthropic, fetch external web search results via DuckDuckGo helper
+  if (enableWebSearch && (provider === 'openai' || provider === 'anthropic')) {
+    try {
+      const searchResults = await searchWeb(lastUserMsg, 4);
+      if (searchResults && searchResults.length > 0) {
+        webSearchSources = searchResults.map(r => ({ title: r.title, url: r.url }));
+        webSearchInstruction = `\n\n--- INTERNET SEARCH RESULTS ---\nBelow are live web search results relevant to the student's question:\n` +
+          searchResults.map((r, i) => `[${i + 1}] "${r.title}"\nURL: ${r.url}\nSummary: ${r.snippet}`).join('\n\n') +
+          `\n\nUse the search results above to supplement your answer with accurate and current information.`;
+      }
+    } catch (searchErr) {
+      console.warn('Web search failed for query:', lastUserMsg, searchErr.message);
+    }
+  }
+
+  const effectiveSystemInstruction = (systemInstruction || '') + webSearchInstruction;
 
   if (provider === 'openai') {
     const openaiMessages = [];
-    if (systemInstruction) {
-      openaiMessages.push({ role: 'system', content: systemInstruction });
+    if (effectiveSystemInstruction) {
+      openaiMessages.push({ role: 'system', content: effectiveSystemInstruction });
     }
     if (isChat) {
       messages.forEach(m => {
@@ -219,7 +272,8 @@ async function callAiProvider(config, prompt, options = {}) {
     } else {
       openaiMessages.push({ role: 'user', content: prompt });
     }
-    return await callOpenAI(apiKey, baseUrl, model, openaiMessages, maxTokens);
+    const replyText = await callOpenAI(apiKey, baseUrl, model, openaiMessages, maxTokens);
+    return returnSources ? { text: replyText, sources: webSearchSources } : replyText;
   }
 
   if (provider === 'anthropic') {
@@ -227,10 +281,11 @@ async function callAiProvider(config, prompt, options = {}) {
       ? messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
       : [{ role: 'user', content: prompt }];
     const payload = { messages: anthropicMessages };
-    if (systemInstruction) {
-      payload.system = systemInstruction;
+    if (effectiveSystemInstruction) {
+      payload.system = effectiveSystemInstruction;
     }
-    return await callAnthropic(apiKey, baseUrl, model, payload, maxTokens);
+    const replyText = await callAnthropic(apiKey, baseUrl, model, payload, maxTokens);
+    return returnSources ? { text: replyText, sources: webSearchSources } : replyText;
   }
 
   // Gemini path
@@ -242,13 +297,32 @@ async function callAiProvider(config, prompt, options = {}) {
         parts: [{ text: m.content }]
       }))
     };
-    return await callGemini(apiKey, payload, true, model);
+
+    if (enableWebSearch) {
+      payload.tools = [{ googleSearch: {} }];
+      try {
+        return await callGemini(apiKey, payload, true, model, returnSources);
+      } catch (geminiToolErr) {
+        console.warn('Gemini googleSearch tool call failed, falling back to DuckDuckGo search:', geminiToolErr.message);
+        const fallbackResults = await searchWeb(lastUserMsg, 4);
+        const fallbackSources = fallbackResults.map(r => ({ title: r.title, url: r.url }));
+        const fallbackSystemInstruction = (systemInstruction || '') + (fallbackResults.length > 0
+          ? `\n\n--- INTERNET SEARCH RESULTS ---\n` + fallbackResults.map((r, i) => `[${i + 1}] "${r.title}"\nURL: ${r.url}\nSummary: ${r.snippet}`).join('\n\n') + `\n\nUse the search results above to supplement your answer.`
+          : '');
+        payload.systemInstruction = { parts: [{ text: fallbackSystemInstruction }] };
+        delete payload.tools;
+        const text = await callGemini(apiKey, payload, true, model, false);
+        return returnSources ? { text, sources: fallbackSources } : text;
+      }
+    }
+
+    return await callGemini(apiKey, payload, true, model, returnSources);
   }
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }]
   };
-  return await callGemini(apiKey, payload, false, model);
+  return await callGemini(apiKey, payload, false, model, returnSources);
 }
 
 // Caller for OpenAI API or OpenAI-compatible custom endpoints
@@ -1563,7 +1637,7 @@ app.post('/api/clear-section-summary', (req, res) => {
 
 // 14. Chat about lesson based on subtitle file
 app.post('/api/chat-lesson', async (req, res) => {
-  const { subtitlePath, messages } = req.body;
+  const { subtitlePath, messages, enableWebSearch = false } = req.body;
   if (!subtitlePath || !messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'subtitlePath and messages array are required' });
   }
@@ -1583,7 +1657,7 @@ app.post('/api/chat-lesson', async (req, res) => {
   try {
     const subtitleContent = fs.readFileSync(subtitlePath, 'utf8');
 
-    const systemInstruction = `You are a helpful AI assistant for an offline course player.
+    let systemInstruction = `You are a helpful AI assistant for an offline course player.
 The student is watching a video lesson. Below is the transcript (subtitles) of the current lesson:
 ---
 ${subtitleContent}
@@ -1592,15 +1666,24 @@ Use the transcript above to answer the student's question accurately.
 If the question is about something not discussed in the transcript but relevant to the lesson topic, feel free to answer using your general knowledge, but prioritize the transcript details.
 Keep your response concise, clear, and direct. Use the same language as the student's question.`;
 
-    console.log(`Calling ${config.providerName} API for chat question...`);
-    let replyText = await callAiProvider(config, null, {
+    if (enableWebSearch) {
+      systemInstruction += `\n\nWeb Search is enabled. You may use live web search results and up-to-date internet knowledge to supplement the lesson transcript when answering.`;
+    }
+
+    console.log(`Calling ${config.providerName} API for chat question (web search: ${Boolean(enableWebSearch)})...`);
+    const result = await callAiProvider(config, null, {
       isChat: true,
       messages,
       systemInstruction,
-      maxTokens: 8192
+      maxTokens: 8192,
+      enableWebSearch: Boolean(enableWebSearch),
+      returnSources: true
     });
 
-    res.json({ success: true, reply: replyText });
+    const replyText = typeof result === 'object' && result !== null ? result.text : result;
+    const sources = (typeof result === 'object' && result !== null && Array.isArray(result.sources)) ? result.sources : [];
+
+    res.json({ success: true, reply: replyText, sources });
   } catch (error) {
     console.error('Chat lesson error:', error);
     res.status(500).json({ error: error.message });
