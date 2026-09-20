@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { X, Eye, EyeOff, ShieldCheck, ChevronDown, ChevronUp, Sliders, AlertCircle } from 'lucide-react';
 
 const DEFAULT_SETTINGS = {
   aiProvider: 'gemini',
@@ -15,8 +15,25 @@ const DEFAULT_SETTINGS = {
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
   autoCreateSummary: false,
-  autoCreateSummaryLang: 'en'
+  autoCreateSummaryLang: 'en',
+  featureModels: {
+    timeline: { provider: '', model: '' },
+    subtitleTranslation: { provider: '', model: '' },
+    lessonSummary: { provider: '', model: '' },
+    chapterSummary: { provider: '', model: '' },
+    lessonChat: { provider: '', model: '' },
+    chapterChat: { provider: '', model: '' }
+  }
 };
+
+const AI_FEATURES = [
+  { key: 'timeline', label: 'Timeline Chapters', desc: 'Generates chapter markers from subtitles' },
+  { key: 'subtitleTranslation', label: 'Subtitle Translation', desc: 'Translates subtitle cues chunk-by-chunk' },
+  { key: 'lessonSummary', label: 'Lesson Summary', desc: 'Summarizes single lesson transcript' },
+  { key: 'chapterSummary', label: 'Chapter Summary', desc: 'Comprehensive summary across chapter lessons' },
+  { key: 'lessonChat', label: 'Lesson AI Chat', desc: 'Interactive chat answering questions on current lesson' },
+  { key: 'chapterChat', label: 'Chapter AI Chat', desc: 'Interactive chat synthesized across chapter' }
+];
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -51,6 +68,53 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const [autoCreateSummary, setAutoCreateSummary] = useState(merged.autoCreateSummary);
   const [autoCreateSummaryLang, setAutoCreateSummaryLang] = useState(merged.autoCreateSummaryLang);
 
+  const hasAnyFeatureOverride = Object.values(merged.featureModels || {}).some(
+    f => (f?.provider && f.provider !== 'inherit') || f?.model
+  );
+  const [showFeatureModels, setShowFeatureModels] = useState(hasAnyFeatureOverride);
+  const [featureModels, setFeatureModels] = useState(() => {
+    const initial = merged.featureModels || {};
+    return {
+      timeline: { provider: initial.timeline?.provider || '', model: initial.timeline?.model || '' },
+      subtitleTranslation: { provider: initial.subtitleTranslation?.provider || '', model: initial.subtitleTranslation?.model || '' },
+      lessonSummary: { provider: initial.lessonSummary?.provider || '', model: initial.lessonSummary?.model || '' },
+      chapterSummary: { provider: initial.chapterSummary?.provider || '', model: initial.chapterSummary?.model || '' },
+      lessonChat: { provider: initial.lessonChat?.provider || '', model: initial.lessonChat?.model || '' },
+      chapterChat: { provider: initial.chapterChat?.provider || '', model: initial.chapterChat?.model || '' }
+    };
+  });
+
+  const handleFeatureChange = (featureKey, field, value) => {
+    setFeatureModels(prev => ({
+      ...prev,
+      [featureKey]: {
+        ...prev[featureKey],
+        [field]: value
+      }
+    }));
+  };
+
+  const getFeatureDefaultModelPlaceholder = (featureKey) => {
+    const feat = featureModels[featureKey] || {};
+    const effectiveProv = (feat.provider && feat.provider !== 'inherit') ? feat.provider : aiProvider;
+    if (effectiveProv === 'anthropic') {
+      return anthropicModel.trim() || 'claude-3-5-sonnet-latest';
+    }
+    if (effectiveProv === 'openai') {
+      return openaiModel.trim() || 'gpt-4o-mini';
+    }
+    return geminiModel.trim() || 'gemini-2.5-flash';
+  };
+
+  const checkProviderKey = (provider) => {
+    if (provider === 'anthropic') return !!anthropicApiKey.trim();
+    if (provider === 'openai') return !!openaiApiKey.trim();
+    if (provider === 'gemini') return !!geminiApiKey.trim();
+    return true;
+  };
+
+  const globalProviderLabel = aiProvider === 'anthropic' ? 'Anthropic' : aiProvider === 'openai' ? 'OpenAI' : 'Gemini';
+
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
@@ -75,7 +139,8 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       autoCreateTimeline,
       autoCreateTimelineLang,
       autoCreateSummary,
-      autoCreateSummaryLang
+      autoCreateSummaryLang,
+      featureModels
     });
     setSaving(false);
     if (result) {
@@ -100,7 +165,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '520px',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
@@ -567,6 +632,129 @@ export default function SettingsModal({ settings, onSave, onClose }) {
               </div>
             </>
           )}
+
+          {/* Per-Feature AI Model Configuration */}
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginBottom: '20px' }}>
+            <div 
+              onClick={() => setShowFeatureModels(!showFeatureModels)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                userSelect: 'none',
+                padding: '4px 0'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sliders size={16} style={{ color: 'var(--primary)' }} />
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                  Per-Feature AI Models
+                </h4>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                <span>{showFeatureModels ? 'Hide' : 'Configure'}</span>
+                {showFeatureModels ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px', marginBottom: showFeatureModels ? '14px' : '0', lineHeight: 1.4 }}>
+              Assign different models or providers to specific features instead of using a single global model.
+            </p>
+
+            {showFeatureModels && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {AI_FEATURES.map((feat) => {
+                  const featConfig = featureModels[feat.key] || { provider: '', model: '' };
+                  const defaultPlaceholder = getFeatureDefaultModelPlaceholder(feat.key);
+                  const isMissingKey = (featConfig.provider && featConfig.provider !== 'inherit') && !checkProviderKey(featConfig.provider);
+
+                  return (
+                    <div 
+                      key={feat.key}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '10px 12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
+                        <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {feat.label}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                          {feat.desc}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '8px' }}>
+                        {/* Provider select */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                            Provider
+                          </label>
+                          <select
+                            value={featConfig.provider || ''}
+                            onChange={(e) => handleFeatureChange(feat.key, 'provider', e.target.value)}
+                            style={{
+                              width: '100%',
+                              background: 'var(--bg-input)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '6px',
+                              padding: '6px 8px',
+                              color: 'var(--text-primary)',
+                              fontSize: '0.78rem',
+                              outline: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="">Global ({globalProviderLabel})</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="openai">OpenAI</option>
+                          </select>
+                        </div>
+
+                        {/* Model input */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                            Model
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={defaultPlaceholder}
+                            value={featConfig.model || ''}
+                            onChange={(e) => handleFeatureChange(feat.key, 'model', e.target.value)}
+                            style={{
+                              width: '100%',
+                              background: 'var(--bg-input)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '6px',
+                              padding: '6px 8px',
+                              color: 'var(--text-primary)',
+                              fontSize: '0.78rem',
+                              fontFamily: featConfig.model ? 'monospace' : 'inherit',
+                              outline: 'none'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {isMissingKey && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px', color: '#f59e0b', fontSize: '0.7rem' }}>
+                          <AlertCircle size={12} />
+                          <span>
+                            {featConfig.provider === 'anthropic' ? 'Anthropic' : featConfig.provider === 'openai' ? 'OpenAI' : 'Gemini'} API key is not configured above.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Autoplay Next Video */}
           <div style={{ marginBottom: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
             <label 

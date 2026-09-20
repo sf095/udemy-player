@@ -27,7 +27,15 @@ const DEFAULT_SETTINGS = {
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
   autoCreateSummary: false,
-  autoCreateSummaryLang: 'en'
+  autoCreateSummaryLang: 'en',
+  featureModels: {
+    timeline: { provider: '', model: '' },
+    subtitleTranslation: { provider: '', model: '' },
+    lessonSummary: { provider: '', model: '' },
+    chapterSummary: { provider: '', model: '' },
+    lessonChat: { provider: '', model: '' },
+    chapterChat: { provider: '', model: '' }
+  }
 };
 
 // Safe helper to get resources with backwards compatibility fallback
@@ -57,9 +65,10 @@ export default function App() {
   const [courseStates, setCourseStates] = useState({});
   const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
   const hasApiKey = useMemo(() => {
-    if (settings.aiProvider === 'anthropic') return !!settings.anthropicApiKey;
-    if (settings.aiProvider === 'openai') return !!settings.openaiApiKey;
-    return !!settings.geminiApiKey;
+    if (settings.aiProvider === 'anthropic' && settings.anthropicApiKey) return true;
+    if (settings.aiProvider === 'openai' && settings.openaiApiKey) return true;
+    if (settings.aiProvider === 'gemini' && settings.geminiApiKey) return true;
+    return !!(settings.geminiApiKey || settings.anthropicApiKey || settings.openaiApiKey);
   }, [settings.aiProvider, settings.anthropicApiKey, settings.openaiApiKey, settings.geminiApiKey]);
   
   const [activeLesson, setActiveLesson] = useState(null);

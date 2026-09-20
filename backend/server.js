@@ -32,7 +32,15 @@ const DEFAULT_SETTINGS = {
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
   autoCreateSummary: false,
-  autoCreateSummaryLang: 'en'
+  autoCreateSummaryLang: 'en',
+  featureModels: {
+    timeline: { provider: '', model: '' },
+    subtitleTranslation: { provider: '', model: '' },
+    lessonSummary: { provider: '', model: '' },
+    chapterSummary: { provider: '', model: '' },
+    lessonChat: { provider: '', model: '' },
+    chapterChat: { provider: '', model: '' }
+  }
 };
 
 const SUPPORTED_SUMMARY_LANGUAGES = {
@@ -91,6 +99,10 @@ function readDb() {
     }
     // Merge defaults to backfill any missing settings fields
     parsed.settings = { ...DEFAULT_SETTINGS, ...parsed.settings };
+    parsed.settings.featureModels = {
+      ...DEFAULT_SETTINGS.featureModels,
+      ...(parsed.settings.featureModels || {})
+    };
 
     if (!parsed.courseStates || typeof parsed.courseStates !== 'object') {
       parsed.courseStates = {};
@@ -194,31 +206,40 @@ async function callGemini(apiKey, payloadBody, isV1Beta = false, model = 'gemini
   throw new Error(`Gemini API error: ${response.statusText} (${responseText})`);
 }
 
-// Resolve AI provider configuration from database + optional API key override
-function getAiConfig(db, overrideApiKey) {
-  const provider = db.settings?.aiProvider || 'gemini';
-  const providerName = provider === 'anthropic' ? 'Anthropic' : provider === 'openai' ? 'OpenAI' : 'Gemini';
+// Resolve AI provider configuration from database + optional API key override and feature-specific settings
+function getAiConfig(db, overrideApiKey, featureKey) {
+  const globalProvider = db.settings?.aiProvider || 'gemini';
+  const featureConfig = (featureKey && db.settings?.featureModels?.[featureKey]) || {};
+
+  const effectiveProvider = (featureConfig.provider && featureConfig.provider !== 'inherit')
+    ? featureConfig.provider
+    : globalProvider;
+
+  const providerName = effectiveProvider === 'anthropic' ? 'Anthropic' : effectiveProvider === 'openai' ? 'OpenAI' : 'Gemini';
+
   let apiKey = overrideApiKey || '';
-  if (!apiKey) {
-    if (provider === 'anthropic') {
-      apiKey = db.settings?.anthropicApiKey || '';
-    } else if (provider === 'openai') {
-      apiKey = db.settings?.openaiApiKey || '';
-    } else {
-      apiKey = db.settings?.geminiApiKey || '';
-    }
+  let defaultModel = '';
+  let baseUrl = null;
+
+  if (effectiveProvider === 'anthropic') {
+    if (!apiKey) apiKey = db.settings?.anthropicApiKey || '';
+    defaultModel = db.settings?.anthropicModel || 'claude-3-5-sonnet-latest';
+    baseUrl = db.settings?.anthropicBaseUrl || 'https://api.anthropic.com';
+  } else if (effectiveProvider === 'openai') {
+    if (!apiKey) apiKey = db.settings?.openaiApiKey || '';
+    defaultModel = db.settings?.openaiModel || 'gpt-4o-mini';
+    baseUrl = db.settings?.openaiBaseUrl || 'https://api.openai.com';
+  } else {
+    if (!apiKey) apiKey = db.settings?.geminiApiKey || '';
+    defaultModel = db.settings?.geminiModel || 'gemini-2.5-flash';
+    baseUrl = null;
   }
-  const model = provider === 'anthropic'
-    ? db.settings?.anthropicModel || 'claude-3-5-sonnet-latest'
-    : provider === 'openai'
-    ? db.settings?.openaiModel || 'gpt-4o-mini'
-    : db.settings?.geminiModel || 'gemini-2.5-flash';
-  const baseUrl = provider === 'anthropic'
-    ? db.settings?.anthropicBaseUrl || 'https://api.anthropic.com'
-    : provider === 'openai'
-    ? db.settings?.openaiBaseUrl || 'https://api.openai.com'
-    : null;
-  return { provider, providerName, apiKey, model, baseUrl };
+
+  const model = (featureConfig.model && featureConfig.model.trim())
+    ? featureConfig.model.trim()
+    : defaultModel;
+
+  return { provider: effectiveProvider, providerName, apiKey, model, baseUrl };
 }
 
 // Unified AI provider dispatcher — translates a prompt + options into API calls
@@ -1189,7 +1210,8 @@ app.post('/api/userdata/settings', (req, res) => {
     autoCreateTimeline,
     autoCreateTimelineLang,
     autoCreateSummary,
-    autoCreateSummaryLang
+    autoCreateSummaryLang,
+    featureModels
   } = req.body;
   const db = readDb();
   if (!db.settings) {
@@ -1211,6 +1233,19 @@ app.post('/api/userdata/settings', (req, res) => {
   db.settings.autoCreateSummary = typeof autoCreateSummary === 'boolean' ? autoCreateSummary : DEFAULT_SETTINGS.autoCreateSummary;
   db.settings.autoCreateSummaryLang = (autoCreateSummaryLang && SUPPORTED_SUMMARY_LANGUAGES[autoCreateSummaryLang.toLowerCase()])
     ? autoCreateSummaryLang.toLowerCase() : DEFAULT_SETTINGS.autoCreateSummaryLang;
+
+  if (featureModels && typeof featureModels === 'object') {
+    const validFeatures = ['timeline', 'subtitleTranslation', 'lessonSummary', 'chapterSummary', 'lessonChat', 'chapterChat'];
+    const sanitizedFeatures = {};
+    for (const key of validFeatures) {
+      const item = featureModels[key] || {};
+      sanitizedFeatures[key] = {
+        provider: typeof item.provider === 'string' ? item.provider.trim() : '',
+        model: typeof item.model === 'string' ? item.model.trim() : ''
+      };
+    }
+    db.settings.featureModels = sanitizedFeatures;
+  }
   writeDb(db);
   res.json(db);
 });
@@ -1227,7 +1262,7 @@ app.post('/api/translate-subtitle', async (req, res) => {
   }
 
   const db = readDb();
-  const config = getAiConfig(db, apiKey);
+  const config = getAiConfig(db, apiKey, 'subtitleTranslation');
 
   if (!config.apiKey) {
     const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
@@ -1361,7 +1396,7 @@ app.post('/api/summarize-lesson', async (req, res) => {
   }
 
   const db = readDb();
-  const config = getAiConfig(db);
+  const config = getAiConfig(db, null, 'lessonSummary');
 
   if (!config.apiKey) {
     const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
@@ -1526,7 +1561,7 @@ app.post('/api/summarize-section', async (req, res) => {
   }
 
   const db = readDb();
-  const config = getAiConfig(db);
+  const config = getAiConfig(db, null, 'chapterSummary');
 
   if (!config.apiKey) {
     const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
@@ -1650,7 +1685,7 @@ app.post('/api/chat-chapter', async (req, res) => {
   }
 
   const db = readDb();
-  const config = getAiConfig(db);
+  const config = getAiConfig(db, null, 'chapterChat');
 
   if (!config.apiKey) {
     const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
@@ -1753,7 +1788,7 @@ app.post('/api/chat-lesson', async (req, res) => {
   }
 
   const db = readDb();
-  const config = getAiConfig(db);
+  const config = getAiConfig(db, null, 'lessonChat');
 
   if (!config.apiKey) {
     const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
@@ -1925,7 +1960,7 @@ app.post('/api/chapters/regenerate', async (req, res) => {
 // Helper function to generate chapters using Gemini
 async function generateChaptersFromSubtitlesFile(subtitlePath, chaptersPath, language, videoPath) {
   const db = readDb();
-  const config = getAiConfig(db);
+  const config = getAiConfig(db, null, 'timeline');
 
   if (!config.apiKey) {
     throw new Error('AI API Key is missing. Please configure it in Settings.');
