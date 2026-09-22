@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List, CaptionsOff } from 'lucide-react';
+import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List, CaptionsOff, Zap } from 'lucide-react';
 import ShortcutToast from './ShortcutToast';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
+import { audioBooster } from '../utils/audioBooster';
 
 const CURATED_LANGUAGES = [
   { code: 'vi', name: 'Vietnamese' },
@@ -150,6 +151,10 @@ export default function VideoPlayer({
   setSecondaryLang,
   speed,
   onSpeedChange,
+  volume = 1,
+  onVolumeChange,
+  isMuted = false,
+  onToggleMute,
   toastMessage,
   toastId,
   autoplayEnabled = false,
@@ -190,14 +195,6 @@ export default function VideoPlayer({
 
   const [localCurrentTime, setLocalCurrentTime] = useState(initialTime || 0);
   const [localDuration, setLocalDuration] = useState(0);
-  const [volume, setVolume] = useState(() => {
-    const saved = localStorage.getItem('udemy-player-volume');
-    return saved ? parseFloat(saved) : 1;
-  });
-  const [isMuted, setIsMuted] = useState(() => {
-    const saved = localStorage.getItem('udemy-player-muted');
-    return saved === 'true';
-  });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [chapters, setChapters] = useState([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
@@ -480,16 +477,16 @@ export default function VideoPlayer({
     return found ? found.name : code.toUpperCase();
   };
 
-  // Sync volume state changes to the actual video element
+  // Sync volume state and AudioBooster with the video element
   useEffect(() => {
     const video = playerRef.current;
     if (video) {
-      video.volume = volume;
+      audioBooster.attach(video);
+      video.volume = Math.min(1, Math.max(0, volume));
       video.muted = isMuted;
+      audioBooster.setBoost(volume > 1 ? volume : 1);
     }
-    localStorage.setItem('udemy-player-volume', volume);
-    localStorage.setItem('udemy-player-muted', isMuted ? 'true' : 'false');
-  }, [volume, isMuted]);
+  }, [videoPath, volume, isMuted, playerRef]);
 
   // Sync fullscreen change state
   useEffect(() => {
@@ -687,6 +684,7 @@ export default function VideoPlayer({
   const handleTogglePlay = () => {
     const video = playerRef.current;
     if (!video) return;
+    audioBooster.resume();
     if (video.paused) {
       video.play().catch(() => {});
     } else {
@@ -924,12 +922,12 @@ export default function VideoPlayer({
 
     // Keep speed constant across source changes
     video.playbackRate = speed;
-    video.volume = volume;
+    video.volume = Math.min(1, Math.max(0, volume));
     video.muted = isMuted;
 
     const handleLoadedMetadata = () => {
       video.playbackRate = speed;
-      video.volume = volume;
+      video.volume = Math.min(1, Math.max(0, volume));
       video.muted = isMuted;
       setLocalDuration(video.duration || 0);
       if (!hasSeekedRef.current) {
@@ -959,6 +957,7 @@ export default function VideoPlayer({
     };
 
     const handlePlay = () => {
+      audioBooster.resume();
       setIsPlaying(true);
       if (onPlay) onPlay();
     };
@@ -967,8 +966,9 @@ export default function VideoPlayer({
       if (onPause) onPause();
     };
     const handleVolumeChange = () => {
-      setVolume(video.volume);
-      setIsMuted(video.muted);
+      if (video.muted !== isMuted && onToggleMute) {
+        onToggleMute();
+      }
     };
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -1397,25 +1397,53 @@ export default function VideoPlayer({
             {/* Volume Control */}
             <div className="volume-control-group">
               <button 
-                onClick={() => setIsMuted(m => !m)}
+                onClick={() => {
+                  audioBooster.resume();
+                  if (onToggleMute) onToggleMute();
+                }}
                 className="video-control-btn"
                 title={isMuted ? "Unmute (m)" : "Mute (m)"}
               >
-                {isMuted || volume === 0 ? <VolumeX size={16} /> : (volume < 0.5 ? <Volume1 size={16} /> : <Volume2 size={16} />)}
+                {isMuted || volume === 0 ? (
+                  <VolumeX size={16} />
+                ) : volume < 0.5 ? (
+                  <Volume1 size={16} />
+                ) : (
+                  <Volume2 
+                    size={16} 
+                    style={{ color: volume > 1 ? 'var(--accent-amber)' : 'currentColor' }} 
+                  />
+                )}
               </button>
               <input 
                 type="range"
                 min="0"
-                max="1"
+                max="4"
                 step="0.05"
                 value={volume}
                 onChange={(e) => {
-                  const newVol = parseFloat(e.target.value);
-                  setVolume(newVol);
-                  if (isMuted && newVol > 0) setIsMuted(false);
+                  audioBooster.resume();
+                  let val = parseFloat(e.target.value);
+                  // Snap to 100% (1.0) when dragging within magnetic threshold (±7%)
+                  if (Math.abs(val - 1.0) <= 0.07) {
+                    val = 1.0;
+                  }
+                  if (onVolumeChange) onVolumeChange(val);
                 }}
-                className="volume-slider"
+                className={`volume-slider ${volume > 1 ? 'boosted' : ''}`}
+                title={`Volume: ${Math.round(volume * 100)}%`}
               />
+              <span 
+                className={`volume-badge ${volume > 1 ? 'boosted' : ''}`}
+                onClick={() => {
+                  audioBooster.resume();
+                  if (onVolumeChange) onVolumeChange(1);
+                }}
+                title={volume > 1 ? "Click to reset to 100%" : "Volume level"}
+              >
+                {volume > 1 && <Zap size={10} className="volume-badge-icon" fill="currentColor" />}
+                {Math.round(volume * 100)}%
+              </span>
             </div>
 
             {/* Time display */}

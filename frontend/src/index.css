@@ -1839,7 +1839,7 @@ body.resizing video {
 .volume-control-group:hover .volume-slider,
 .volume-slider:active,
 .volume-slider:focus {
-  width: 60px;
+  width: 85px;
   opacity: 1;
 }
 
@@ -1847,7 +1847,15 @@ body.resizing video {
   width: 100%;
   height: 4px;
   cursor: pointer;
-  background: var(--overlay-chip-border);
+  background: linear-gradient(
+    to right,
+    var(--overlay-chip-border) 0%,
+    var(--overlay-chip-border) calc(25% - 1px),
+    rgba(255, 255, 255, 0.45) calc(25% - 1px),
+    rgba(255, 255, 255, 0.45) calc(25% + 1px),
+    var(--overlay-chip-border) calc(25% + 1px),
+    var(--overlay-chip-border) 100%
+  );
   border-radius: 2px;
 }
 
@@ -1859,6 +1867,66 @@ body.resizing video {
   cursor: pointer;
   -webkit-appearance: none;
   margin-top: -3px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Boosted state (> 100% volume) */
+.volume-slider.boosted::-webkit-slider-thumb {
+  background: var(--accent-amber);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+.volume-slider.boosted::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    rgba(245, 158, 11, 0.25) 0%,
+    rgba(245, 158, 11, 0.25) calc(25% - 1px),
+    rgba(245, 158, 11, 0.85) calc(25% - 1px),
+    rgba(245, 158, 11, 0.85) calc(25% + 1px),
+    rgba(245, 158, 11, 0.25) calc(25% + 1px),
+    rgba(245, 158, 11, 0.25) 100%
+  );
+}
+
+/* Volume Percentage Badge */
+.volume-badge {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  padding: 1px 5px;
+  border-radius: 8px;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.volume-control-group:hover .volume-badge,
+.volume-badge.boosted {
+  display: inline-flex;
+}
+
+.volume-badge:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.volume-badge.boosted {
+  color: var(--accent-amber);
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.volume-badge.boosted:hover {
+  background: rgba(245, 158, 11, 0.24);
+  border-color: rgba(245, 158, 11, 0.55);
+}
+
+.volume-badge-icon {
+  flex-shrink: 0;
 }
 
 /* ─── Segmented Timeline ─── */

@@ -106,6 +106,14 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [speed, setSpeed] = useState(1);
+  const [volume, setVolume] = useState(() => {
+    const saved = localStorage.getItem('udemy-player-volume');
+    return saved !== null ? parseFloat(saved) : 1;
+  });
+  const [isMuted, setIsMuted] = useState(() => {
+    const saved = localStorage.getItem('udemy-player-muted');
+    return saved === 'true';
+  });
   const [toast, setToast] = useState({ message: null, id: 0 });
 
   const playerRef = useRef(null);
@@ -801,6 +809,30 @@ export default function App() {
     showToast(`⏱ ${newSpeed}x`);
   };
 
+  const handleVolumeChange = (newVol, showFeedback = false) => {
+    const clamped = Math.min(4, Math.max(0, Math.round(newVol * 100) / 100));
+    setVolume(clamped);
+    localStorage.setItem('udemy-player-volume', clamped);
+    if (isMuted && clamped > 0) {
+      setIsMuted(false);
+      localStorage.setItem('udemy-player-muted', 'false');
+    }
+    if (showFeedback) {
+      const pct = Math.round(clamped * 100);
+      showToast(clamped > 1 ? `⚡ ${pct}%` : `🔊 ${pct}%`);
+    }
+  };
+
+  const handleToggleMute = () => {
+    setIsMuted(prev => {
+      const next = !prev;
+      localStorage.setItem('udemy-player-muted', next ? 'true' : 'false');
+      const pct = Math.round(volume * 100);
+      showToast(next ? '🔇 Muted' : (volume > 1 ? `⚡ ${pct}%` : `🔊 ${pct}%`));
+      return next;
+    });
+  };
+
   const handleToggleTheaterMode = () => {
     setTheaterMode(t => {
       const next = !t;
@@ -841,18 +873,11 @@ export default function App() {
       const video = playerRef.current;
       if (video) { video.currentTime = Math.min(video.duration || 0, video.currentTime + 10); showToast('⏩ +10s'); }
     }, when: isVideoActive },
-    { key: 'ArrowUp', action: () => {
-      const video = playerRef.current;
-      if (video) { video.volume = Math.min(1, video.volume + 0.1); showToast(`🔊 ${Math.round(video.volume * 100)}%`); }
-    }, when: isVideoActive },
-    { key: 'ArrowDown', action: () => {
-      const video = playerRef.current;
-      if (video) { video.volume = Math.max(0, video.volume - 0.1); showToast(`🔉 ${Math.round(video.volume * 100)}%`); }
-    }, when: isVideoActive },
-    { key: 'm', action: () => {
-      const video = playerRef.current;
-      if (video) { video.muted = !video.muted; showToast(video.muted ? '🔇 Muted' : '🔊 Unmuted'); }
-    }, when: isVideoActive },
+    { key: 'ArrowUp', modifiers: ['shift'], action: () => handleVolumeChange(volume + 0.5, true), when: isVideoActive },
+    { key: 'ArrowDown', modifiers: ['shift'], action: () => handleVolumeChange(volume - 0.5, true), when: isVideoActive },
+    { key: 'ArrowUp', action: () => handleVolumeChange(volume + 0.1, true), when: isVideoActive },
+    { key: 'ArrowDown', action: () => handleVolumeChange(volume - 0.1, true), when: isVideoActive },
+    { key: 'm', action: handleToggleMute, when: isVideoActive },
     { key: 'f', action: () => {
       const video = playerRef.current;
       if (!video) return;
@@ -1135,6 +1160,10 @@ export default function App() {
                     setSecondaryLang={setSecondaryLang}
                     speed={speed}
                     onSpeedChange={handleSpeedChange}
+                    volume={volume}
+                    onVolumeChange={handleVolumeChange}
+                    isMuted={isMuted}
+                    onToggleMute={handleToggleMute}
                     toastMessage={toast.message}
                     toastId={toast.id}
                     autoplayEnabled={settings.autoplayNext}
