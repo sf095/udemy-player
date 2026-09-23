@@ -896,6 +896,15 @@ app.get('/api/subtitle', (req, res) => {
     return res.status(404).send('Subtitle file not found');
   }
 
+  try {
+    const stat = fs.statSync(subtitlePath);
+    if (stat.size === 0) {
+      return res.status(404).send('Subtitle file is empty (0 bytes)');
+    }
+  } catch (err) {
+    return res.status(500).send('Error checking subtitle file');
+  }
+
   fs.readFile(subtitlePath, 'utf8', (err, data) => {
     if (err) {
       return res.status(500).send('Error reading subtitle file');

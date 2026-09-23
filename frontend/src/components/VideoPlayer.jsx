@@ -391,7 +391,7 @@ export default function VideoPlayer({
 
   // Sync active language when subtitles list or video path changes
   useEffect(() => {
-    const keys = Object.keys(subtitles || {});
+    const keys = Object.keys(subtitles || {}).filter(lang => Boolean(subtitles[lang]));
     let nextLang = '';
     if (keys.length > 0) {
       if (activeLang && keys.includes(activeLang)) {
@@ -1004,7 +1004,7 @@ export default function VideoPlayer({
     };
   }, [videoPath, initialTime, autoPlay, autoplayEnabled, hasNextLesson, speed, onPlay, onPause]);
 
-  const availableLangs = Object.keys(subtitles || {});
+  const availableLangs = Object.keys(subtitles || {}).filter(lang => Boolean(subtitles[lang]));
   const translatableLangs = CURATED_LANGUAGES.filter(lang => !availableLangs.includes(lang.code));
 
   return (

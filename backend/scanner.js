@@ -199,7 +199,13 @@ function scanCourseFolder(coursePath) {
       if (file.startsWith('.')) continue;
       
       const fullFilePath = path.join(secPath, file);
-      if (fs.statSync(fullFilePath).isDirectory()) continue;
+      let stat;
+      try {
+        stat = fs.statSync(fullFilePath);
+      } catch (err) {
+        continue;
+      }
+      if (stat.isDirectory()) continue;
 
       const match = file.match(/^(\d+)\b/);
       const prefix = match ? match[1] : 'un-numbered';
@@ -210,7 +216,8 @@ function scanCourseFolder(coursePath) {
       groups[prefix].push({
         name: file,
         ext: path.extname(file).toLowerCase(),
-        fullPath: fullFilePath
+        fullPath: fullFilePath,
+        size: stat.size
       });
     }
 
@@ -234,6 +241,10 @@ function scanCourseFolder(coursePath) {
         if (file.ext === '.mp4' || file.ext === '.m4v' || file.ext === '.mkv') {
           videoFile = file;
         } else if (file.ext === '.srt' || file.ext === '.vtt') {
+          // Zero-byte subtitle files are invalid/empty — ignore so lesson is marked as having no subtitles
+          if (file.size === 0) {
+            continue;
+          }
           const lang = getSubtitleLanguage(file.name);
           // Keep first file found per language (avoid duplicates if any)
           if (!subtitles[lang]) {
