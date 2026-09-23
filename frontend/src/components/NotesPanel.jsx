@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle, ListOrdered, Globe, ExternalLink } from 'lucide-react';
-import { renderMarkdown } from './markdown';
+import { renderMarkdown, renderChatMessage } from './markdown';
 import { SUMMARY_LANGUAGES } from '../languages';
 import Sidebar from './Sidebar';
 
@@ -34,6 +34,7 @@ export default function NotesPanel({
 
   // Props for Summarization & Chat
   activeLesson,
+  coursePath,
   activeLang,
   summaryLang,
   setSummaryLang,
@@ -64,6 +65,38 @@ export default function NotesPanel({
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+
+  // Compute lesson scope key for database persistence
+  const currentScopeKey = activeLesson?.id ? `lesson:${activeLesson.id}` : null;
+
+  // Load chat history from progress_db when scope or course changes
+  useEffect(() => {
+    let active = true;
+    if (!coursePath || !currentScopeKey) {
+      queueMicrotask(() => {
+        if (active) setChatMessages([]);
+      });
+      return () => {
+        active = false;
+      };
+    }
+    fetch(`/api/userdata/chat?coursePath=${encodeURIComponent(coursePath)}&scopeKey=${encodeURIComponent(currentScopeKey)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (active && data.success && Array.isArray(data.messages)) {
+          setChatMessages(data.messages);
+        } else if (active) {
+          setChatMessages([]);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load chat history:', err);
+        if (active) setChatMessages([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [coursePath, currentScopeKey]);
 
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
@@ -243,6 +276,19 @@ export default function NotesPanel({
   };
 
   // Chat action handlers
+  const saveChatHistory = useCallback(async (key, messages) => {
+    if (!coursePath || !key) return;
+    try {
+      await fetch('/api/userdata/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coursePath, scopeKey: key, messages })
+      });
+    } catch (err) {
+      console.warn('Failed to save chat history:', err);
+    }
+  }, [coursePath]);
+
   const handleChatSubmit = async (e) => {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;
@@ -254,9 +300,14 @@ export default function NotesPanel({
     setChatLoading(true);
     setChatError(null);
 
-    const subtitlePath = activeLesson?.subtitles?.[activeLang];
+    // Immediately save user message to disk
+    if (currentScopeKey) {
+      saveChatHistory(currentScopeKey, newMessages);
+    }
+
+    const subtitlePath = activeLesson?.subtitles?.[activeLang] || (activeLesson?.subtitles ? Object.values(activeLesson.subtitles)[0] : null);
     if (!subtitlePath) {
-      setChatError('No subtitles available for chat.');
+      setChatError('No subtitles available for this lesson.');
       setChatLoading(false);
       return;
     }
@@ -268,27 +319,43 @@ export default function NotesPanel({
         body: JSON.stringify({
           subtitlePath,
           messages: newMessages,
-          enableWebSearch: webSearchEnabled
+          enableWebSearch: webSearchEnabled,
+          currentTime: typeof currentTime === 'number' ? currentTime : undefined
         })
       });
       const data = await response.json();
       if (data.success) {
-        setChatMessages([...newMessages, {
-          role: 'assistant',
-          content: data.reply,
-          sources: data.sources || [],
-          searchedWeb: Boolean(webSearchEnabled && data.sources && data.sources.length > 0)
-        }]);
+        const updatedMessages = [
+          ...newMessages,
+          {
+            role: 'assistant',
+            content: data.reply,
+            sources: data.sources || [],
+            searchedWeb: Boolean(webSearchEnabled && data.sources && data.sources.length > 0)
+          }
+        ];
+        setChatMessages(updatedMessages);
+        if (currentScopeKey) {
+          saveChatHistory(currentScopeKey, updatedMessages);
+        }
       } else {
         const errorText = data.error || 'Failed to get AI response.';
         setChatError(errorText);
-        setChatMessages([...newMessages, { role: 'error', content: `❌ ${errorText}` }]);
+        const updatedMessages = [...newMessages, { role: 'error', content: `❌ ${errorText}` }];
+        setChatMessages(updatedMessages);
+        if (currentScopeKey) {
+          saveChatHistory(currentScopeKey, updatedMessages);
+        }
       }
     } catch (err) {
       console.error('Error in chat:', err);
       const errorText = 'Network error during chat.';
       setChatError(errorText);
-      setChatMessages([...newMessages, { role: 'error', content: `❌ ${errorText}` }]);
+      const updatedMessages = [...newMessages, { role: 'error', content: `❌ ${errorText}` }];
+      setChatMessages(updatedMessages);
+      if (currentScopeKey) {
+        saveChatHistory(currentScopeKey, updatedMessages);
+      }
     } finally {
       setChatLoading(false);
       requestAnimationFrame(() => {
@@ -297,10 +364,21 @@ export default function NotesPanel({
     }
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     setChatMessages([]);
     setChatInput('');
     setChatError(null);
+    if (coursePath && currentScopeKey) {
+      try {
+        await fetch('/api/userdata/chat', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coursePath, scopeKey: currentScopeKey })
+        });
+      } catch (err) {
+        console.warn('Failed to clear chat history on disk:', err);
+      }
+    }
     requestAnimationFrame(() => {
       chatInputRef.current?.focus();
     });
@@ -722,6 +800,7 @@ export default function NotesPanel({
                   </button>
                 </div>
                 <button
+                  type="button"
                   onClick={handleNewChat}
                   disabled={chatLoading}
                   style={{
@@ -742,6 +821,7 @@ export default function NotesPanel({
                   onMouseLeave={(e) => {
                     if (!chatLoading) e.currentTarget.style.color = 'var(--text-secondary)';
                   }}
+                  title="Clear conversation history for this lesson"
                 >
                   <Trash2 size={12} /> New Chat
                 </button>
@@ -754,7 +834,7 @@ export default function NotesPanel({
                     <MessageSquare size={32} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
                     <div className="empty-state-title">Grounding Chat</div>
                     <div className="empty-state-desc">
-                      Ask quick questions based on the transcript subtitles of this lesson.
+                      Ask quick questions based on the transcript subtitles of this lesson. Timestamps in answers (e.g. [02:30]) can be clicked to seek.
                     </div>
                   </div>
                 ) : (
@@ -778,12 +858,11 @@ export default function NotesPanel({
                           border: msg.role === 'error' ? '1px solid rgba(239, 68, 68, 0.2)' : msg.role === 'user' ? 'none' : '1px solid var(--border-color)',
                           color: msg.role === 'error' ? 'var(--accent-red)' : msg.role === 'user' ? 'white' : 'var(--text-primary)',
                           fontSize: msg.role === 'error' ? '0.8rem' : '0.825rem',
-                          lineHeight: '1.4',
-                          wordBreak: 'break-word',
-                          whiteSpace: 'pre-wrap'
+                          lineHeight: '1.45',
+                          wordBreak: 'break-word'
                         }}
                       >
-                        {msg.content}
+                        {msg.role === 'assistant' ? renderChatMessage(msg.content, { onSeek }) : msg.content}
                         {msg.sources && msg.sources.length > 0 && (
                           <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
                             <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -856,7 +935,7 @@ export default function NotesPanel({
                 <input
                   ref={chatInputRef}
                   type="text"
-                  placeholder="Ask about this video..."
+                  placeholder="Ask about this video lesson (e.g. explain code at 02:15)..."
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   disabled={chatLoading}
@@ -889,8 +968,10 @@ export default function NotesPanel({
                     justifyContent: 'center',
                     cursor: chatLoading || !chatInput.trim() ? 'default' : 'pointer',
                     opacity: chatLoading || !chatInput.trim() ? 0.5 : 1,
-                    transition: 'var(--transition-fast)'
+                    transition: 'var(--transition-fast)',
+                    flexShrink: 0
                   }}
+                  title="Send message"
                 >
                   <Send size={14} />
                 </button>

@@ -1262,6 +1262,7 @@ export default function App() {
             onToggleComplete={handleToggleComplete}
             onOpenSectionSummary={handleOpenSectionSummary}
             activeLesson={activeLesson}
+            coursePath={coursePath}
             activeLang={activeLang}
             summaryLang={summaryLang}
             setSummaryLang={setSummaryLang}

@@ -39,7 +39,8 @@ const DEFAULT_SETTINGS = {
     lessonSummary: { provider: '', model: '' },
     chapterSummary: { provider: '', model: '' },
     lessonChat: { provider: '', model: '' },
-    chapterChat: { provider: '', model: '' }
+    chapterChat: { provider: '', model: '' },
+    courseChat: { provider: '', model: '' }
   }
 };
 
@@ -64,6 +65,7 @@ const DEFAULT_DB = {
   history: [],
   progress: {}, // lessonId -> { completed: boolean, watchTime: number, duration: number }
   notes: {},     // lessonId -> Array of { id, timestamp, text, createdAt }
+  chatHistory: {}, // coursePath -> { [scopeKey]: Array of messages }
   courseStates: {}, // coursePath -> { lastLessonId, lastActiveTab, lastActiveAt, progress: {} }
   settings: { ...DEFAULT_SETTINGS }
 };
@@ -106,6 +108,10 @@ function readDb() {
 
     if (!parsed.courseStates || typeof parsed.courseStates !== 'object') {
       parsed.courseStates = {};
+    }
+
+    if (!parsed.chatHistory || typeof parsed.chatHistory !== 'object') {
+      parsed.chatHistory = {};
     }
 
     // Sanitize language codes if stored as full language names
@@ -1277,6 +1283,53 @@ app.delete('/api/userdata/notes', (req, res) => {
   res.json(db);
 });
 
+// 9b. Get Chat History for a scope
+app.get('/api/userdata/chat', (req, res) => {
+  const { coursePath: reqCoursePath, scopeKey } = req.query;
+  const db = readDb();
+  const coursePath = reqCoursePath || db.activeCoursePath;
+  if (!coursePath || !scopeKey) {
+    return res.status(400).json({ error: 'coursePath and scopeKey are required' });
+  }
+  const courseChats = db.chatHistory?.[coursePath] || {};
+  const messages = courseChats[scopeKey] || [];
+  res.json({ success: true, messages });
+});
+
+// 9c. Save Chat History for a scope
+app.post('/api/userdata/chat', (req, res) => {
+  const { coursePath: reqCoursePath, scopeKey, messages } = req.body;
+  const db = readDb();
+  const coursePath = reqCoursePath || db.activeCoursePath;
+  if (!coursePath || !scopeKey || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'coursePath, scopeKey, and messages array are required' });
+  }
+  if (!db.chatHistory) {
+    db.chatHistory = {};
+  }
+  if (!db.chatHistory[coursePath]) {
+    db.chatHistory[coursePath] = {};
+  }
+  db.chatHistory[coursePath][scopeKey] = messages;
+  writeDb(db);
+  res.json({ success: true });
+});
+
+// 9d. Clear Chat History for a scope
+app.delete('/api/userdata/chat', (req, res) => {
+  const { coursePath: reqCoursePath, scopeKey } = req.body;
+  const db = readDb();
+  const coursePath = reqCoursePath || db.activeCoursePath;
+  if (!coursePath || !scopeKey) {
+    return res.status(400).json({ error: 'coursePath and scopeKey are required' });
+  }
+  if (db.chatHistory?.[coursePath]?.[scopeKey]) {
+    delete db.chatHistory[coursePath][scopeKey];
+    writeDb(db);
+  }
+  res.json({ success: true });
+});
+
 // 10. Update Settings
 app.post('/api/userdata/settings', (req, res) => {
   const {
@@ -1865,7 +1918,7 @@ Keep your response structured, well-formatted, and helpful. Use the same languag
 
 // 14. Chat about lesson based on subtitle file
 app.post('/api/chat-lesson', async (req, res) => {
-  const { subtitlePath, messages, enableWebSearch = false } = req.body;
+  const { subtitlePath, messages, enableWebSearch = false, currentTime } = req.body;
   if (!subtitlePath || !messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'subtitlePath and messages array are required' });
   }
@@ -1894,6 +1947,15 @@ Use the transcript above to answer the student's question accurately.
 If the question is about something not discussed in the transcript but relevant to the lesson topic, feel free to answer using your general knowledge, but prioritize the transcript details.
 Keep your response concise, clear, and direct. Use the same language as the student's question.`;
 
+    if (typeof currentTime === 'number' && !isNaN(currentTime) && currentTime >= 0) {
+      const minutes = Math.floor(currentTime / 60);
+      const seconds = Math.floor(currentTime % 60);
+      const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      systemInstruction += `\n\nThe student is currently watching this video at timestamp [${timeStr}] (${Math.round(currentTime)} seconds in). If the student refers to "this", "now", "what is happening", or the current topic, consider this playback position.`;
+    }
+
+    systemInstruction += `\n\nWhen referring to specific moments, key topics, or explanations in the video lesson, ALWAYS cite the exact timestamp in square brackets like [MM:SS] (e.g. [03:45]) so the student can click to jump directly to that point in the video.`;
+
     if (enableWebSearch) {
       systemInstruction += `\n\nWeb Search is enabled. You may use live web search results and up-to-date internet knowledge to supplement the lesson transcript when answering.`;
     }
@@ -1914,6 +1976,108 @@ Keep your response concise, clear, and direct. Use the same language as the stud
     res.json({ success: true, reply: replyText, sources });
   } catch (error) {
     console.error('Chat lesson error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 14b. Chat about entire course based on curriculum syllabus and chapter summaries
+app.post('/api/chat-course', async (req, res) => {
+  const { coursePath: reqCoursePath, messages, enableWebSearch = false, sections = [] } = req.body;
+  const db = readDb();
+  const coursePath = reqCoursePath || db.activeCoursePath;
+
+  if (!coursePath || !messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'coursePath and messages array are required' });
+  }
+
+  if (!validateSubtitlePath(coursePath)) {
+    return res.status(403).json({ error: 'Path traversal denied' });
+  }
+
+  if (!fs.existsSync(coursePath)) {
+    return res.status(404).json({ error: `Course directory not found: ${coursePath}` });
+  }
+
+  const config = getAiConfig(db, null, 'courseChat');
+
+  if (!config.apiKey) {
+    const errorMsg = `${config.providerName} API Key is missing. Please set it in Settings.`;
+    return res.status(400).json({ error: errorMsg });
+  }
+
+  try {
+    const courseTitle = path.basename(coursePath);
+    let syllabusOverview = `Course Title: ${courseTitle}\n\n`;
+
+    if (Array.isArray(sections) && sections.length > 0) {
+      syllabusOverview += `Curriculum Structure:\n`;
+      for (const section of sections) {
+        syllabusOverview += `\n### Section: ${section.title || 'Untitled Section'}\n`;
+        // Check for cached section summary
+        if (section.path && fs.existsSync(section.path)) {
+          try {
+            const files = fs.readdirSync(section.path);
+            const summaryFile = files.find(f => f.startsWith('section.summary.') && f.endsWith('.txt'));
+            if (summaryFile) {
+              const summaryContent = fs.readFileSync(path.join(section.path, summaryFile), 'utf8');
+              const brief = summaryContent.split('\n').slice(0, 10).join('\n');
+              syllabusOverview += `Section Overview Summary:\n${brief}\n`;
+            }
+          } catch (err) {
+            // Ignore summary read error
+          }
+        }
+        if (Array.isArray(section.lessons)) {
+          syllabusOverview += `Lessons:\n`;
+          for (const lesson of section.lessons) {
+            const durStr = lesson.duration ? ` (${Math.round(lesson.duration)}s)` : '';
+            syllabusOverview += `- ${lesson.title}${durStr}\n`;
+          }
+        }
+      }
+    } else {
+      // Fallback: list directories inside coursePath
+      const entries = fs.readdirSync(coursePath, { withFileTypes: true });
+      const dirs = entries.filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name);
+      syllabusOverview += `Sections in course:\n` + dirs.map(d => `- ${d}`).join('\n');
+    }
+
+    const MAX_COURSE_SYLLABUS_CHARS = 120000;
+    if (syllabusOverview.length > MAX_COURSE_SYLLABUS_CHARS) {
+      syllabusOverview = syllabusOverview.substring(0, MAX_COURSE_SYLLABUS_CHARS);
+    }
+
+    let systemInstruction = `You are a helpful, knowledgeable AI learning advisor and tutor for the entire course: "${courseTitle}".
+Below is the curriculum syllabus and overview of the course:
+---
+${syllabusOverview}
+---
+Help the student navigate and master this course:
+- Answer questions about where specific concepts, technologies, or topics are taught.
+- Provide learning roadmaps and study order advice across sections and lessons.
+- Synthesize relationships between different chapters and modules.
+- Be structured, clear, and direct. Use the same language as the student's question.`;
+
+    if (enableWebSearch) {
+      systemInstruction += `\n\nWeb Search is enabled. You may use live web search results and up-to-date internet knowledge to supplement the course syllabus when answering.`;
+    }
+
+    console.log(`Calling ${config.providerName} API for course chat question (web search: ${Boolean(enableWebSearch)})...`);
+    const result = await callAiProvider(config, null, {
+      isChat: true,
+      messages,
+      systemInstruction,
+      maxTokens: 8192,
+      enableWebSearch: Boolean(enableWebSearch),
+      returnSources: true
+    });
+
+    const replyText = typeof result === 'object' && result !== null ? result.text : result;
+    const sources = (typeof result === 'object' && result !== null && Array.isArray(result.sources)) ? result.sources : [];
+
+    res.json({ success: true, reply: replyText, sources });
+  } catch (error) {
+    console.error('Chat course error:', error);
     res.status(500).json({ error: error.message });
   }
 });
