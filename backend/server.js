@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS = {
   openaiModel: 'gpt-4o-mini',
   openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
+  controlsPosition: 'floating',
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
   autoCreateSummary: false,
@@ -1343,6 +1344,7 @@ app.post('/api/userdata/settings', (req, res) => {
     openaiModel,
     openaiBaseUrl,
     autoplayNext,
+    controlsPosition,
     autoCreateTimeline,
     autoCreateTimelineLang,
     autoCreateSummary,
@@ -1363,6 +1365,8 @@ app.post('/api/userdata/settings', (req, res) => {
   db.settings.openaiModel = openaiModel || DEFAULT_SETTINGS.openaiModel;
   db.settings.openaiBaseUrl = openaiBaseUrl || DEFAULT_SETTINGS.openaiBaseUrl;
   db.settings.autoplayNext = typeof autoplayNext === 'boolean' ? autoplayNext : DEFAULT_SETTINGS.autoplayNext;
+  db.settings.controlsPosition = (controlsPosition === 'bottom' || controlsPosition === 'floating')
+    ? controlsPosition : DEFAULT_SETTINGS.controlsPosition;
   db.settings.autoCreateTimeline = typeof autoCreateTimeline === 'boolean' ? autoCreateTimeline : DEFAULT_SETTINGS.autoCreateTimeline;
   db.settings.autoCreateTimelineLang = (autoCreateTimelineLang && SUPPORTED_SUMMARY_LANGUAGES[autoCreateTimelineLang.toLowerCase()])
     ? autoCreateTimelineLang.toLowerCase() : DEFAULT_SETTINGS.autoCreateTimelineLang;

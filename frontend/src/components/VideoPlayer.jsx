@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List, CaptionsOff, Zap } from 'lucide-react';
+import { Maximize2, Minimize2, Menu, BookOpen, Play, Pause, Volume2, Volume1, VolumeX, List, CaptionsOff, Zap, PanelBottom, PanelBottomClose } from 'lucide-react';
 import ShortcutToast from './ShortcutToast';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import { audioBooster } from '../utils/audioBooster';
@@ -175,7 +175,9 @@ export default function VideoPlayer({
   hasApiKey = false,
   hasMultipleTabs = false,
   activeTab = 'video',
-  onSelectTab
+  onSelectTab,
+  controlsPosition = 'floating',
+  onToggleControlsPosition
 }) {
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState(null);
@@ -196,6 +198,8 @@ export default function VideoPlayer({
   const [localCurrentTime, setLocalCurrentTime] = useState(initialTime || 0);
   const [localDuration, setLocalDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const isDocked = controlsPosition === 'bottom' && !isFullscreen;
   const [chapters, setChapters] = useState([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [chaptersError, setChaptersError] = useState(null);
@@ -1009,7 +1013,7 @@ export default function VideoPlayer({
 
   return (
     <div 
-      className={`video-container ${!showControls ? 'controls-hidden' : ''}`}
+      className={`video-container ${isDocked ? 'controls-docked' : 'controls-floating'} ${!showControls ? 'controls-hidden' : ''}`}
       style={{ 
         outline: 'none', 
         width: '100%', 
@@ -1017,8 +1021,9 @@ export default function VideoPlayer({
         '--subtitle-size': subtitleSize
       }}
     >
-      <video
-        key={videoPath} // Force recreation of player state when path changes
+      <div className="video-stage">
+        <video
+          key={videoPath} // Force recreation of player state when path changes
         ref={playerRef}
         src={videoSrc}
         crossOrigin="anonymous"
@@ -1311,6 +1316,92 @@ export default function VideoPlayer({
         </div>
       )}
 
+      {/* Chapters List Sidebar Panel */}
+      <div className={`video-chapters-panel ${showChaptersList ? 'open' : ''}`}>
+        <div className="video-chapters-header">
+          <div className="video-chapters-title">
+            <List size={16} />
+            <span>Chapters</span>
+          </div>
+          <button 
+            onClick={() => setShowChaptersList(false)}
+            className="video-chapters-close-btn"
+            title="Close panel"
+          >
+            ✕
+          </button>
+        </div>
+
+        {chapters && chapters.length > 0 && subtitleSrc && (
+          <div className="video-chapters-actions" style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Re-generate:</span>
+              {loadingChapters && (
+                <div className="chapters-loader" style={{ fontSize: '0.7rem' }}>
+                  <div className="chapters-loader-spinner" style={{ width: '10px', height: '10px' }} />
+                  <span>Loading...</span>
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <select
+                value={selectedChapterLang}
+                disabled={loadingChapters}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedChapterLang(val);
+                  localStorage.setItem('udemy-player-chapter-lang', val);
+                }}
+                className="video-overlay-select"
+                style={{ flex: 1, fontSize: '0.75rem', height: '26px', padding: '0 8px' }}
+              >
+                <option value="en">English</option>
+                {CURATED_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => handleGenerateChapters(selectedChapterLang)}
+                disabled={loadingChapters}
+                className="video-overlay-btn"
+                style={{ fontSize: '0.75rem', height: '26px', padding: '0 12px', flexShrink: 0 }}
+                title="Re-generate chapters in the selected language"
+              >
+                ✨ Refresh
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="video-chapters-list">
+          {chapters.map((chapter, idx) => {
+            const isActive = activeChapterIdx === idx;
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  if (playerRef.current) {
+                    playerRef.current.currentTime = chapter.time;
+                    setLocalCurrentTime(chapter.time);
+                    setShowChaptersList(false);
+                  }
+                }}
+                className={`video-chapter-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="video-chapter-item-title">{chapter.title}</span>
+                <span className="video-chapter-item-time">{formatTime(chapter.time)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Keyboard shortcut toast */}
+      <ShortcutToast message={toastMessage} id={toastId} />
+    </div>
+
       {/* Custom Video Controls Bar */}
       <div className="video-control-bar">
         {/* Timeline (Progress Bar) */}
@@ -1525,6 +1616,17 @@ export default function VideoPlayer({
               </button>
             )}
 
+            {/* Controls Placement Toggle (Dock / Float) */}
+            {onToggleControlsPosition && (
+              <button
+                onClick={onToggleControlsPosition}
+                className="video-control-btn"
+                title={isDocked ? "Float controls over video" : "Dock controls below video"}
+              >
+                {isDocked ? <PanelBottomClose size={16} /> : <PanelBottom size={16} />}
+              </button>
+            )}
+
             {/* Fullscreen Button */}
             <button 
               onClick={handleToggleFullscreen}
@@ -1537,93 +1639,6 @@ export default function VideoPlayer({
 
         </div>
       </div>
-
-      {/* Chapters List Sidebar Panel */}
-      <div className={`video-chapters-panel ${showChaptersList ? 'open' : ''}`}>
-        <div className="video-chapters-header">
-          <div className="video-chapters-title">
-            <List size={16} />
-            <span>Chapters</span>
-          </div>
-          <button 
-            onClick={() => setShowChaptersList(false)}
-            className="video-chapters-close-btn"
-            title="Close panel"
-          >
-            ✕
-          </button>
-        </div>
-
-        {chapters && chapters.length > 0 && subtitleSrc && (
-          <div className="video-chapters-actions" style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Re-generate:</span>
-              {loadingChapters && (
-                <div className="chapters-loader" style={{ fontSize: '0.7rem' }}>
-                  <div className="chapters-loader-spinner" style={{ width: '10px', height: '10px' }} />
-                  <span>Loading...</span>
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <select
-                value={selectedChapterLang}
-                disabled={loadingChapters}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedChapterLang(val);
-                  localStorage.setItem('udemy-player-chapter-lang', val);
-                }}
-                className="video-overlay-select"
-                style={{ flex: 1, fontSize: '0.75rem', height: '26px', padding: '0 8px' }}
-              >
-                <option value="en">English</option>
-                {CURATED_LANGUAGES.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => handleGenerateChapters(selectedChapterLang)}
-                disabled={loadingChapters}
-                className="video-overlay-btn"
-                style={{ fontSize: '0.75rem', height: '26px', padding: '0 12px', flexShrink: 0 }}
-                title="Re-generate chapters in the selected language"
-              >
-                ✨ Refresh
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="video-chapters-list">
-          {chapters.map((chapter, idx) => {
-            const isActive = activeChapterIdx === idx;
-            return (
-              <button
-                key={idx}
-                onClick={() => {
-                  if (playerRef.current) {
-                    playerRef.current.currentTime = chapter.time;
-                    setLocalCurrentTime(chapter.time);
-                    setShowChaptersList(false);
-                  }
-                }}
-                className={`video-chapter-item ${isActive ? 'active' : ''}`}
-              >
-                <span className="video-chapter-item-title">{chapter.title}</span>
-                <span className="video-chapter-item-time">{formatTime(chapter.time)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Keyboard shortcut toast */}
-      <ShortcutToast message={toastMessage} id={toastId} />
     </div>
-
-
   );
 }

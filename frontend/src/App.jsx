@@ -25,6 +25,7 @@ const DEFAULT_SETTINGS = {
   openaiModel: 'gpt-4o-mini',
   openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
+  controlsPosition: 'floating',
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
   autoCreateSummary: false,
@@ -791,6 +792,26 @@ export default function App() {
     }
   };
 
+  const handleToggleControlsPosition = async () => {
+    const nextVal = (settings.controlsPosition || 'floating') === 'bottom' ? 'floating' : 'bottom';
+    const updatedSettings = { ...settings, controlsPosition: nextVal };
+    setSettings(updatedSettings);
+
+    try {
+      const res = await fetch('/api/userdata/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSettings)
+      });
+      const data = await res.json();
+      if (data.settings) {
+        setSettings(data.settings);
+      }
+    } catch (err) {
+      console.error('Failed to save controlsPosition setting', err);
+    }
+  };
+
   const handleSpeedChange = (newSpeed) => {
     setSpeed(newSpeed);
     if (playerRef.current) {
@@ -1185,6 +1206,8 @@ export default function App() {
                     hasMultipleTabs={hasMultipleTabs}
                     activeTab={activeTab}
                     onSelectTab={handleSelectTab}
+                    controlsPosition={settings.controlsPosition || 'floating'}
+                    onToggleControlsPosition={handleToggleControlsPosition}
                   />
                 ) : (
                   <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-main)' }}>

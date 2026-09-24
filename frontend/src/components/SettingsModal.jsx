@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
   openaiModel: 'gpt-4o-mini',
   openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
+  controlsPosition: 'floating',
   autoCreateTimeline: false,
   autoCreateTimelineLang: 'en',
   autoCreateSummary: false,
@@ -63,6 +64,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
   const [openaiModel, setOpenaiModel] = useState(merged.openaiModel);
   const [openaiBaseUrl, setOpenaiBaseUrl] = useState(merged.openaiBaseUrl);
   const [autoplayNext, setAutoplayNext] = useState(merged.autoplayNext);
+  const [controlsPosition, setControlsPosition] = useState(merged.controlsPosition || 'floating');
   const [autoCreateTimeline, setAutoCreateTimeline] = useState(merged.autoCreateTimeline);
   const [autoCreateTimelineLang, setAutoCreateTimelineLang] = useState(merged.autoCreateTimelineLang);
   const [autoCreateSummary, setAutoCreateSummary] = useState(merged.autoCreateSummary);
@@ -136,6 +138,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       openaiModel: openaiModel.trim() || 'gpt-4o-mini',
       openaiBaseUrl: openaiBaseUrl.trim() || 'https://api.openai.com',
       autoplayNext,
+      controlsPosition: controlsPosition === 'bottom' ? 'bottom' : 'floating',
       autoCreateTimeline,
       autoCreateTimelineLang,
       autoCreateSummary,
@@ -755,8 +758,88 @@ export default function SettingsModal({ settings, onSave, onClose }) {
             )}
           </div>
 
-          {/* Autoplay Next Video */}
+          {/* Playback & Player Controls */}
           <div style={{ marginBottom: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>Playback & Player Controls</h4>
+
+            {/* Video Controls Position */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                Controls Bar Placement
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                Choose whether the video player controls float over the video canvas or sit docked below the video.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setControlsPosition('floating')}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: `1.5px solid ${controlsPosition === 'floating' ? 'var(--primary)' : 'var(--border-color)'}`,
+                    background: controlsPosition === 'floating' ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'var(--transition-fast)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.85rem' }}>
+                    <span style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      border: `2px solid ${controlsPosition === 'floating' ? 'var(--primary)' : 'var(--text-muted)'}`,
+                      background: controlsPosition === 'floating' ? 'var(--primary)' : 'transparent',
+                      display: 'inline-block'
+                    }} />
+                    Floating on video
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '18px' }}>
+                    Overlays video, auto-hides on idle
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setControlsPosition('bottom')}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: `1.5px solid ${controlsPosition === 'bottom' ? 'var(--primary)' : 'var(--border-color)'}`,
+                    background: controlsPosition === 'bottom' ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'var(--transition-fast)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.85rem' }}>
+                    <span style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      border: `2px solid ${controlsPosition === 'bottom' ? 'var(--primary)' : 'var(--text-muted)'}`,
+                      background: controlsPosition === 'bottom' ? 'var(--primary)' : 'transparent',
+                      display: 'inline-block'
+                    }} />
+                    Below the video
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '18px' }}>
+                    Docked below video, never blocks content
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Autoplay Next Video */}
             <label 
               style={{
                 display: 'flex',
