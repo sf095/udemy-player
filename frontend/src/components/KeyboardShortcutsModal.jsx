@@ -35,6 +35,7 @@ const SHORTCUT_GROUPS = [
       { keys: ['B'], description: 'Toggle sidebar panel' },
       { keys: ['N'], description: 'Toggle sidebar panel' },
       { keys: ['C'], description: 'Toggle chapters panel' },
+      { keys: ['Cmd/Ctrl', 'F'], description: 'Find in summary (Summary tab)' },
       { keys: ['Esc'], description: 'Close modal' },
     ]
   },

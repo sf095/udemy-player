@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle, ListOrdered, Globe, ExternalLink } from 'lucide-react';
+import { Clock, Plus, Trash2, Edit2, Check, X, BookOpen, FileText, MessageSquare, RefreshCw, Send, AlertCircle, ListOrdered, Globe, ExternalLink, Search, ChevronUp, ChevronDown } from 'lucide-react';
 import { renderMarkdown, renderChatMessage } from './markdown';
 import { SUMMARY_LANGUAGES } from '../languages';
 import Sidebar from './Sidebar';
@@ -58,6 +58,13 @@ export default function NotesPanel({
   const [summary, setSummary] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState(null);
+  const [showSummarySearch, setShowSummarySearch] = useState(false);
+  const [summarySearchQuery, setSummarySearchQuery] = useState('');
+  const [summaryActiveMatchIndex, setSummaryActiveMatchIndex] = useState(0);
+  const [summaryTotalMatches, setSummaryTotalMatches] = useState(0);
+
+  const summarySearchInputRef = useRef(null);
+  const summaryContentRef = useRef(null);
 
   // Chat states
   const [chatMessages, setChatMessages] = useState([]);
@@ -203,6 +210,10 @@ export default function NotesPanel({
       setChatMessages([]);
       setChatError(null);
       setChatInput('');
+      setShowSummarySearch(false);
+      setSummarySearchQuery('');
+      setSummaryActiveMatchIndex(0);
+      setSummaryTotalMatches(0);
       
       if (activeLesson && activeLang) {
         checkSummaryCache();
@@ -274,6 +285,85 @@ export default function NotesPanel({
       setSummaryLoading(false);
     }
   };
+
+  // Summary search action handlers & effects
+  const handleCloseSearch = useCallback(() => {
+    setShowSummarySearch(false);
+    setSummarySearchQuery('');
+    setSummaryActiveMatchIndex(0);
+    setSummaryTotalMatches(0);
+  }, []);
+
+  const handleNextMatch = useCallback(() => {
+    if (summaryTotalMatches <= 1) return;
+    setSummaryActiveMatchIndex((prev) => (prev + 1) % summaryTotalMatches);
+  }, [summaryTotalMatches]);
+
+  const handlePrevMatch = useCallback(() => {
+    if (summaryTotalMatches <= 1) return;
+    setSummaryActiveMatchIndex((prev) => (prev - 1 + summaryTotalMatches) % summaryTotalMatches);
+  }, [summaryTotalMatches]);
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleCloseSearch();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handlePrevMatch();
+      } else {
+        handleNextMatch();
+      }
+    }
+  };
+
+  // Listen for Cmd+F (Mac) or Ctrl+F (Win/Linux) to search within Summary tab
+  useEffect(() => {
+    if (activeTab !== 'summary' || !summary) return;
+
+    const handleKeyDown = (e) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (isCmdOrCtrl && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowSummarySearch(true);
+        requestAnimationFrame(() => {
+          summarySearchInputRef.current?.focus();
+          summarySearchInputRef.current?.select();
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [activeTab, summary]);
+
+  // Recalculate total matches in DOM when query, summary, or search visibility changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!summarySearchQuery.trim() || !showSummarySearch) {
+        setSummaryTotalMatches(0);
+        setSummaryActiveMatchIndex(0);
+        return;
+      }
+      const matches = summaryContentRef.current?.querySelectorAll('.summary-search-match') || [];
+      setSummaryTotalMatches(matches.length);
+      setSummaryActiveMatchIndex(0);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [summarySearchQuery, summary, showSummarySearch]);
+
+  // Scroll active match into view smoothly
+  useEffect(() => {
+    if (summaryTotalMatches > 0 && showSummarySearch) {
+      const activeEl = document.getElementById(`summary-match-${summaryActiveMatchIndex}`);
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [summaryActiveMatchIndex, summaryTotalMatches, showSummarySearch]);
 
   // Chat action handlers
   const saveChatHistory = useCallback(async (key, messages) => {
@@ -685,30 +775,116 @@ export default function NotesPanel({
             </div>
           ) : summary ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Check size={12} style={{ color: 'var(--accent-green)' }} /> Saved to Disk (Offline)
                 </span>
-                <button
-                  onClick={clearSummaryCache}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
-                >
-                  <RefreshCw size={12} /> Regenerate
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      setShowSummarySearch((prev) => {
+                        const next = !prev;
+                        if (next) {
+                          requestAnimationFrame(() => {
+                            summarySearchInputRef.current?.focus();
+                            summarySearchInputRef.current?.select();
+                          });
+                        } else {
+                          handleCloseSearch();
+                        }
+                        return next;
+                      });
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: showSummarySearch ? 'var(--primary)' : 'var(--text-secondary)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Find in summary (Cmd+F / Ctrl+F)"
+                    onMouseEnter={(e) => { if (!showSummarySearch) e.currentTarget.style.color = 'var(--text-primary)'; }}
+                    onMouseLeave={(e) => { if (!showSummarySearch) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                  >
+                    <Search size={12} /> Find
+                  </button>
+                  <button
+                    onClick={clearSummaryCache}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                  >
+                    <RefreshCw size={12} /> Regenerate
+                  </button>
+                </div>
               </div>
-              <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', lineHeight: '1.5' }}>
-                {renderMarkdown(summary)}
+
+              {/* In-Summary Search Bar */}
+              {showSummarySearch && (
+                <div className="summary-search-bar">
+                  <Search size={13} className="summary-search-icon" />
+                  <input
+                    ref={summarySearchInputRef}
+                    type="text"
+                    className="summary-search-input"
+                    placeholder="Find in summary... (Enter/Shift+Enter, Esc)"
+                    value={summarySearchQuery}
+                    onChange={(e) => setSummarySearchQuery(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                  />
+                  {summarySearchQuery.trim() && (
+                    <span className="summary-search-count">
+                      {summaryTotalMatches === 0 ? 'No results' : `${summaryActiveMatchIndex + 1} of ${summaryTotalMatches}`}
+                    </span>
+                  )}
+                  <div className="summary-search-actions">
+                    <button
+                      type="button"
+                      className="summary-search-btn"
+                      onClick={handlePrevMatch}
+                      disabled={summaryTotalMatches <= 1}
+                      title="Previous match (Shift+Enter)"
+                    >
+                      <ChevronUp size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="summary-search-btn"
+                      onClick={handleNextMatch}
+                      disabled={summaryTotalMatches <= 1}
+                      title="Next match (Enter)"
+                    >
+                      <ChevronDown size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="summary-search-btn summary-search-close-btn"
+                      onClick={handleCloseSearch}
+                      title="Close search (Esc)"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div ref={summaryContentRef} style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', lineHeight: '1.5' }}>
+                {renderMarkdown(summary, {
+                  searchQuery: showSummarySearch ? summarySearchQuery : '',
+                  activeMatchIndex: summaryActiveMatchIndex
+                })}
               </div>
             </div>
           ) : (

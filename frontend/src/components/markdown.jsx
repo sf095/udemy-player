@@ -50,8 +50,39 @@ function CodeBlock({ code, language }) {
   );
 }
 
+// Helper to escape regex special characters
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Highlight matches within plain text
+function highlightMatches(text, searchQuery, matchTracker) {
+  if (!text || !searchQuery || !searchQuery.trim()) return text;
+  const trimmed = searchQuery.trim();
+  const regex = new RegExp(`(${escapeRegExp(trimmed)})`, 'gi');
+  const parts = text.split(regex);
+  if (parts.length <= 1) return text;
+
+  return parts.map((part, i) => {
+    if (part.toLowerCase() === trimmed.toLowerCase()) {
+      const idx = matchTracker ? matchTracker.count++ : 0;
+      const isCurrent = matchTracker ? idx === matchTracker.activeIndex : false;
+      return (
+        <mark
+          key={`match-${idx}-${i}`}
+          id={`summary-match-${idx}`}
+          className={`summary-search-match ${isCurrent ? 'summary-search-match-active' : ''}`}
+        >
+          {part}
+        </mark>
+      );
+    }
+    return part;
+  });
+}
+
 // Format inline text: **bold**, `inline code`, and [MM:SS] clickable timestamps
-export function formatInlineStyles(text, onSeek = null) {
+export function formatInlineStyles(text, onSeek = null, highlightOptions = null) {
   if (!text) return null;
 
   // Split on bold, inline code, and bracketed timestamps
@@ -63,15 +94,19 @@ export function formatInlineStyles(text, onSeek = null) {
 
     // Bold text: **content**
     if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      const boldContent = part.slice(2, -2);
       return (
         <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-          {part.slice(2, -2)}
+          {highlightOptions
+            ? highlightMatches(boldContent, highlightOptions.searchQuery, highlightOptions.matchTracker)
+            : boldContent}
         </strong>
       );
     }
 
     // Inline code: `content`
     if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      const codeContent = part.slice(1, -1);
       return (
         <code
           key={i}
@@ -84,7 +119,9 @@ export function formatInlineStyles(text, onSeek = null) {
             color: 'var(--accent-blue, #38bdf8)'
           }}
         >
-          {part.slice(1, -1)}
+          {highlightOptions
+            ? highlightMatches(codeContent, highlightOptions.searchQuery, highlightOptions.matchTracker)
+            : codeContent}
         </code>
       );
     }
@@ -112,32 +149,59 @@ export function formatInlineStyles(text, onSeek = null) {
       }
     }
 
-    return part;
+    return highlightOptions
+      ? highlightMatches(part, highlightOptions.searchQuery, highlightOptions.matchTracker)
+      : part;
   });
 }
 
 // Minimal markdown renderer shared by lesson summary and chapter summary views
-export function renderMarkdown(text) {
+export function renderMarkdown(text, options = {}) {
   if (!text) return null;
+  const { searchQuery = '', activeMatchIndex = 0 } = options;
+  const highlightOptions = searchQuery && searchQuery.trim()
+    ? { searchQuery: searchQuery.trim(), matchTracker: { count: 0, activeIndex: activeMatchIndex } }
+    : null;
+
   const lines = text.split('\n');
   return lines.map((line, idx) => {
     if (line.startsWith('### ')) {
-      return <h4 key={idx} style={{ marginTop: '12px', marginBottom: '6px', color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 600 }}>{line.substring(4)}</h4>;
+      return (
+        <h4 key={idx} style={{ marginTop: '12px', marginBottom: '6px', color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 600 }}>
+          {formatInlineStyles(line.substring(4), null, highlightOptions)}
+        </h4>
+      );
     }
     if (line.startsWith('## ')) {
-      return <h3 key={idx} style={{ marginTop: '16px', marginBottom: '8px', color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: 600 }}>{line.substring(3)}</h3>;
+      return (
+        <h3 key={idx} style={{ marginTop: '16px', marginBottom: '8px', color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: 600 }}>
+          {formatInlineStyles(line.substring(3), null, highlightOptions)}
+        </h3>
+      );
     }
     if (line.startsWith('# ')) {
-      return <h2 key={idx} style={{ marginTop: '18px', marginBottom: '10px', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 600 }}>{line.substring(2)}</h2>;
+      return (
+        <h2 key={idx} style={{ marginTop: '18px', marginBottom: '10px', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 600 }}>
+          {formatInlineStyles(line.substring(2), null, highlightOptions)}
+        </h2>
+      );
     }
     if (line.startsWith('- ') || line.startsWith('* ')) {
       const content = line.substring(2);
-      return <li key={idx} style={{ marginLeft: '16px', marginBottom: '4px', listStyleType: 'disc', fontSize: '0.85rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>{formatInlineStyles(content)}</li>;
+      return (
+        <li key={idx} style={{ marginLeft: '16px', marginBottom: '4px', listStyleType: 'disc', fontSize: '0.85rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>
+          {formatInlineStyles(content, null, highlightOptions)}
+        </li>
+      );
     }
     if (line.trim() === '') {
       return <div key={idx} style={{ height: '8px' }} />;
     }
-    return <p key={idx} style={{ marginBottom: '8px', fontSize: '0.85rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>{formatInlineStyles(line)}</p>;
+    return (
+      <p key={idx} style={{ marginBottom: '8px', fontSize: '0.85rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>
+        {formatInlineStyles(line, null, highlightOptions)}
+      </p>
+    );
   });
 }
 
