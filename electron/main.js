@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, MenuItem } = require('electron');
 const path = require('path');
 const net = require('net');
 
@@ -86,6 +86,51 @@ async function startApp() {
     if (isExternalUrl(details.url)) {
       event.preventDefault();
       shell.openExternal(details.url);
+    }
+  });
+
+  // Native context menu for text selection and editable inputs
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const menu = new Menu();
+
+    // If text is selected (e.g. in Summary tab or notes)
+    if (params.selectionText && params.selectionText.trim().length > 0) {
+      menu.append(new MenuItem({ role: 'copy', label: 'Copy' }));
+      menu.append(new MenuItem({ role: 'selectAll', label: 'Select All' }));
+      menu.append(new MenuItem({ type: 'separator' }));
+
+      const trimmed = params.selectionText.trim();
+      if (process.platform === 'darwin') {
+        const preview = trimmed.length > 25 ? trimmed.substring(0, 25) + '…' : trimmed;
+        menu.append(new MenuItem({
+          label: `Look Up "${preview}"`,
+          click: () => mainWindow.webContents.showDefinitionForSelection()
+        }));
+      }
+
+      menu.append(new MenuItem({
+        label: 'Search with Google',
+        click: () => {
+          shell.openExternal(`https://www.google.com/search?q=${encodeURIComponent(trimmed)}`);
+        }
+      }));
+
+      menu.popup({ window: mainWindow, x: params.x, y: params.y });
+      return;
+    }
+
+    // Editable text (inputs / textareas)
+    if (params.isEditable) {
+      menu.append(new MenuItem({ role: 'undo', label: 'Undo' }));
+      menu.append(new MenuItem({ role: 'redo', label: 'Redo' }));
+      menu.append(new MenuItem({ type: 'separator' }));
+      menu.append(new MenuItem({ role: 'cut', label: 'Cut' }));
+      menu.append(new MenuItem({ role: 'copy', label: 'Copy' }));
+      menu.append(new MenuItem({ role: 'paste', label: 'Paste' }));
+      menu.append(new MenuItem({ type: 'separator' }));
+      menu.append(new MenuItem({ role: 'selectAll', label: 'Select All' }));
+      menu.popup({ window: mainWindow, x: params.x, y: params.y });
+      return;
     }
   });
 
