@@ -488,7 +488,7 @@ export default function VideoPlayer({
       audioBooster.attach(video);
       video.volume = Math.min(1, Math.max(0, volume));
       video.muted = isMuted;
-      audioBooster.setBoost(volume > 1 ? volume : 1);
+      audioBooster.setBoost(isMuted ? 0 : (volume > 1 ? volume : 1));
     }
   }, [videoPath, volume, isMuted, playerRef]);
 
@@ -969,18 +969,12 @@ export default function VideoPlayer({
       setIsPlaying(false);
       if (onPause) onPause();
     };
-    const handleVolumeChange = () => {
-      if (video.muted !== isMuted && onToggleMute) {
-        onToggleMute();
-      }
-    };
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
-    video.addEventListener('volumechange', handleVolumeChange);
 
     // If video is already loaded or metadata is cached
     if (video.readyState >= 1 && !hasSeekedRef.current) {
@@ -1003,7 +997,6 @@ export default function VideoPlayer({
       video.removeEventListener('ended', handleEnded);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
-      video.removeEventListener('volumechange', handleVolumeChange);
       video.removeEventListener('ratechange', handleRateChange);
     };
   }, [videoPath, initialTime, autoPlay, autoplayEnabled, hasNextLesson, speed, onPlay, onPause]);

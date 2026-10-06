@@ -845,13 +845,22 @@ export default function App() {
   };
 
   const handleToggleMute = () => {
-    setIsMuted(prev => {
-      const next = !prev;
-      localStorage.setItem('udemy-player-muted', next ? 'true' : 'false');
-      const pct = Math.round(volume * 100);
-      showToast(next ? '🔇 Muted' : (volume > 1 ? `⚡ ${pct}%` : `🔊 ${pct}%`));
-      return next;
-    });
+    if (isMuted) {
+      setIsMuted(false);
+      localStorage.setItem('udemy-player-muted', 'false');
+      if (volume === 0) {
+        setVolume(1);
+        localStorage.setItem('udemy-player-volume', '1');
+        showToast('🔊 100%');
+      } else {
+        const pct = Math.round(volume * 100);
+        showToast(volume > 1 ? `⚡ ${pct}%` : `🔊 ${pct}%`);
+      }
+    } else {
+      setIsMuted(true);
+      localStorage.setItem('udemy-player-muted', 'true');
+      showToast('🔇 Muted');
+    }
   };
 
   const handleToggleTheaterMode = () => {

@@ -45,7 +45,11 @@ export default function useKeyboardShortcuts(shortcuts, options = {}) {
         if (e.altKey !== needAlt) continue;
 
         // Check key match
-        if (e.key === key) {
+        const keyMatches = (key.length === 1 && e.key.length === 1 && !needShift)
+          ? e.key.toLowerCase() === key.toLowerCase()
+          : e.key === key;
+
+        if (keyMatches) {
           e.preventDefault();
           e.stopPropagation();
           action(e);
