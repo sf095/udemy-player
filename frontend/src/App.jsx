@@ -948,8 +948,7 @@ export default function App() {
       else if (showSettingsModal) setShowSettingsModal(false);
       else if (showCourseManager) setShowCourseManager(false);
       else if (showChapterSummaryModal) setShowChapterSummaryModal(false);
-      else if (theaterMode) setTheaterMode(false);
-    }},
+    }, when: () => showShortcutsModal || showSettingsModal || showCourseManager || showChapterSummaryModal },
     // --- App-Level ---
     { key: '?', modifiers: ['shift'], action: () => setShowShortcutsModal(s => !s) },
     { key: ',', action: () => setShowSettingsModal(true) },
