@@ -223,12 +223,26 @@ export default function NotesPanel({
     return () => clearTimeout(timer);
   }, [activeLesson, activeLang, summaryLang, checkSummaryCache]);
 
-  // Scroll chat to bottom
+  // Scroll chat to bottom ONLY when chat tab is active
   useEffect(() => {
-    if (chatEndRef.current) {
+    if (activeTab === 'chat' && chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatMessages, chatLoading]);
+  }, [chatMessages, chatLoading, activeTab]);
+
+  // Ensure summary is scrolled to the top when loaded, completed, or tab switched
+  useEffect(() => {
+    if (activeTab === 'summary' && summary && !summaryLoading) {
+      if (summaryContentRef.current) {
+        summaryContentRef.current.scrollTop = 0;
+      }
+      requestAnimationFrame(() => {
+        if (summaryContentRef.current) {
+          summaryContentRef.current.scrollTop = 0;
+        }
+      });
+    }
+  }, [summary, summaryLoading, activeTab, activeLesson?.id]);
 
   // Notes action handlers
   const handleFocus = () => {

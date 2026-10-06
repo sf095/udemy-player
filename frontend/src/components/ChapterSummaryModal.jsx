@@ -43,6 +43,7 @@ export default function ChapterSummaryModal({
   const genIdRef = useRef(0);
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
+  const summaryScrollRef = useRef(null);
 
   const sectionPath = section && coursePath ? `${coursePath}/${section.id}` : '';
 
@@ -66,6 +67,20 @@ export default function ChapterSummaryModal({
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatMessages, chatLoading, activeTab]);
+
+  // Ensure summary is scrolled to the top when loaded, completed, or tab switched
+  useEffect(() => {
+    if (isOpen && activeTab === 'summary' && summary && !loading) {
+      if (summaryScrollRef.current) {
+        summaryScrollRef.current.scrollTop = 0;
+      }
+      requestAnimationFrame(() => {
+        if (summaryScrollRef.current) {
+          summaryScrollRef.current.scrollTop = 0;
+        }
+      });
+    }
+  }, [isOpen, summary, loading, activeTab, section?.id]);
 
   // Focus chat input when switching to chat tab
   useEffect(() => {
@@ -563,6 +578,7 @@ export default function ChapterSummaryModal({
         {/* Content Body */}
         {activeTab === 'summary' ? (
           <div
+            ref={summaryScrollRef}
             style={{
               flex: 1,
               padding: '24px',
