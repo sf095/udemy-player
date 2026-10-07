@@ -78,13 +78,12 @@ app.use(express.json());
 function getEffectiveUserData(db, targetCoursePath = null) {
   const activeCourse = targetCoursePath || db.activeCoursePath;
   const courseState = (activeCourse && db.courseStates && db.courseStates[activeCourse]) || null;
-  const effectiveProgress = {
-    ...(db.progress || {}),
-    ...(courseState?.progress || {})
-  };
+  const courseProgress = courseState?.progress || {};
+  const courseNotes = courseState?.notes || (activeCourse ? {} : (db.notes || {}));
   return {
     ...db,
-    progress: effectiveProgress,
+    progress: courseProgress,
+    notes: courseNotes,
     activeCourseState: courseState
   };
 }
@@ -109,6 +108,31 @@ function readDb() {
 
     if (!parsed.courseStates || typeof parsed.courseStates !== 'object') {
       parsed.courseStates = {};
+    }
+
+    // One-time legacy migration: if activeCoursePath exists and has no progress recorded in courseStates,
+    // but legacy global parsed.progress has records, migrate them to parsed.courseStates[activeCoursePath].progress
+    if (parsed.activeCoursePath) {
+      if (!parsed.courseStates[parsed.activeCoursePath]) {
+        parsed.courseStates[parsed.activeCoursePath] = {
+          lastLessonId: null,
+          lastActiveTab: 'video',
+          lastActiveAt: Date.now(),
+          progress: {},
+          notes: {}
+        };
+      }
+      const activeState = parsed.courseStates[parsed.activeCoursePath];
+      if (!activeState.progress || Object.keys(activeState.progress).length === 0) {
+        if (parsed.progress && Object.keys(parsed.progress).length > 0) {
+          activeState.progress = { ...parsed.progress };
+        }
+      }
+      if (!activeState.notes || Object.keys(activeState.notes).length === 0) {
+        if (parsed.notes && Object.keys(parsed.notes).length > 0) {
+          activeState.notes = { ...parsed.notes };
+        }
+      }
     }
 
     if (!parsed.chatHistory || typeof parsed.chatHistory !== 'object') {
@@ -588,16 +612,15 @@ app.get('/api/course-content', (req, res) => {
     const db = readDb();
     const content = scanCourseFolder(coursePath);
     const courseState = db.courseStates?.[coursePath] || null;
-    const effectiveProgress = {
-      ...(db.progress || {}),
-      ...(courseState?.progress || {})
-    };
+    const effectiveProgress = courseState?.progress || {};
+    const effectiveNotes = courseState?.notes || {};
     res.json({
       success: true,
       coursePath,
       sections: content,
       courseState,
-      progress: effectiveProgress
+      progress: effectiveProgress,
+      notes: effectiveNotes
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1165,7 +1188,6 @@ app.post('/api/userdata/progress', (req, res) => {
   }
 
   const currentProgress = (coursePath && db.courseStates[coursePath]?.progress?.[lessonId])
-    || db.progress[lessonId]
     || { completed: false, watchTime: 0, duration: 0 };
   
   const updatedProgress = {
@@ -1177,7 +1199,6 @@ app.post('/api/userdata/progress', (req, res) => {
   if (coursePath) {
     db.courseStates[coursePath].progress[lessonId] = updatedProgress;
   }
-  db.progress[lessonId] = updatedProgress;
 
   writeDb(db);
   res.json(getEffectiveUserData(db, coursePath));
@@ -1217,14 +1238,13 @@ app.post('/api/userdata/course-state', (req, res) => {
   // If watchTime is provided with lastLessonId, also update progress immediately
   if (lastLessonId && typeof watchTime !== 'undefined') {
     if (!state.progress) state.progress = {};
-    const existing = state.progress[lastLessonId] || db.progress[lastLessonId] || { completed: false, watchTime: 0, duration: 0 };
+    const existing = state.progress[lastLessonId] || { completed: false, watchTime: 0, duration: 0 };
     const updated = {
       completed: existing.completed,
       watchTime: Math.floor(watchTime),
       duration: typeof duration !== 'undefined' ? Math.floor(duration) : existing.duration
     };
     state.progress[lastLessonId] = updated;
-    db.progress[lastLessonId] = updated;
   }
 
   writeDb(db);
@@ -1233,55 +1253,92 @@ app.post('/api/userdata/course-state', (req, res) => {
 
 // 8. Add or Update a Note
 app.post('/api/userdata/notes', (req, res) => {
-  const { lessonId, noteId, timestamp, text } = req.body;
+  const { coursePath: reqCoursePath, lessonId, noteId, timestamp, text } = req.body;
   if (!lessonId || typeof timestamp === 'undefined' || !text) {
     return res.status(400).json({ error: 'lessonId, timestamp, and text are required' });
   }
 
   const db = readDb();
-  if (!db.notes[lessonId]) {
-    db.notes[lessonId] = [];
-  }
+  const coursePath = reqCoursePath || db.activeCoursePath;
 
-  if (noteId) {
-    // Edit existing note
-    const note = db.notes[lessonId].find(n => n.id === noteId);
-    if (note) {
-      note.text = text;
-      note.timestamp = timestamp;
+  if (coursePath) {
+    if (!db.courseStates) db.courseStates = {};
+    if (!db.courseStates[coursePath]) {
+      db.courseStates[coursePath] = {
+        lastLessonId: lessonId,
+        lastActiveTab: 'video',
+        lastActiveAt: Date.now(),
+        progress: {},
+        notes: {}
+      };
     }
+    if (!db.courseStates[coursePath].notes) {
+      db.courseStates[coursePath].notes = {};
+    }
+    if (!db.courseStates[coursePath].notes[lessonId]) {
+      db.courseStates[coursePath].notes[lessonId] = [];
+    }
+    const courseNotesList = db.courseStates[coursePath].notes[lessonId];
+    if (noteId) {
+      const note = courseNotesList.find(n => n.id === noteId);
+      if (note) {
+        note.text = text;
+        note.timestamp = timestamp;
+      }
+    } else {
+      const newNote = {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp,
+        text,
+        createdAt: new Date().toISOString()
+      };
+      courseNotesList.push(newNote);
+    }
+    courseNotesList.sort((a, b) => a.timestamp - b.timestamp);
   } else {
-    // Create new note
-    const newNote = {
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp,
-      text,
-      createdAt: new Date().toISOString()
-    };
-    db.notes[lessonId].push(newNote);
+    if (!db.notes[lessonId]) {
+      db.notes[lessonId] = [];
+    }
+    if (noteId) {
+      const note = db.notes[lessonId].find(n => n.id === noteId);
+      if (note) {
+        note.text = text;
+        note.timestamp = timestamp;
+      }
+    } else {
+      const newNote = {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp,
+        text,
+        createdAt: new Date().toISOString()
+      };
+      db.notes[lessonId].push(newNote);
+    }
+    db.notes[lessonId].sort((a, b) => a.timestamp - b.timestamp);
   }
-
-  // Sort notes by timestamp
-  db.notes[lessonId].sort((a, b) => a.timestamp - b.timestamp);
 
   writeDb(db);
-  res.json(db);
+  res.json(getEffectiveUserData(db, coursePath));
 });
 
 // 9. Delete a Note
 app.delete('/api/userdata/notes', (req, res) => {
-  const { lessonId, noteId } = req.body;
+  const { coursePath: reqCoursePath, lessonId, noteId } = req.body;
   if (!lessonId || !noteId) {
     return res.status(400).json({ error: 'lessonId and noteId are required' });
   }
 
   const db = readDb();
-  if (db.notes[lessonId]) {
+  const coursePath = reqCoursePath || db.activeCoursePath;
+
+  if (coursePath && db.courseStates?.[coursePath]?.notes?.[lessonId]) {
+    db.courseStates[coursePath].notes[lessonId] = db.courseStates[coursePath].notes[lessonId].filter(n => n.id !== noteId);
+  } else if (db.notes?.[lessonId]) {
     db.notes[lessonId] = db.notes[lessonId].filter(n => n.id !== noteId);
   }
 
   writeDb(db);
-  res.json(db);
+  res.json(getEffectiveUserData(db, coursePath));
 });
 
 // 9b. Get Chat History for a scope

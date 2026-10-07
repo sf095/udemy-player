@@ -376,9 +376,10 @@ export default function App() {
       const data = await response.json();
       if (data.success) {
         setSections(data.sections);
-        const effectiveProg = data.progress || progress;
-        if (data.progress) {
-          setProgress(data.progress);
+        const effectiveProg = data.progress || {};
+        setProgress(effectiveProg);
+        if (data.notes) {
+          setNotes(data.notes);
         }
         if (data.courseState) {
           setCourseStates(prev => ({ ...prev, [path]: data.courseState }));
@@ -422,6 +423,9 @@ export default function App() {
       }
       if (data.progress) {
         setProgress(data.progress);
+      }
+      if (data.notes) {
+        setNotes(data.notes);
       }
       setTheaterMode(false);
       await fetchCourseContent(data.activeCoursePath, data.courseStates?.[data.activeCoursePath]);
@@ -562,6 +566,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          coursePath,
           lessonId: activeLesson.id,
           timestamp,
           text
@@ -587,6 +592,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          coursePath,
           lessonId: activeLesson.id,
           noteId,
           timestamp,
@@ -608,6 +614,7 @@ export default function App() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          coursePath,
           lessonId: activeLesson.id,
           noteId
         })
