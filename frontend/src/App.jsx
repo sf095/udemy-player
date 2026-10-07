@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon, Minimize2 } from 'lucide-react';
+import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon, Minimize2, ExternalLink } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import AppLogo from './components/AppLogo';
 import VideoPlayer from './components/VideoPlayer';
@@ -992,6 +992,18 @@ export default function App() {
             </div>
           )}
 
+          <a
+            href="https://www.ufetch.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ufetch-header-pill"
+            title="Download & archive premium online courses at ufetch.app"
+          >
+            <span className="ufetch-pill-icon">⚡</span>
+            <span className="ufetch-pill-text">ufetch.app</span>
+            <ExternalLink size={13} className="ufetch-pill-ext" />
+          </a>
+
           <button
             className="btn-toggle"
             onClick={() => setPanelCollapsed(c => !c)}
@@ -1271,6 +1283,26 @@ export default function App() {
               <div className="empty-state-title">Welcome to Udemy Offline Player!</div>
               <div className="empty-state-desc">
                 To get started, please select a course folder directory using the selector in the top bar.
+              </div>
+
+              <div className="ufetch-welcome-card">
+                <div className="ufetch-card-badge">
+                  <span>⚡</span> Official Course Archive
+                </div>
+                <h3 className="ufetch-card-title">Need Online Courses to Learn Offline?</h3>
+                <p className="ufetch-card-desc">
+                  Download and archive your favorite courses on-demand with instant delivery at ufetch.app.
+                </p>
+                <a
+                  href="https://www.ufetch.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ufetch-card-btn"
+                  title="Visit ufetch.app"
+                >
+                  Visit ufetch.app
+                  <ExternalLink size={14} />
+                </a>
               </div>
             </div>
           ) : (
