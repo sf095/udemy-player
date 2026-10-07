@@ -650,9 +650,9 @@ export default function App() {
 
     const handlePointerMove = (moveEvent) => {
       const clientX = moveEvent.clientX;
-      const maxNotesWidth = window.innerWidth - 400;
+      const maxNotesWidth = Math.max(200, window.innerWidth - 300);
       const calculatedWidth = window.innerWidth - clientX;
-      const clampedWidth = Math.max(280, Math.min(650, maxNotesWidth, calculatedWidth));
+      const clampedWidth = Math.max(240, Math.min(650, maxNotesWidth, calculatedWidth));
       setNotesWidth(clampedWidth);
     };
 
@@ -980,7 +980,7 @@ export default function App() {
           onManageCourses={() => setShowCourseManager(true)}
         />
 
-        <div className="header-actions-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="header-actions-right">
           {sections.length > 0 && (
             <div className="course-progress-container">
               <span className="course-progress-text">
@@ -1005,21 +1005,10 @@ export default function App() {
           </a>
 
           <button
-            className="btn-toggle"
+            className={`btn-toggle ${panelCollapsed ? 'panel-collapsed-btn' : ''}`}
             onClick={() => setPanelCollapsed(c => !c)}
             title={panelCollapsed ? "Open Sidebar (B or N)" : "Collapse Sidebar (B or N)"}
-            style={{
-              background: panelCollapsed ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-hover)',
-              border: panelCollapsed ? '1px dashed var(--primary)' : '1px solid var(--border-color)',
-              color: panelCollapsed ? 'var(--primary)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'var(--transition-fast)'
-            }}
+            aria-label={panelCollapsed ? "Open Sidebar" : "Collapse Sidebar"}
           >
             <Menu size={18} />
           </button>
@@ -1028,26 +1017,7 @@ export default function App() {
             className="btn-toggle"
             onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
             title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-            style={{
-              background: 'var(--bg-hover)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'var(--transition-fast)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.background = 'var(--bg-hover-active)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.background = 'var(--bg-hover)';
-            }}
+            aria-label={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -1056,26 +1026,7 @@ export default function App() {
             className="btn-toggle"
             onClick={() => setShowShortcutsModal(true)}
             title="Keyboard Shortcuts (?)"
-            style={{
-              background: 'var(--bg-hover)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'var(--transition-fast)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.background = 'var(--bg-hover-active)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.background = 'var(--bg-hover)';
-            }}
+            aria-label="Keyboard Shortcuts"
           >
             <Keyboard size={18} />
           </button>
@@ -1084,26 +1035,7 @@ export default function App() {
             className="btn-toggle"
             onClick={() => setShowSettingsModal(true)}
             title="Settings (,)"
-            style={{
-              background: 'var(--bg-hover)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'var(--transition-fast)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.background = 'var(--bg-hover-active)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.background = 'var(--bg-hover)';
-            }}
+            aria-label="Settings"
           >
             <Settings size={18} />
           </button>

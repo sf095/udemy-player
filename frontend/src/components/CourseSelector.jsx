@@ -118,8 +118,9 @@ export default function CourseSelector({ currentPath, history, onSelectPath, onM
         </button>
       )}
 
-      <button type="submit" className="btn-load" disabled={isBrowsing || !inputPath.trim()}>
-        Scan Course
+      <button type="submit" className="btn-load" disabled={isBrowsing || !inputPath.trim()} title="Scan Course">
+        <span className="btn-load-text">Scan Course</span>
+        <span className="btn-load-short">Scan</span>
       </button>
     </form>
   );

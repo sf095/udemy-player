@@ -493,98 +493,38 @@ export default function NotesPanel({
   return (
     <div className="notes-panel">
       {/* Right Sidebar Tabs */}
-      <div className="panel-tabs" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-notes-tabs)', overflowX: 'auto' }}>
+      <div className="panel-tabs">
         <button
           className={`panel-tab-btn ${activeTab === 'content' ? 'active' : ''}`}
           onClick={() => setActiveTab('content')}
-          style={{
-            flex: 1,
-            padding: '12px 4px',
-            border: 'none',
-            borderBottom: activeTab === 'content' ? '2px solid var(--primary)' : '2px solid transparent',
-            background: 'transparent',
-            color: activeTab === 'content' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'content' ? 600 : 500,
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            whiteSpace: 'nowrap',
-            transition: 'var(--transition-fast)'
-          }}
+          title="Course Content"
         >
-          <ListOrdered size={14} /> Content
+          <ListOrdered size={14} />
+          <span className="panel-tab-text">Content</span>
         </button>
         <button
           className={`panel-tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
           onClick={() => setActiveTab('summary')}
-          style={{
-            flex: 1,
-            padding: '12px 4px',
-            border: 'none',
-            borderBottom: activeTab === 'summary' ? '2px solid var(--primary)' : '2px solid transparent',
-            background: 'transparent',
-            color: activeTab === 'summary' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'summary' ? 600 : 500,
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            whiteSpace: 'nowrap',
-            transition: 'var(--transition-fast)'
-          }}
+          title="Summary"
         >
-          <FileText size={14} /> Summary
+          <FileText size={14} />
+          <span className="panel-tab-text">Summary</span>
         </button>
         <button
           className={`panel-tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
           onClick={() => setActiveTab('chat')}
-          style={{
-            flex: 1,
-            padding: '12px 4px',
-            border: 'none',
-            borderBottom: activeTab === 'chat' ? '2px solid var(--primary)' : '2px solid transparent',
-            background: 'transparent',
-            color: activeTab === 'chat' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'chat' ? 600 : 500,
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            whiteSpace: 'nowrap',
-            transition: 'var(--transition-fast)'
-          }}
+          title="AI Chat"
         >
-          <MessageSquare size={14} /> AI Chat
+          <MessageSquare size={14} />
+          <span className="panel-tab-text">AI Chat</span>
         </button>
         <button
           className={`panel-tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
           onClick={() => setActiveTab('notes')}
-          style={{
-            flex: 1,
-            padding: '12px 4px',
-            border: 'none',
-            borderBottom: activeTab === 'notes' ? '2px solid var(--primary)' : '2px solid transparent',
-            background: 'transparent',
-            color: activeTab === 'notes' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'notes' ? 600 : 500,
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            whiteSpace: 'nowrap',
-            transition: 'var(--transition-fast)'
-          }}
+          title={notes.length > 0 ? `Notes (${notes.length})` : 'Notes'}
         >
-          <BookOpen size={14} /> Notes{notes.length > 0 ? ` (${notes.length})` : ''}
+          <BookOpen size={14} />
+          <span className="panel-tab-text">Notes{notes.length > 0 ? ` (${notes.length})` : ''}</span>
         </button>
       </div>
 
