@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon, Minimize2, ExternalLink } from 'lucide-react';
+import { Play, BookOpen, Menu, Award, Activity, CheckSquare, Settings, Keyboard, Sun, Moon, Minimize2, ExternalLink, RotateCcw } from 'lucide-react';
 import CourseSelector from './components/CourseSelector';
 import AppLogo from './components/AppLogo';
 import VideoPlayer from './components/VideoPlayer';
@@ -493,6 +493,62 @@ export default function App() {
       console.error('Failed to modify path', err);
       return false;
     }
+  };
+
+  // Reset course progress (completion status, watch times, rewind to lesson 1)
+  const handleResetCourseProgress = async (targetPath = null) => {
+    const courseToReset = targetPath || coursePath;
+    if (!courseToReset) return false;
+
+    try {
+      const isCurrentCourse = courseToReset === coursePath;
+      if (isCurrentCourse && playerRef.current) {
+        playerRef.current.pause();
+        playerRef.current.currentTime = 0;
+      }
+
+      const res = await fetch('/api/userdata/course-progress/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coursePath: courseToReset })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to reset course progress.');
+        return false;
+      }
+
+      if (isCurrentCourse) {
+        setProgress({});
+        if (data.courseState) {
+          setCourseStates(prev => ({ ...prev, [courseToReset]: data.courseState }));
+        }
+        const firstLesson = sections[0]?.lessons?.[0];
+        if (firstLesson) {
+          handleSelectLesson(firstLesson, false);
+        }
+      } else {
+        if (data.courseState) {
+          setCourseStates(prev => ({ ...prev, [courseToReset]: data.courseState }));
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to reset course progress:', err);
+      setError('Network or server error while resetting progress.');
+      return false;
+    }
+  };
+
+  const handleHeaderResetProgress = async () => {
+    if (!coursePath) return;
+    const confirmReset = window.confirm(
+      "Are you sure you want to reset your progress for this course?\n\n" +
+      "All completed lessons and watch times will be reset to 0, allowing you to start from the beginning.\n\n" +
+      "Note: Your notes and AI chat history will be kept safe."
+    );
+    if (!confirmReset) return;
+    await handleResetCourseProgress(coursePath);
   };
 
   // Toggle completion of lesson manually in sidebar
@@ -989,6 +1045,14 @@ export default function App() {
               <div className="course-progress-bar">
                 <div className="course-progress-fill" style={{ width: `${percent}%` }} />
               </div>
+              <button
+                className="btn-toggle reset-course-btn"
+                onClick={handleHeaderResetProgress}
+                title="Reset Course Progress"
+                aria-label="Reset Course Progress"
+              >
+                <RotateCcw size={13} />
+              </button>
             </div>
           )}
 
@@ -1293,6 +1357,7 @@ export default function App() {
           onSelectPath={handleSelectPath}
           onDeletePath={handleDeletePath}
           onModifyPath={handleModifyPath}
+          onResetProgress={handleResetCourseProgress}
           onClose={() => setShowCourseManager(false)}
         />
       )}

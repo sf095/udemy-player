@@ -1251,6 +1251,44 @@ app.post('/api/userdata/course-state', (req, res) => {
   res.json({ success: true, courseState: state, ...getEffectiveUserData(db, coursePath) });
 });
 
+// 7c. Reset Course Progress (clear completed status and watch times, rewind to start)
+app.post('/api/userdata/course-progress/reset', (req, res) => {
+  const { coursePath: reqCoursePath } = req.body || {};
+  const db = readDb();
+  const coursePath = reqCoursePath || db.activeCoursePath;
+
+  if (!coursePath) {
+    return res.status(400).json({ success: false, error: 'coursePath is required' });
+  }
+
+  if (!db.courseStates) {
+    db.courseStates = {};
+  }
+  if (!db.courseStates[coursePath]) {
+    db.courseStates[coursePath] = {
+      lastLessonId: null,
+      lastActiveTab: 'video',
+      lastActiveAt: Date.now(),
+      progress: {},
+      notes: {}
+    };
+  } else {
+    db.courseStates[coursePath].progress = {};
+    db.courseStates[coursePath].lastLessonId = null;
+    db.courseStates[coursePath].lastActiveAt = Date.now();
+  }
+
+  // Clear legacy progress to prevent resurrection on readDb
+  if (db.progress && typeof db.progress === 'object') {
+    if (coursePath === db.activeCoursePath) {
+      db.progress = {};
+    }
+  }
+
+  writeDb(db);
+  res.json({ success: true, courseState: db.courseStates[coursePath], ...getEffectiveUserData(db, coursePath) });
+});
+
 // 8. Add or Update a Note
 app.post('/api/userdata/notes', (req, res) => {
   const { coursePath: reqCoursePath, lessonId, noteId, timestamp, text } = req.body;

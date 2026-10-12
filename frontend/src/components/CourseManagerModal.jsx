@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Trash2, Edit2, Check, FolderOpen, Loader2, Play } from 'lucide-react';
+import { X, Trash2, Edit2, Check, FolderOpen, Loader2, Play, RotateCcw } from 'lucide-react';
 
-export default function CourseManagerModal({ currentPath, history, onSelectPath, onDeletePath, onModifyPath, onClose }) {
+export default function CourseManagerModal({ currentPath, history, onSelectPath, onDeletePath, onModifyPath, onResetProgress, onClose }) {
   const [editingPath, setEditingPath] = useState(null); // stores the path being edited (string)
   const [editValue, setEditValue] = useState('');
   const [errorPath, setErrorPath] = useState('');
@@ -76,6 +76,19 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
     const confirmDelete = window.confirm(`Are you sure you want to remove this course from history?\n\nPath: ${path}\n\nNote: Your course progress and notes are kept safe.`);
     if (confirmDelete) {
       await onDeletePath(path);
+    }
+  };
+
+  const handleReset = async (path) => {
+    const parts = path.split(/[/\\]/).filter(Boolean);
+    const dirName = parts.pop() || path;
+    const confirmReset = window.confirm(
+      `Are you sure you want to reset your progress for this course?\n\nCourse: ${dirName}\n\n` +
+      `All completed lessons and watch times will be reset to 0, allowing you to start from the beginning.\n\n` +
+      `Note: Your notes and AI chat history will be kept safe.`
+    );
+    if (confirmReset && onResetProgress) {
+      await onResetProgress(path);
     }
   };
 
@@ -283,6 +296,31 @@ export default function CourseManagerModal({ currentPath, history, onSelectPath,
                           }}
                         >
                           <Edit2 size={14} />
+                        </button>
+
+                        <button
+                          onClick={() => handleReset(pathItem)}
+                          title="Reset Course Progress"
+                          style={{
+                            background: 'var(--bg-hover)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-secondary)',
+                            padding: '6px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            transition: 'var(--transition-fast)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                            e.currentTarget.style.color = '#ef4444';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'var(--bg-hover)';
+                            e.currentTarget.style.color = 'var(--text-secondary)';
+                          }}
+                        >
+                          <RotateCcw size={14} />
                         </button>
 
                         <button
