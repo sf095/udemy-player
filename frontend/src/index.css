@@ -2360,10 +2360,11 @@ body.resizing video {
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 320px;
+  line-height: 1.3;
+  text-align: left;
+  word-break: break-word;
+  white-space: normal;
+  max-width: none;
   min-width: 0;
   flex-shrink: 1;
   transition: var(--transition-fast);
@@ -2377,13 +2378,13 @@ body.resizing video {
 
 @media (max-width: 950px) {
   .video-chapter-badge {
-    max-width: 160px;
+    max-width: none;
   }
 }
 
 @media (max-width: 768px) {
   .video-chapter-badge {
-    max-width: 100px;
+    max-width: none;
     font-size: 0.7rem;
   }
   .video-time-display {
@@ -2458,9 +2459,10 @@ body.resizing video {
 .timeline-tooltip-chapter {
   color: var(--primary-light, #818cf8);
   font-weight: 600;
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 360px;
+  word-break: break-word;
+  white-space: normal;
+  text-align: center;
 }
 
 .timeline-tooltip-time {

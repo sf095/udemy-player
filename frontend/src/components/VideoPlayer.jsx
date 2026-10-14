@@ -1542,7 +1542,7 @@ export default function VideoPlayer({
                 <button
                   onClick={() => setShowChaptersList(s => !s)}
                   className="video-chapter-badge"
-                  title="Toggle chapters panel (C)"
+                  title={`${chapters[activeChapterIdx].title} (Toggle chapters panel - C)`}
                 >
                   {chapters[activeChapterIdx].title}
                 </button>
