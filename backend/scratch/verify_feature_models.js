@@ -64,7 +64,7 @@ function getAiConfig(db, overrideApiKey, featureKey) {
     baseUrl = db.settings?.anthropicBaseUrl || 'https://api.anthropic.com';
   } else if (effectiveProvider === 'openai') {
     if (!apiKey) apiKey = db.settings?.openaiApiKey || '';
-    defaultModel = db.settings?.openaiModel || 'gpt-4o-mini';
+    defaultModel = db.settings?.openaiModel || 'gpt-5-mini';
     baseUrl = db.settings?.openaiBaseUrl || 'https://api.openai.com';
   } else {
     if (!apiKey) apiKey = db.settings?.geminiApiKey || '';
@@ -99,7 +99,7 @@ test('getAiConfig with empty featureModels falls back to global settings', () =>
     settings: {
       aiProvider: 'openai',
       openaiApiKey: 'openai-key',
-      openaiModel: 'gpt-4o-mini',
+      openaiModel: 'gpt-5-mini',
       openaiBaseUrl: 'https://api.openai.com',
       featureModels: {
         timeline: { provider: '', model: '' }
@@ -110,7 +110,7 @@ test('getAiConfig with empty featureModels falls back to global settings', () =>
   assert.strictEqual(config.provider, 'openai');
   assert.strictEqual(config.providerName, 'OpenAI');
   assert.strictEqual(config.apiKey, 'openai-key');
-  assert.strictEqual(config.model, 'gpt-4o-mini');
+  assert.strictEqual(config.model, 'gpt-5-mini');
   assert.strictEqual(config.baseUrl, 'https://api.openai.com');
 });
 

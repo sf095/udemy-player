@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS = {
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
   openaiApiKey: '',
-  openaiModel: 'gpt-4o-mini',
+  openaiModel: 'gpt-5-mini',
   openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
   controlsPosition: 'floating',
@@ -103,7 +103,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       return anthropicModel.trim() || 'claude-3-5-sonnet-latest';
     }
     if (effectiveProv === 'openai') {
-      return openaiModel.trim() || 'gpt-4o-mini';
+      return openaiModel.trim() || 'gpt-5-mini';
     }
     return geminiModel.trim() || 'gemini-2.5-flash';
   };
@@ -135,7 +135,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
       anthropicModel: anthropicModel.trim() || 'claude-3-5-sonnet-latest',
       anthropicBaseUrl: anthropicBaseUrl.trim() || 'https://api.anthropic.com',
       openaiApiKey: openaiApiKey.trim(),
-      openaiModel: openaiModel.trim() || 'gpt-4o-mini',
+      openaiModel: openaiModel.trim() || 'gpt-5-mini',
       openaiBaseUrl: openaiBaseUrl.trim() || 'https://api.openai.com',
       autoplayNext,
       controlsPosition: controlsPosition === 'bottom' ? 'bottom' : 'floating',
@@ -437,7 +437,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 <input
                   id="openai-model"
                   type="text"
-                  placeholder="gpt-4o-mini"
+                  placeholder="gpt-5-mini"
                   value={openaiModel}
                   onChange={(e) => setOpenaiModel(e.target.value)}
                   style={{

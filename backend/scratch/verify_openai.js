@@ -130,7 +130,7 @@ test('getAiConfig resolution for OpenAI', () => {
     anthropicModel: 'claude-3-5-sonnet-latest',
     anthropicBaseUrl: 'https://api.anthropic.com',
     openaiApiKey: '',
-    openaiModel: 'gpt-4o-mini',
+    openaiModel: 'gpt-5-mini',
     openaiBaseUrl: 'https://api.openai.com'
   };
 
@@ -146,7 +146,7 @@ test('getAiConfig resolution for OpenAI', () => {
     const model = provider === 'anthropic'
       ? db.settings?.anthropicModel || 'claude-3-5-sonnet-latest'
       : provider === 'openai'
-      ? db.settings?.openaiModel || 'gpt-4o-mini'
+      ? db.settings?.openaiModel || 'gpt-5-mini'
       : null;
     const baseUrl = provider === 'anthropic'
       ? db.settings?.anthropicBaseUrl || 'https://api.anthropic.com'
@@ -164,4 +164,57 @@ test('getAiConfig resolution for OpenAI', () => {
   assert.strictEqual(config.baseUrl, 'https://api.openai.com/v1');
 });
 
+// Test 5: OpenAI Payload max_completion_tokens parameter
+test('OpenAI request body formatting with max_completion_tokens', () => {
+  function buildOpenAiRequestBody(model, messages, maxTokens = 4096, useMaxTokens = false) {
+    const bodyObj = {
+      model,
+      messages
+    };
+    if (useMaxTokens) {
+      bodyObj.max_tokens = maxTokens;
+    } else {
+      bodyObj.max_completion_tokens = maxTokens;
+    }
+    return bodyObj;
+  }
+
+  const defaultBody = buildOpenAiRequestBody('gpt-5-nano', [{ role: 'user', content: 'Hello' }], 4096, false);
+  assert.strictEqual(defaultBody.model, 'gpt-5-nano');
+  assert.strictEqual(defaultBody.max_completion_tokens, 4096);
+  assert.strictEqual(defaultBody.max_tokens, undefined);
+
+  const fallbackBody = buildOpenAiRequestBody('legacy-model', [{ role: 'user', content: 'Hello' }], 2048, true);
+  assert.strictEqual(fallbackBody.max_tokens, 2048);
+  assert.strictEqual(fallbackBody.max_completion_tokens, undefined);
+});
+
+// Test 6: Fallback condition detection for legacy endpoints
+test('OpenAI fallback detection when max_completion_tokens is unsupported', () => {
+  function shouldFallbackToMaxTokens(status, responseText) {
+    return status === 400 && typeof responseText === 'string' && responseText.includes('max_completion_tokens');
+  }
+
+  const legacyErrorResponse = JSON.stringify({
+    error: {
+      message: "Unsupported parameter: 'max_completion_tokens' is not supported. Use 'max_tokens' instead.",
+      param: 'max_completion_tokens',
+      code: 'unsupported_parameter'
+    }
+  });
+
+  const unrelatedErrorResponse = JSON.stringify({
+    error: {
+      message: "Invalid API key provided",
+      type: "invalid_request_error"
+    }
+  });
+
+  assert.strictEqual(shouldFallbackToMaxTokens(400, legacyErrorResponse), true);
+  assert.strictEqual(shouldFallbackToMaxTokens(400, unrelatedErrorResponse), false);
+  assert.strictEqual(shouldFallbackToMaxTokens(500, legacyErrorResponse), false);
+  assert.strictEqual(shouldFallbackToMaxTokens(200, ''), false);
+});
+
 console.log('All verification tests passed successfully!');
+

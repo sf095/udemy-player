@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS = {
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
   openaiApiKey: '',
-  openaiModel: 'gpt-4o-mini',
+  openaiModel: 'gpt-5-mini',
   openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
   controlsPosition: 'floating',
@@ -258,7 +258,7 @@ function getAiConfig(db, overrideApiKey, featureKey) {
     baseUrl = db.settings?.anthropicBaseUrl || 'https://api.anthropic.com';
   } else if (effectiveProvider === 'openai') {
     if (!apiKey) apiKey = db.settings?.openaiApiKey || '';
-    defaultModel = db.settings?.openaiModel || 'gpt-4o-mini';
+    defaultModel = db.settings?.openaiModel || 'gpt-5-mini';
     baseUrl = db.settings?.openaiBaseUrl || 'https://api.openai.com';
   } else {
     if (!apiKey) apiKey = db.settings?.geminiApiKey || '';
@@ -396,18 +396,27 @@ async function callOpenAI(apiKey, baseUrl, model, messages, maxTokens = 4096) {
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
-  try {
-    const response = await fetch(url, {
+  const sendRequest = async (useMaxTokens = false) => {
+    const bodyObj = {
+      model: model,
+      messages: messages
+    };
+    if (useMaxTokens) {
+      bodyObj.max_tokens = maxTokens;
+    } else {
+      bodyObj.max_completion_tokens = maxTokens;
+    }
+
+    return await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        model: model,
-        max_tokens: maxTokens,
-        messages: messages
-      }),
+      body: JSON.stringify(bodyObj),
       signal: controller.signal
     });
-    clearTimeout(timeout);
+  };
+
+  try {
+    let response = await sendRequest(false);
 
     let responseText = '';
     try {
@@ -415,6 +424,19 @@ async function callOpenAI(apiKey, baseUrl, model, messages, maxTokens = 4096) {
     } catch (readErr) {
       console.warn('Failed to read response body:', readErr);
     }
+
+    // Fallback to legacy max_tokens if endpoint rejects max_completion_tokens
+    if (response.status === 400 && responseText && responseText.includes('max_completion_tokens')) {
+      console.warn(`OpenAI endpoint rejected 'max_completion_tokens', retrying with legacy 'max_tokens'...`);
+      response = await sendRequest(true);
+      try {
+        responseText = await response.text();
+      } catch (readErr) {
+        console.warn('Failed to read response body on fallback:', readErr);
+      }
+    }
+
+    clearTimeout(timeout);
 
     if (response.ok) {
       try {

@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   anthropicModel: 'claude-3-5-sonnet-latest',
   anthropicBaseUrl: 'https://api.anthropic.com',
   openaiApiKey: '',
-  openaiModel: 'gpt-4o-mini',
+  openaiModel: 'gpt-5-mini',
   openaiBaseUrl: 'https://api.openai.com',
   autoplayNext: false,
   controlsPosition: 'floating',

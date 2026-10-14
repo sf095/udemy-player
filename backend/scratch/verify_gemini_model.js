@@ -65,7 +65,7 @@ async function asyncTest(name, fn) {
       anthropicModel: 'claude-3-5-sonnet-latest',
       anthropicBaseUrl: 'https://api.anthropic.com',
       openaiApiKey: '',
-      openaiModel: 'gpt-4o-mini',
+      openaiModel: 'gpt-5-mini',
       openaiBaseUrl: 'https://api.openai.com'
     };
 
@@ -81,7 +81,7 @@ async function asyncTest(name, fn) {
       const model = provider === 'anthropic'
         ? db.settings?.anthropicModel || 'claude-3-5-sonnet-latest'
         : provider === 'openai'
-        ? db.settings?.openaiModel || 'gpt-4o-mini'
+        ? db.settings?.openaiModel || 'gpt-5-mini'
         : db.settings?.geminiModel || 'gemini-2.5-flash';
       const baseUrl = provider === 'anthropic'
         ? db.settings?.anthropicBaseUrl || 'https://api.anthropic.com'
