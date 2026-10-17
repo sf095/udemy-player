@@ -377,6 +377,72 @@ async function callAiProvider(config, prompt, options = {}) {
   return await callGemini(apiKey, payload, false, model, returnSources);
 }
 
+// Helper to robustly extract assistant content from OpenAI response objects
+function extractOpenAiResponseContent(responseData) {
+  if (responseData.choices && Array.isArray(responseData.choices) && responseData.choices.length > 0) {
+    const choice = responseData.choices[0];
+
+    // Check for explicit refusal by the model (e.g. safety policy)
+    if (choice?.message?.refusal && typeof choice.message.refusal === 'string') {
+      throw new Error(`OpenAI model refused the request: ${choice.message.refusal}`);
+    }
+
+    // Standard string content
+    if (typeof choice?.message?.content === 'string') {
+      if (choice.message.content.trim().length > 0) {
+        return choice.message.content;
+      }
+      // Check for reasoning_content fallback if content is empty string (e.g. DeepSeek R1)
+      if (typeof choice?.message?.reasoning_content === 'string' && choice.message.reasoning_content.trim().length > 0) {
+        return choice.message.reasoning_content;
+      }
+      // If content is empty string, check if the model hit token limit during reasoning
+      if (choice.finish_reason === 'length') {
+        throw new Error("OpenAI request reached its output token limit (finish_reason: 'length') before generating content. Please increase maxTokens or use a model with a larger completion budget.");
+      }
+      // Empty content with another finish reason
+      throw new Error(`OpenAI returned an empty response (finish_reason: '${choice.finish_reason || 'unknown'}').`);
+    }
+
+    // Array content (multi-part text blocks, e.g. [{ type: 'text', text: '...' }])
+    if (Array.isArray(choice?.message?.content)) {
+      const combined = choice.message.content
+        .map(part => (typeof part === 'string' ? part : part?.text || ''))
+        .filter(text => text.trim().length > 0)
+        .join('');
+      if (combined.trim().length > 0) {
+        return combined;
+      }
+    }
+
+    // Check if content is null/empty due to length finish reason
+    if (choice.finish_reason === 'length') {
+      throw new Error("OpenAI request reached its output token limit (finish_reason: 'length') before generating content. Please increase maxTokens or use a model with a larger completion budget.");
+    }
+
+    // Legacy text property on choice
+    if (typeof choice?.text === 'string' && choice.text.trim().length > 0) {
+      return choice.text;
+    }
+
+    // Compatible reasoning content (e.g. DeepSeek R1 / OpenRouter) if normal content is absent
+    if (typeof choice?.message?.reasoning_content === 'string' && choice.message.reasoning_content.trim().length > 0) {
+      return choice.message.reasoning_content;
+    }
+  }
+
+  // Direct content or text properties for non-standard compatible providers
+  if (typeof responseData.content === 'string' && responseData.content.trim().length > 0) {
+    return responseData.content;
+  }
+  if (typeof responseData.text === 'string' && responseData.text.trim().length > 0) {
+    return responseData.text;
+  }
+
+  console.warn('OpenAI response HTTP 200 but no extractable content found. Full response:', JSON.stringify(responseData));
+  throw new Error('OpenAI API returned HTTP 200 but the response content could not be parsed.');
+}
+
 // Caller for OpenAI API or OpenAI-compatible custom endpoints
 async function callOpenAI(apiKey, baseUrl, model, messages, maxTokens = 4096) {
   const rawBaseUrl = (baseUrl || 'https://api.openai.com').trim().replace(/\/+$/, '');
@@ -439,36 +505,13 @@ async function callOpenAI(apiKey, baseUrl, model, messages, maxTokens = 4096) {
     clearTimeout(timeout);
 
     if (response.ok) {
+      let responseData;
       try {
-        const responseData = JSON.parse(responseText);
-
-        // Standard OpenAI format: choices[0].message.content
-        if (responseData.choices && Array.isArray(responseData.choices) && responseData.choices.length > 0) {
-          const choice = responseData.choices[0];
-          if (choice?.message?.content && typeof choice.message.content === 'string') {
-            return choice.message.content;
-          }
-          if (typeof choice?.text === 'string') {
-            return choice.text;
-          }
-        }
-
-        // Direct content or text properties for non-standard compatible providers
-        if (typeof responseData.content === 'string') {
-          return responseData.content;
-        }
-        if (typeof responseData.text === 'string') {
-          return responseData.text;
-        }
-
-        console.warn('OpenAI response HTTP 200 but no extractable content found. Response keys:', Object.keys(responseData));
-        throw new Error('OpenAI API returned HTTP 200 but the response content could not be parsed.');
+        responseData = JSON.parse(responseText);
       } catch (jsonErr) {
-        if (jsonErr.message && jsonErr.message.includes('response content could not be parsed')) {
-          throw jsonErr;
-        }
         return responseText;
       }
+      return extractOpenAiResponseContent(responseData);
     }
 
     console.warn(`OpenAI call with model ${model} failed (HTTP ${response.status}):`, responseText);
@@ -1710,7 +1753,7 @@ The summary must:
 ${subtitleContent}`;
 
     console.log(`Calling ${config.providerName} API for summary in ${targetLanguageName}...`);
-    let summaryText = await callAiProvider(config, prompt);
+    let summaryText = await callAiProvider(config, prompt, { maxTokens: 8192 });
 
     // Clean up markdown block if the model returned it
     summaryText = summaryText.replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/g, '').trim();
@@ -1884,7 +1927,7 @@ The summary must:
 ${combinedTranscript}`;
 
     console.log(`Calling ${config.providerName} API for chapter summary in ${targetLanguageName}...`);
-    let summaryText = await callAiProvider(config, prompt);
+    let summaryText = await callAiProvider(config, prompt, { maxTokens: 16384 });
 
     summaryText = summaryText.replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/g, '').trim();
 

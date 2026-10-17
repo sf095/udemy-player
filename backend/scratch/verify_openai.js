@@ -32,38 +32,183 @@ test('URL normalization logic for OpenAI endpoints', () => {
 });
 
 // Test 2: OpenAI Response Content Parsing
-test('Response content extraction logic', () => {
-  function parseContent(responseData) {
+test('Response content extraction logic handles strings, arrays, refusals, and token exhaustion', () => {
+  function extractOpenAiResponseContent(responseData) {
     if (responseData.choices && Array.isArray(responseData.choices) && responseData.choices.length > 0) {
       const choice = responseData.choices[0];
-      if (choice?.message?.content && typeof choice.message.content === 'string') {
-        return choice.message.content;
+
+      // Check for explicit refusal by the model (e.g. safety policy)
+      if (choice?.message?.refusal && typeof choice.message.refusal === 'string') {
+        throw new Error(`OpenAI model refused the request: ${choice.message.refusal}`);
       }
-      if (typeof choice?.text === 'string') {
+
+      // Standard string content
+      if (typeof choice?.message?.content === 'string') {
+        if (choice.message.content.trim().length > 0) {
+          return choice.message.content;
+        }
+        // Check for reasoning_content fallback if content is empty string (e.g. DeepSeek R1)
+        if (typeof choice?.message?.reasoning_content === 'string' && choice.message.reasoning_content.trim().length > 0) {
+          return choice.message.reasoning_content;
+        }
+        // If content is empty string, check if the model hit token limit during reasoning
+        if (choice.finish_reason === 'length') {
+          throw new Error("OpenAI request reached its output token limit (finish_reason: 'length') before generating content. Please increase maxTokens or use a model with a larger completion budget.");
+        }
+        // Empty content with another finish reason
+        throw new Error(`OpenAI returned an empty response (finish_reason: '${choice.finish_reason || 'unknown'}').`);
+      }
+
+      // Array content (multi-part text blocks, e.g. [{ type: 'text', text: '...' }])
+      if (Array.isArray(choice?.message?.content)) {
+        const combined = choice.message.content
+          .map(part => (typeof part === 'string' ? part : part?.text || ''))
+          .filter(text => text.trim().length > 0)
+          .join('');
+        if (combined.trim().length > 0) {
+          return combined;
+        }
+      }
+
+      // Check if content is null/empty due to length finish reason
+      if (choice.finish_reason === 'length') {
+        throw new Error("OpenAI request reached its output token limit (finish_reason: 'length') before generating content. Please increase maxTokens or use a model with a larger completion budget.");
+      }
+
+      // Legacy text property on choice
+      if (typeof choice?.text === 'string' && choice.text.trim().length > 0) {
         return choice.text;
       }
+
+      // Compatible reasoning content (e.g. DeepSeek R1 / OpenRouter) if normal content is absent
+      if (typeof choice?.message?.reasoning_content === 'string' && choice.message.reasoning_content.trim().length > 0) {
+        return choice.message.reasoning_content;
+      }
     }
-    if (typeof responseData.content === 'string') {
+
+    // Direct content or text properties for non-standard compatible providers
+    if (typeof responseData.content === 'string' && responseData.content.trim().length > 0) {
       return responseData.content;
     }
-    if (typeof responseData.text === 'string') {
+    if (typeof responseData.text === 'string' && responseData.text.trim().length > 0) {
       return responseData.text;
     }
-    throw new Error('No content found');
+
+    throw new Error('OpenAI API returned HTTP 200 but the response content could not be parsed.');
   }
 
+  // 2a. Standard response
   const standardResponse = {
-    id: 'chatcmpl-123',
     choices: [
       {
-        index: 0,
         message: { role: 'assistant', content: 'Hello from OpenAI!' },
         finish_reason: 'stop'
       }
     ]
   };
-  assert.strictEqual(parseContent(standardResponse), 'Hello from OpenAI!');
-  assert.strictEqual(parseContent({ content: 'Direct text content' }), 'Direct text content');
+  assert.strictEqual(extractOpenAiResponseContent(standardResponse), 'Hello from OpenAI!');
+
+  // 2b. Multi-part array content
+  const arrayResponse = {
+    choices: [
+      {
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'Part 1. ' },
+            { type: 'text', text: 'Part 2.' }
+          ]
+        },
+        finish_reason: 'stop'
+      }
+    ]
+  };
+  assert.strictEqual(extractOpenAiResponseContent(arrayResponse), 'Part 1. Part 2.');
+
+  // 2c. Model refusal
+  const refusalResponse = {
+    choices: [
+      {
+        message: {
+          role: 'assistant',
+          content: null,
+          refusal: 'Content policy violation'
+        },
+        finish_reason: 'stop'
+      }
+    ]
+  };
+  assert.throws(
+    () => extractOpenAiResponseContent(refusalResponse),
+    /OpenAI model refused the request: Content policy violation/
+  );
+
+  // 2d. Token exhaustion with empty string content (GPT-5-mini / o1 reasoning models)
+  const tokenLimitEmptyResponse = {
+    choices: [
+      {
+        message: { role: 'assistant', content: '', refusal: null },
+        finish_reason: 'length'
+      }
+    ]
+  };
+  assert.throws(
+    () => extractOpenAiResponseContent(tokenLimitEmptyResponse),
+    /output token limit \(finish_reason: 'length'\)/
+  );
+
+  // 2e. Token exhaustion with null content
+  const tokenLimitNullResponse = {
+    choices: [
+      {
+        message: { role: 'assistant', content: null },
+        finish_reason: 'length'
+      }
+    ]
+  };
+  assert.throws(
+    () => extractOpenAiResponseContent(tokenLimitNullResponse),
+    /output token limit \(finish_reason: 'length'\)/
+  );
+
+  // 2f. Empty response with other finish reason
+  const emptyResponse = {
+    choices: [
+      {
+        message: { role: 'assistant', content: '   ' },
+        finish_reason: 'stop'
+      }
+    ]
+  };
+  assert.throws(
+    () => extractOpenAiResponseContent(emptyResponse),
+    /empty response \(finish_reason: 'stop'\)/
+  );
+
+  // 2g. Reasoning content fallback (e.g. DeepSeek R1)
+  const reasoningOnlyResponse = {
+    choices: [
+      {
+        message: {
+          role: 'assistant',
+          content: '',
+          reasoning_content: 'Step by step summary from reasoning'
+        },
+        finish_reason: 'stop'
+      }
+    ]
+  };
+  assert.strictEqual(extractOpenAiResponseContent(reasoningOnlyResponse), 'Step by step summary from reasoning');
+
+  // 2h. Direct content/text fallbacks
+  assert.strictEqual(extractOpenAiResponseContent({ content: 'Direct text' }), 'Direct text');
+  assert.strictEqual(extractOpenAiResponseContent({ text: 'Direct legacy text' }), 'Direct legacy text');
+
+  // 2i. Completely unparseable response throws original error
+  assert.throws(
+    () => extractOpenAiResponseContent({ unexpected: true }),
+    /OpenAI API returned HTTP 200 but the response content could not be parsed/
+  );
 });
 
 // Test 3: OpenAI Payload construction
@@ -216,5 +361,23 @@ test('OpenAI fallback detection when max_completion_tokens is unsupported', () =
   assert.strictEqual(shouldFallbackToMaxTokens(200, ''), false);
 });
 
+// Test 7: Static checks in server.js for OpenAI response extraction and summarization token limits
+test('server.js implements robust OpenAI response parsing and sets summarization maxTokens', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const serverContent = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
+
+  // Must check for refusal handling
+  assert(serverContent.includes('refusal'), 'server.js must handle model refusal');
+
+  // Must detect output token exhaustion when content is empty/null
+  assert(serverContent.includes("finish_reason === 'length'"), 'server.js must detect finish_reason length');
+
+  // Must allocate higher token limits for chapter and lesson summaries
+  assert(serverContent.includes('maxTokens: 16384'), 'server.js must pass maxTokens: 16384 for section summarization');
+  assert(serverContent.includes('maxTokens: 8192'), 'server.js must pass maxTokens: 8192 for lesson summarization');
+});
+
 console.log('All verification tests passed successfully!');
+
 
